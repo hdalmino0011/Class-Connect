@@ -462,7 +462,7 @@
       switchView("view-home");
     });
 
-    // Offline / online detection
+    // Offline / online detection - ONLY react to real events
     window.addEventListener("offline", () => handleOffline(true));
     window.addEventListener("online", () => handleOffline(false));
   }
@@ -471,14 +471,10 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
+  // SIMPLIFIED: Only shows/hides based on the event, no extra checks
   function handleOffline(isOffline) {
     const banner = document.getElementById("offline-banner");
-    // Only show if truly offline
-    if (isOffline && !navigator.onLine) {
-      banner.hidden = false;
-    } else {
-      banner.hidden = true;
-    }
+    banner.hidden = !isOffline;
   }
 
   /* ---------------------------------------------------------
@@ -509,11 +505,8 @@
     initEventListeners();
     registerServiceWorker();
     checkInstallStatus();
-    
-    // Check online status with a small delay to ensure proper detection
-    setTimeout(() => {
-      handleOffline(!navigator.onLine);
-    }, 500);
+
+    // NO offline check here — only real events will trigger the banner
 
     // Add splash-active class to body to prevent scrolling
     document.body.classList.add("splash-active");
