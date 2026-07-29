@@ -10,8 +10,7 @@ const ASSETS_TO_CACHE = [
   "style.css",
   "script.js",
   "manifest.json",
-  "icons/icon-192.png",
-  "icons/icon-512.png"
+  "logo.png"
 ];
 
 // Install: pre-cache core app shell
@@ -19,7 +18,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE).catch(() => {
-        // If an asset (e.g. icon placeholder) is missing, don't block install.
+        // If an asset is missing, don't block install.
         return Promise.resolve();
       });
     })
