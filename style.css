@@ -56,6 +56,14 @@ a { color: var(--primary-blue); text-decoration: none; }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ---------- Prevent scrolling during splash ---------- */
+body.splash-active {
+  overflow: hidden;
+  height: 100%;
+  position: fixed;
+  width: 100%;
+}
+
 /* =========================================================
    SPLASH SCREEN
    ========================================================= */
@@ -64,11 +72,13 @@ a { color: var(--primary-blue); text-decoration: none; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
   background: linear-gradient(160deg, var(--deep-navy) 0%, var(--primary-blue) 100%);
   color: var(--white);
   text-align: center;
-  position: relative;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
 }
 
 .splash-content {
