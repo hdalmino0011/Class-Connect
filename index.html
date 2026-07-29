@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ClassConnect</title>
+<meta name="description" content="Connect with your classmates">
+<meta name="theme-color" content="#1A2A4A">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ==================== PAGE 1: SPLASH SCREEN ==================== -->
+<section id="splash-page" class="page active-page">
+  <div class="splash-content">
+    <div class="splash-logo">
+      <i class="fas fa-graduation-cap"></i>
+    </div>
+    <h1 class="splash-title">ClassConnect</h1>
+    <div class="loading-dots" aria-label="Loading">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+  <footer class="splash-footer">HDDev | All Rights Reserved 2026</footer>
+</section>
+
+<!-- ==================== PAGE 2: LOGIN / SIGNUP ==================== -->
+<section id="login-page" class="page">
+  <div class="auth-wrapper">
+    <div class="auth-card">
+
+      <div class="auth-logo">
+        <i class="fas fa-graduation-cap"></i>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form id="login-form" class="auth-form active-form" novalidate>
+        <h2 class="auth-title">Welcome Back!</h2>
+        <p class="auth-subtitle">Log in to continue to ClassConnect</p>
+
+        <div id="login-error" class="form-error" hidden></div>
+
+        <div class="input-group">
+          <i class="fas fa-envelope input-icon"></i>
+          <input type="email" id="login-email" placeholder="Email address" required autocomplete="email">
+        </div>
+
+        <div class="input-group">
+          <i class="fas fa-lock input-icon"></i>
+          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
+          <button type="button" class="toggle-password" data-target="login-password" aria-label="Show password">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+
+        <a href="#" class="forgot-link">Forgot Password?</a>
+
+        <button type="submit" class="btn-primary" id="login-submit-btn">
+          <span class="btn-text">Log In</span>
+          <span class="btn-spinner" hidden><i class="fas fa-circle-notch fa-spin"></i></span>
+        </button>
+
+        <p class="switch-form-text">
+          Don't have an account yet?
+          <a href="#" id="show-signup">Sign Up</a>
+        </p>
+      </form>
+
+      <!-- SIGNUP FORM -->
+      <form id="signup-form" class="auth-form" novalidate>
+        <h2 class="auth-title">Create Account</h2>
+        <p class="auth-subtitle">Join your classmates on ClassConnect</p>
+
+        <div id="signup-error" class="form-error" hidden></div>
+
+        <div class="input-group">
+          <i class="fas fa-user input-icon"></i>
+          <input type="text" id="signup-name" placeholder="Full Name" required autocomplete="name">
+        </div>
+
+        <div class="input-group">
+          <i class="fas fa-envelope input-icon"></i>
+          <input type="email" id="signup-email" placeholder="Email address" required autocomplete="email">
+        </div>
+
+        <div class="input-group">
+          <i class="fas fa-lock input-icon"></i>
+          <input type="password" id="signup-password" placeholder="Password" required autocomplete="new-password">
+          <button type="button" class="toggle-password" data-target="signup-password" aria-label="Show password">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+
+        <div class="input-group">
+          <i class="fas fa-lock input-icon"></i>
+          <input type="password" id="signup-confirm" placeholder="Confirm Password" required autocomplete="new-password">
+          <button type="button" class="toggle-password" data-target="signup-confirm" aria-label="Show password">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+
+        <button type="submit" class="btn-primary" id="signup-submit-btn">
+          <span class="btn-text">Sign Up</span>
+          <span class="btn-spinner" hidden><i class="fas fa-circle-notch fa-spin"></i></span>
+        </button>
+
+        <p class="switch-form-text">
+          Already have an account?
+          <a href="#" id="show-login">Login</a>
+        </p>
+      </form>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== PAGE 3: DASHBOARD ==================== -->
+<section id="dashboard-page" class="page">
+
+  <header class="dashboard-topnav">
+    <div class="topnav-brand">
+      <i class="fas fa-graduation-cap"></i>
+      <span>ClassConnect</span>
+    </div>
+    <div class="topnav-right">
+      <span class="welcome-text">Welcome, <strong id="dash-user-name">Student</strong></span>
+      <button id="logout-btn" class="btn-logout">
+        <i class="fas fa-right-from-bracket"></i>
+        <span class="logout-label">Logout</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard-main">
+
+    <!-- HOME / FEED VIEW -->
+    <div id="view-home" class="dashboard-view active-view">
+
+      <div class="create-post-card">
+        <div class="create-post-row">
+          <div class="avatar-circle" id="composer-avatar">S</div>
+          <button id="open-composer-btn" class="composer-fake-input">What's happening in class?</button>
+        </div>
+        <button id="open-composer-btn-2" class="btn-cta">
+          <i class="fas fa-plus"></i> Create Post
+        </button>
+      </div>
+
+      <div id="posts-feed" class="posts-feed">
+        <!-- posts injected by script.js -->
+      </div>
+    </div>
+
+    <!-- CLASSES VIEW -->
+    <div id="view-classes" class="dashboard-view">
+      <h2 class="view-heading">My Classes</h2>
+      <div id="classes-list" class="classes-list">
+        <!-- classes injected by script.js -->
+      </div>
+    </div>
+
+    <!-- PROFILE VIEW -->
+    <div id="view-profile" class="dashboard-view">
+      <h2 class="view-heading">Profile</h2>
+      <div class="profile-card">
+        <div class="avatar-circle avatar-large" id="profile-avatar">S</div>
+        <h3 id="profile-name">Student Name</h3>
+        <p id="profile-email">student@email.com</p>
+        <button id="logout-btn-2" class="btn-secondary">
+          <i class="fas fa-right-from-bracket"></i> Logout
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAV (mobile-friendly) -->
+  <nav class="bottom-nav">
+    <button class="nav-item active-nav" data-view="view-home">
+      <i class="fas fa-house"></i>
+      <span>Home</span>
+    </button>
+    <button class="nav-item" data-view="view-classes">
+      <i class="fas fa-book"></i>
+      <span>Classes</span>
+    </button>
+    <button class="nav-item" data-view="view-profile">
+      <i class="fas fa-user"></i>
+      <span>Profile</span>
+    </button>
+  </nav>
+
+</section>
+
+<!-- ==================== CREATE POST MODAL ==================== -->
+<div id="post-modal-overlay" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Create Post</h3>
+      <button id="close-modal-btn" class="modal-close" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <textarea id="post-content-input" placeholder="Share an announcement or update with your classmates..." rows="5"></textarea>
+    <button id="submit-post-btn" class="btn-primary">Post</button>
+  </div>
+</div>
+
+<!-- ==================== OFFLINE BANNER ==================== -->
+<div id="offline-banner" class="offline-banner" hidden>
+  <i class="fas fa-wifi"></i> You are currently offline
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
