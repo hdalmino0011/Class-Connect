@@ -243,8 +243,17 @@
   }
 
   function showPage(pageId) {
+    // Remove active class from all pages
     document.querySelectorAll(".page").forEach((p) => p.classList.remove("active-page"));
-    document.getElementById(pageId).classList.add("active-page");
+    
+    // Add active class to target page
+    const targetPage = document.getElementById(pageId);
+    targetPage.classList.add("active-page");
+    
+    // If showing login page, remove splash-active class from body to allow scrolling
+    if (pageId === "login-page" || pageId === "dashboard-page") {
+      document.body.classList.remove("splash-active");
+    }
   }
 
   function showLoginForm() {
@@ -464,7 +473,12 @@
 
   function handleOffline(isOffline) {
     const banner = document.getElementById("offline-banner");
-    banner.hidden = !isOffline;
+    // Only show if truly offline
+    if (isOffline && !navigator.onLine) {
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
   }
 
   /* ---------------------------------------------------------
@@ -495,7 +509,14 @@
     initEventListeners();
     registerServiceWorker();
     checkInstallStatus();
-    handleOffline(!navigator.onLine);
+    
+    // Check online status with a small delay to ensure proper detection
+    setTimeout(() => {
+      handleOffline(!navigator.onLine);
+    }, 500);
+
+    // Add splash-active class to body to prevent scrolling
+    document.body.classList.add("splash-active");
 
     setTimeout(() => {
       if (isLoggedIn()) {
@@ -505,6 +526,8 @@
         showPage("login-page");
         showLoginForm();
       }
+      // Remove splash-active class after transition
+      document.body.classList.remove("splash-active");
     }, 2200);
   }
 
