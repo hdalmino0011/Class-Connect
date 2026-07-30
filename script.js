@@ -245,12 +245,12 @@
   function showPage(pageId) {
     // Remove active class from all pages
     document.querySelectorAll(".page").forEach((p) => p.classList.remove("active-page"));
-    
+
     // Add active class to target page
     const targetPage = document.getElementById(pageId);
     targetPage.classList.add("active-page");
-    
-    // If showing login page, remove splash-active class from body to allow scrolling
+
+    // If showing login page or dashboard, remove splash-active class from body to allow scrolling
     if (pageId === "login-page" || pageId === "dashboard-page") {
       document.body.classList.remove("splash-active");
     }
@@ -462,7 +462,9 @@
       switchView("view-home");
     });
 
-    // Offline / online detection - ONLY react to real events
+    // Offline / online detection — ONLY react to real browser events.
+    // Do NOT check navigator.onLine on page load; it is unreliable
+    // (especially over file:// or in some WebViews) and causes false positives.
     window.addEventListener("offline", () => handleOffline(true));
     window.addEventListener("online", () => handleOffline(false));
   }
@@ -471,7 +473,6 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
-  // SIMPLIFIED: Only shows/hides based on the event, no extra checks
   function handleOffline(isOffline) {
     const banner = document.getElementById("offline-banner");
     banner.hidden = !isOffline;
@@ -506,7 +507,9 @@
     registerServiceWorker();
     checkInstallStatus();
 
-    // NO offline check here — only real events will trigger the banner
+    // Offline banner starts hidden and only reacts to real
+    // "online"/"offline" browser events from here on — no
+    // navigator.onLine check on load (see note above).
 
     // Add splash-active class to body to prevent scrolling
     document.body.classList.add("splash-active");
