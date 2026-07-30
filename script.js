@@ -26,30 +26,47 @@
   /* ---------------------------------------------------------
      DEMO DATA
   --------------------------------------------------------- */
-  const DEMO_CLASSES = [
-    { name: "Data Structures & Algorithms", section: "BSIT 3-A", icon: "fa-code", color: "#2563EB" },
-    { name: "Web Systems and Technologies", section: "BSIT 3-A", icon: "fa-globe", color: "#8B5CF6" },
-    { name: "Networking II", section: "BSIT 3-B", icon: "fa-network-wired", color: "#10B981" },
-    { name: "Technopreneurship", section: "BSIT 3-A", icon: "fa-lightbulb", color: "#F59E0B" },
-  ];
-
   const DEMO_CLASSMATES = [
     { name: "Maria Delacruz", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Juan Reyes", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Anna Santos", course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
-    { name: "Carlos Garcia", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Lisa Tan", course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
+    { name: "Juan Reyes",     course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
+    { name: "Anna Santos",    course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
+    { name: "Carlos Garcia",  course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
+    { name: "Lisa Tan",       course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
   ];
 
   const DEMO_FAQS = [
-    { question: "What is ClassConnect?", answer: "ClassConnect is a platform designed to help students connect with classmates, manage subjects, track assignments, and stay organized throughout their academic journey." },
-    { question: "How do I create an account?", answer: "Simply click on 'Sign Up' on the login page, fill in your full name, email address, and a password (at least 6 characters), then confirm your password and submit." },
-    { question: "Can I access ClassConnect on multiple devices?", answer: "Yes! ClassConnect is a Progressive Web App (PWA) that works on both mobile phones and desktop computers. You can install it as an app for the best experience." },
-    { question: "How do I add a subject?", answer: "Go to the Subjects page from the menu, click the 'Add Subject' button, fill in the subject name, professor, and schedule, then click save." },
-    { question: "How do I track my assignments?", answer: "Navigate to the Assignments page, click 'Add Task' to create new tasks, and check them off as you complete them using the checkbox." },
-    { question: "How does the Grades page work?", answer: "Enter your grade for each subject, select your year level and semester, and the app will automatically calculate your general average. You can also exclude subjects from the calculation." },
-    { question: "Is my data safe?", answer: "Your data is stored locally in your browser and is not shared with anyone. We prioritize your privacy and security. For more details, please read our Privacy Policy." },
-    { question: "Can I edit my profile information?", answer: "Yes! Go to the Profile page from the menu, update any of your personal information, and click 'Save Profile' to save your changes." },
+    {
+      question: "What is ClassConnect?",
+      answer: "ClassConnect is a platform designed to help students connect with classmates, manage subjects, track assignments, and stay organized throughout their academic journey.",
+    },
+    {
+      question: "How do I create an account?",
+      answer: "Click on Sign Up on the login page, fill in your full name, email address, and a password of at least 6 characters, then confirm your password and submit.",
+    },
+    {
+      question: "Can I access ClassConnect on multiple devices?",
+      answer: "Yes. ClassConnect is a Progressive Web App that works on both mobile phones and desktop computers. You can install it as an app for the best experience.",
+    },
+    {
+      question: "How do I add a subject?",
+      answer: "Go to the Subjects page from the menu, click the Add Subject button, fill in the subject name, professor, and schedule, then click Save.",
+    },
+    {
+      question: "How do I track my assignments?",
+      answer: "Navigate to the Assignments page, click Add Task to create new tasks, and check them off as you complete them using the checkbox.",
+    },
+    {
+      question: "How does the Grades page work?",
+      answer: "Enter your grade for each subject, select your year level and semester, and the app will automatically calculate your general weighted average. You can also exclude subjects from the calculation.",
+    },
+    {
+      question: "Is my data safe?",
+      answer: "Your data is stored locally in your browser and is not shared with anyone. We prioritize your privacy and security. For more details, please read our Privacy Policy.",
+    },
+    {
+      question: "Can I edit my profile information?",
+      answer: "Yes. Go to the Profile page from the menu, update any of your personal information, and click Save Profile to apply your changes.",
+    },
   ];
 
   /* ---------------------------------------------------------
@@ -69,18 +86,21 @@
   function initials(name) {
     if (!name) return "S";
     const parts = name.trim().split(" ");
-    return parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
+    return parts.length > 1
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts[0][0].toUpperCase();
   }
 
   function timeAgo(timestamp) {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
-    if (seconds < 60) return "Just now";
+    if (seconds < 60)  return "Just now";
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return minutes + "m ago";
+    if (minutes < 60)  return minutes + "m ago";
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + "h ago";
+    if (hours < 24)    return hours + "h ago";
     const days = Math.floor(hours / 24);
-    return days + "d ago";
+    if (days < 7)      return days + "d ago";
+    return Math.floor(days / 7) + "w ago";
   }
 
   function isValidEmail(email) {
@@ -89,76 +109,198 @@
 
   function getData(key, defaultVal) {
     try {
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : defaultVal;
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : defaultVal;
     } catch (e) {
       return defaultVal;
     }
   }
 
   function setData(key, data) {
-    localStorage.setItem(key, JSON.stringify(data));
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+      showToast("Storage is full. Some data may not be saved.", "error");
+    }
+  }
+
+  function stringToColor(str) {
+    if (!str) return "#2563EB";
+    var hash = 0;
+    for (var i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    var palette = [
+      "#2563EB", "#8B5CF6", "#10B981", "#F59E0B",
+      "#EF4444", "#06B6D4", "#EC4899", "#84CC16",
+    ];
+    return palette[Math.abs(hash) % palette.length];
+  }
+
+  function formatTime12h(time24) {
+    if (!time24) return "";
+    var parts = time24.split(":");
+    var h = parseInt(parts[0], 10);
+    var m = parts[1] || "00";
+    var ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + m + " " + ampm;
+  }
+
+  /* ---------------------------------------------------------
+     TOAST NOTIFICATIONS
+  --------------------------------------------------------- */
+  function showToast(message, type) {
+    type = type || "success";
+
+    var existing = document.getElementById("cc-toast");
+    if (existing) existing.remove();
+
+    var iconMap = {
+      success: "fa-circle-check",
+      error:   "fa-circle-xmark",
+      warning: "fa-triangle-exclamation",
+      info:    "fa-circle-info",
+    };
+
+    var toast = document.createElement("div");
+    toast.id = "cc-toast";
+    toast.className = "cc-toast cc-toast-" + type;
+    toast.innerHTML =
+      '<i class="fas ' + (iconMap[type] || "fa-circle-info") + ' toast-icon"></i>' +
+      '<span class="toast-msg">' + escapeHtml(message) + '</span>' +
+      '<button class="toast-close" aria-label="Close"><i class="fas fa-xmark"></i></button>';
+
+    document.body.appendChild(toast);
+
+    toast.querySelector(".toast-close").addEventListener("click", function () {
+      dismissToast(toast);
+    });
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        toast.classList.add("cc-toast-show");
+      });
+    });
+
+    var timer = setTimeout(function () { dismissToast(toast); }, 3500);
+    toast._timer = timer;
+  }
+
+  function dismissToast(toast) {
+    if (!toast) return;
+    clearTimeout(toast._timer);
+    toast.classList.remove("cc-toast-show");
+    setTimeout(function () { if (toast.parentNode) toast.remove(); }, 380);
+  }
+
+  /* ---------------------------------------------------------
+     CONFIRM DIALOG
+  --------------------------------------------------------- */
+  function showConfirm(message, onConfirm) {
+    var existing = document.getElementById("cc-confirm-overlay");
+    if (existing) existing.remove();
+
+    var overlay = document.createElement("div");
+    overlay.id = "cc-confirm-overlay";
+    overlay.className = "cc-confirm-overlay";
+    overlay.innerHTML =
+      '<div class="cc-confirm-box" role="dialog" aria-modal="true">' +
+        '<div class="cc-confirm-icon-wrap">' +
+          '<i class="fas fa-triangle-exclamation"></i>' +
+        '</div>' +
+        '<p class="cc-confirm-msg">' + escapeHtml(message) + '</p>' +
+        '<div class="cc-confirm-btns">' +
+          '<button class="cc-confirm-cancel">Cancel</button>' +
+          '<button class="cc-confirm-ok">Confirm</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        overlay.classList.add("active");
+      });
+    });
+
+    function closeConfirm() {
+      overlay.classList.remove("active");
+      setTimeout(function () { if (overlay.parentNode) overlay.remove(); }, 300);
+    }
+
+    overlay.querySelector(".cc-confirm-cancel").addEventListener("click", closeConfirm);
+    overlay.querySelector(".cc-confirm-ok").addEventListener("click", function () {
+      closeConfirm();
+      if (typeof onConfirm === "function") onConfirm();
+    });
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) closeConfirm();
+    });
   }
 
   /* ---------------------------------------------------------
      AUTH FUNCTIONS
   --------------------------------------------------------- */
-  function getUsers() { return getData(KEYS.USERS, []); }
+  function getUsers()       { return getData(KEYS.USERS, []); }
   function saveUsers(users) { setData(KEYS.USERS, users); }
 
   function signup(name, email, password) {
-    const users = getUsers();
-    const exists = users.some(function (u) { return u.email.toLowerCase() === email.toLowerCase(); });
+    const users  = getUsers();
+    const exists = users.some(function (u) {
+      return u.email.toLowerCase() === email.toLowerCase();
+    });
     if (exists) {
       return { success: false, message: "An account with this email already exists." };
     }
-    const newUser = { name: name.trim(), email: email.trim(), password: password };
+    const newUser = {
+      id:       cryptoId(),
+      name:     name.trim(),
+      email:    email.trim().toLowerCase(),
+      password: password,
+    };
     users.push(newUser);
     saveUsers(users);
     setSession(newUser);
-    // Initialize profile for new user
-    saveProfile({ name: name.trim(), email: email.trim() });
+    saveProfile({ name: newUser.name, email: newUser.email });
     return { success: true };
   }
 
   function login(email, password) {
     const users = getUsers();
-    const user = users.find(function (u) {
+    const user  = users.find(function (u) {
       return u.email.toLowerCase() === email.toLowerCase() && u.password === password;
     });
     if (!user) {
-      return { success: false, message: "Invalid email or password." };
+      return { success: false, message: "Invalid email or password. Please try again." };
     }
     setSession(user);
     return { success: true };
   }
 
   function setSession(user) {
-    setData(KEYS.SESSION, { name: user.name, email: user.email });
+    setData(KEYS.SESSION, { name: user.name, email: user.email.toLowerCase() });
   }
 
   function logout() {
-    localStorage.removeItem(KEYS.SESSION);
-    showPage("login-page");
-    showLoginForm();
-    closeDrawer();
+    showConfirm("Are you sure you want to log out?", function () {
+      localStorage.removeItem(KEYS.SESSION);
+      closeDrawer();
+      closeAllModals();
+      showPage("login-page");
+      showLoginForm();
+      showToast("You have been logged out.", "info");
+    });
   }
 
-  function getCurrentUser() {
-    return getData(KEYS.SESSION, null);
-  }
+  function getCurrentUser() { return getData(KEYS.SESSION, null); }
 
-  // ============ FIXED: isLoggedIn now properly validates session ============
   function isLoggedIn() {
     const session = getCurrentUser();
-    if (!session || !session.email) {
-      return false;
-    }
-    const users = getUsers();
-    const exists = users.some(function (u) {
+    if (!session || !session.email) return false;
+    return getUsers().some(function (u) {
       return u.email.toLowerCase() === session.email.toLowerCase();
     });
-    return exists;
   }
 
   /* ---------------------------------------------------------
@@ -167,23 +309,24 @@
   function getProfile() {
     const user = getCurrentUser();
     if (!user) return {};
-    const profile = getData(KEYS.PROFILE, {});
-    if (profile.email !== user.email) {
-      profile.email = user.email;
-    }
-    return profile;
+    const all = getData(KEYS.PROFILE + "_all", {});
+    return all[user.email.toLowerCase()] || { name: user.name, email: user.email };
   }
 
   function saveProfile(data) {
     const user = getCurrentUser();
     if (!user) return;
-    const profile = getProfile();
-    data.email = user.email;
-    const merged = Object.assign({}, profile, data);
-    setData(KEYS.PROFILE, merged);
+    const all      = getData(KEYS.PROFILE + "_all", {});
+    const existing = all[user.email.toLowerCase()] || {};
+    data.email     = user.email.toLowerCase();
+    all[user.email.toLowerCase()] = Object.assign({}, existing, data);
+    setData(KEYS.PROFILE + "_all", all);
+
     if (data.name && data.name !== user.name) {
       const users = getUsers();
-      const found = users.find(function (u) { return u.email.toLowerCase() === user.email.toLowerCase(); });
+      const found = users.find(function (u) {
+        return u.email.toLowerCase() === user.email.toLowerCase();
+      });
       if (found) {
         found.name = data.name;
         saveUsers(users);
@@ -193,64 +336,70 @@
   }
 
   function getProfilePhoto() {
-    const profile = getProfile();
-    return profile.photo || null;
+    return getProfile().photo || null;
   }
 
-  function saveProfilePhoto(base64Data) {
-    const profile = getProfile();
-    profile.photo = base64Data;
-    saveProfile(profile);
+  function saveProfilePhoto(base64) {
+    const p = getProfile();
+    p.photo = base64;
+    saveProfile(p);
+  }
+
+  /* ---------------------------------------------------------
+     USER-SCOPED KEY HELPER
+  --------------------------------------------------------- */
+  function userKey(base) {
+    const user = getCurrentUser();
+    if (!user) return base;
+    return base + "_" + user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
   }
 
   /* ---------------------------------------------------------
      POSTS FUNCTIONS
   --------------------------------------------------------- */
-  function getPosts() { return getData(KEYS.POSTS, []); }
-  function savePosts(posts) { setData(KEYS.POSTS, posts); }
+  function getPosts()        { return getData(userKey(KEYS.POSTS), []); }
+  function savePosts(posts)  { setData(userKey(KEYS.POSTS), posts); }
 
   function seedDemoPosts() {
-    const existing = getPosts();
-    if (existing.length > 0) return;
-    const seed = [
+    if (getPosts().length > 0) return;
+    savePosts([
       {
-        id: cryptoId(),
-        author: "Prof. Santos",
-        content: "Reminder: Project proposals are due this Friday, 11:59 PM. Submit through the class portal.",
-        tag: "Web Systems and Technologies",
+        id:        cryptoId(),
+        author:    "Prof. Santos",
+        content:   "<strong>Reminder:</strong> Project proposals are due this Friday, 11:59 PM. Submit through the class portal.",
+        tag:       "Web Systems and Technologies",
         timestamp: Date.now() - 1000 * 60 * 60 * 3,
-        image: null,
+        image:     null,
       },
       {
-        id: cryptoId(),
-        author: "Maria Delacruz",
-        content: "Does anyone have notes from yesterday's lecture on binary trees? I missed the last 20 minutes.",
-        tag: "Data Structures & Algorithms",
+        id:        cryptoId(),
+        author:    "Maria Delacruz",
+        content:   "Does anyone have notes from yesterday's lecture on binary trees? I missed the last 20 minutes.",
+        tag:       "Data Structures and Algorithms",
         timestamp: Date.now() - 1000 * 60 * 60 * 20,
-        image: null,
+        image:     null,
       },
       {
-        id: cryptoId(),
-        author: "Prof. Reyes",
-        content: "Class is moved to Room 402 for next week due to maintenance in our usual room.",
-        tag: "Networking II",
+        id:        cryptoId(),
+        author:    "Prof. Reyes",
+        content:   "<strong>Notice:</strong> Class is moved to Room 402 for next week due to maintenance in our usual room.",
+        tag:       "Networking II",
         timestamp: Date.now() - 1000 * 60 * 60 * 30,
-        image: null,
+        image:     null,
       },
-    ];
-    savePosts(seed);
+    ]);
   }
 
   function createPost(content, imageData) {
-    const user = getCurrentUser();
+    const user  = getCurrentUser();
     const posts = getPosts();
-    const post = {
-      id: cryptoId(),
-      author: user ? user.name : "Student",
-      content: content.trim(),
-      tag: null,
+    const post  = {
+      id:        cryptoId(),
+      author:    user ? user.name : "Student",
+      content:   content.trim(),
+      tag:       null,
       timestamp: Date.now(),
-      image: imageData || null,
+      image:     imageData || null,
     };
     posts.unshift(post);
     savePosts(posts);
@@ -258,9 +407,7 @@
   }
 
   function deletePost(id) {
-    let posts = getPosts();
-    posts = posts.filter(function (p) { return p.id !== id; });
-    savePosts(posts);
+    savePosts(getPosts().filter(function (p) { return p.id !== id; }));
   }
 
   function loadPosts() {
@@ -270,40 +417,55 @@
     feed.innerHTML = "";
 
     if (posts.length === 0) {
-      feed.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No posts yet. Be the first to share something!</p></div>';
+      feed.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon"><i class="fas fa-inbox"></i></div>' +
+          '<p class="empty-title">No posts yet</p>' +
+          '<p class="empty-sub">Be the first to share something with your class.</p>' +
+        '</div>';
       return;
     }
 
     posts.forEach(function (post) {
       const card = document.createElement("div");
       card.className = "post-card";
-      var imageHtml = "";
-      if (post.image) {
-        imageHtml = '<img src="' + post.image + '" alt="Post image">';
-      }
-      card.innerHTML = `
-        ${post.tag ? '<span class="post-tag">' + escapeHtml(post.tag) + '</span>' : ""}
-        <div class="post-header">
-          <div class="avatar-circle">${escapeHtml(initials(post.author))}</div>
-          <div class="post-author-info">
-            <span class="post-author-name">${escapeHtml(post.author)}</span>
-            <span class="post-timestamp">${timeAgo(post.timestamp)}</span>
-          </div>
-        </div>
-        <div class="post-content">${post.content}${imageHtml}</div>
-        <div class="post-footer">
-          <button class="btn-delete-post" data-id="${post.id}">
-            <i class="fas fa-trash"></i> Delete
-          </button>
-        </div>
-      `;
+
+      var imgHtml = post.image
+        ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy"></div>'
+        : "";
+
+      var tagHtml = post.tag
+        ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>'
+        : "";
+
+      card.innerHTML =
+        tagHtml +
+        '<div class="post-header">' +
+          '<div class="avatar-circle post-avatar" style="background:' + stringToColor(post.author) + '">' +
+            escapeHtml(initials(post.author)) +
+          '</div>' +
+          '<div class="post-author-info">' +
+            '<span class="post-author-name">' + escapeHtml(post.author) + '</span>' +
+            '<span class="post-timestamp"><i class="fas fa-clock"></i> ' + timeAgo(post.timestamp) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="post-content">' + post.content + imgHtml + '</div>' +
+        '<div class="post-footer">' +
+          '<button class="btn-delete-post" data-id="' + post.id + '">' +
+            '<i class="fas fa-trash"></i> Delete' +
+          '</button>' +
+        '</div>';
+
       feed.appendChild(card);
     });
 
     feed.querySelectorAll(".btn-delete-post").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        deletePost(btn.getAttribute("data-id"));
-        loadPosts();
+        showConfirm("Delete this post?", function () {
+          deletePost(btn.getAttribute("data-id"));
+          loadPosts();
+          showToast("Post deleted.", "info");
+        });
       });
     });
   }
@@ -311,17 +473,23 @@
   /* ---------------------------------------------------------
      SUBJECTS FUNCTIONS
   --------------------------------------------------------- */
-  function getSubjects() { return getData(KEYS.SUBJECTS, []); }
-  function saveSubjects(subjects) { setData(KEYS.SUBJECTS, subjects); }
+  function getSubjects()           { return getData(userKey(KEYS.SUBJECTS), []); }
+  function saveSubjects(subjects)  { setData(userKey(KEYS.SUBJECTS), subjects); }
+
+  var SUBJECT_COLORS = [
+    "#2563EB", "#8B5CF6", "#10B981",
+    "#F59E0B", "#EF4444", "#06B6D4", "#EC4899",
+  ];
 
   function addSubject(name, professor, schedule) {
     const subjects = getSubjects();
-    const subject = {
-      id: cryptoId(),
-      name: name.trim(),
+    const subject  = {
+      id:        cryptoId(),
+      name:      name.trim(),
       professor: professor.trim(),
-      schedule: schedule.trim(),
-      tasks: [],
+      schedule:  schedule.trim(),
+      tasks:     [],
+      color:     SUBJECT_COLORS[subjects.length % SUBJECT_COLORS.length],
     };
     subjects.push(subject);
     saveSubjects(subjects);
@@ -329,45 +497,44 @@
   }
 
   function updateSubject(id, data) {
-    let subjects = getSubjects();
-    const index = subjects.findIndex(function (s) { return s.id === id; });
-    if (index === -1) return null;
-    subjects[index] = Object.assign({}, subjects[index], data);
+    const subjects = getSubjects();
+    const idx      = subjects.findIndex(function (s) { return s.id === id; });
+    if (idx === -1) return null;
+    subjects[idx] = Object.assign({}, subjects[idx], data);
     saveSubjects(subjects);
-    return subjects[index];
+    return subjects[idx];
   }
 
   function deleteSubject(id) {
-    let subjects = getSubjects();
-    subjects = subjects.filter(function (s) { return s.id !== id; });
-    saveSubjects(subjects);
+    saveSubjects(getSubjects().filter(function (s) { return s.id !== id; }));
   }
 
   function addSubjectTask(subjectId, text) {
-    let subjects = getSubjects();
-    const index = subjects.findIndex(function (s) { return s.id === subjectId; });
-    if (index === -1) return null;
+    const subjects = getSubjects();
+    const idx      = subjects.findIndex(function (s) { return s.id === subjectId; });
+    if (idx === -1) return null;
+    if (!subjects[idx].tasks) subjects[idx].tasks = [];
     const task = { id: cryptoId(), text: text.trim(), completed: false };
-    subjects[index].tasks.push(task);
+    subjects[idx].tasks.push(task);
     saveSubjects(subjects);
     return task;
   }
 
   function toggleSubjectTask(subjectId, taskId) {
-    let subjects = getSubjects();
-    const index = subjects.findIndex(function (s) { return s.id === subjectId; });
-    if (index === -1) return;
-    const taskIndex = subjects[index].tasks.findIndex(function (t) { return t.id === taskId; });
-    if (taskIndex === -1) return;
-    subjects[index].tasks[taskIndex].completed = !subjects[index].tasks[taskIndex].completed;
+    const subjects = getSubjects();
+    const idx      = subjects.findIndex(function (s) { return s.id === subjectId; });
+    if (idx === -1) return;
+    const tIdx = (subjects[idx].tasks || []).findIndex(function (t) { return t.id === taskId; });
+    if (tIdx === -1) return;
+    subjects[idx].tasks[tIdx].completed = !subjects[idx].tasks[tIdx].completed;
     saveSubjects(subjects);
   }
 
   function deleteSubjectTask(subjectId, taskId) {
-    let subjects = getSubjects();
-    const index = subjects.findIndex(function (s) { return s.id === subjectId; });
-    if (index === -1) return;
-    subjects[index].tasks = subjects[index].tasks.filter(function (t) { return t.id !== taskId; });
+    const subjects = getSubjects();
+    const idx      = subjects.findIndex(function (s) { return s.id === subjectId; });
+    if (idx === -1) return;
+    subjects[idx].tasks = (subjects[idx].tasks || []).filter(function (t) { return t.id !== taskId; });
     saveSubjects(subjects);
   }
 
@@ -378,58 +545,98 @@
     list.innerHTML = "";
 
     if (subjects.length === 0) {
-      list.innerHTML = '<div class="empty-state"><i class="fas fa-book"></i><p>No subjects yet. Click "Add Subject" to get started!</p></div>';
+      list.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
+          '<p class="empty-title">No subjects yet</p>' +
+          '<p class="empty-sub">Click "Add Subject" to get started.</p>' +
+        '</div>';
       return;
     }
 
     subjects.forEach(function (subject) {
-      const card = document.createElement("div");
+      const card   = document.createElement("div");
       card.className = "subject-card";
+      card.style.borderLeftColor = subject.color || "#2563EB";
+
+      const tasks    = subject.tasks || [];
+      const done     = tasks.filter(function (t) { return t.completed; }).length;
+      const total    = tasks.length;
+      const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      var progressHtml = total > 0
+        ? '<div class="subject-progress-wrap">' +
+            '<div class="subject-progress-track">' +
+              '<div class="subject-progress-fill" style="width:' + pct + '%;background:' + (subject.color || "#2563EB") + '"></div>' +
+            '</div>' +
+            '<span class="subject-progress-label">' + done + ' / ' + total + ' tasks complete</span>' +
+          '</div>'
+        : "";
+
       var tasksHtml = "";
-      if (subject.tasks && subject.tasks.length > 0) {
-        tasksHtml = '<span class="subject-tasks-label"><i class="fas fa-list-check"></i> Tasks:</span>';
-        subject.tasks.forEach(function (task) {
-          tasksHtml += `
-            <div class="subject-task-item">
-              <input type="checkbox" class="task-checkbox" data-subject-id="${subject.id}" data-task-id="${task.id}" ${task.completed ? "checked" : ""}>
-              <span class="task-text ${task.completed ? "completed" : ""}">${escapeHtml(task.text)}</span>
-              <button class="btn-task-delete" data-subject-id="${subject.id}" data-task-id="${task.id}"><i class="fas fa-xmark"></i></button>
-            </div>
-          `;
+      if (tasks.length > 0) {
+        tasksHtml += '<p class="subject-tasks-label"><i class="fas fa-list-check"></i> Tasks</p>';
+        tasks.forEach(function (task) {
+          tasksHtml +=
+            '<div class="subject-task-item">' +
+              '<input type="checkbox" class="task-checkbox" ' +
+                'data-subject-id="' + subject.id + '" ' +
+                'data-task-id="' + task.id + '" ' +
+                (task.completed ? "checked" : "") + '>' +
+              '<span class="task-text ' + (task.completed ? "completed" : "") + '">' +
+                escapeHtml(task.text) +
+              '</span>' +
+              '<button class="btn-task-delete" ' +
+                'data-subject-id="' + subject.id + '" ' +
+                'data-task-id="' + task.id + '" ' +
+                'title="Delete task">' +
+                '<i class="fas fa-xmark"></i>' +
+              '</button>' +
+            '</div>';
         });
       }
-      card.innerHTML = `
-        <div class="subject-card-header">
-          <h4>${escapeHtml(subject.name)}</h4>
-          <div class="subject-actions">
-            <button class="btn-icon btn-edit-subject" data-id="${subject.id}" title="Edit"><i class="fas fa-pen"></i></button>
-            <button class="btn-icon btn-delete" data-id="${subject.id}" title="Delete"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>
-        <div class="subject-professor"><i class="fas fa-user-tie"></i> ${escapeHtml(subject.professor || "No professor assigned")}</div>
-        <div class="subject-schedule"><i class="fas fa-calendar"></i> ${escapeHtml(subject.schedule || "No schedule set")}</div>
-        <div class="subject-tasks">
-          ${tasksHtml}
-          <button class="subject-add-task-btn" data-subject-id="${subject.id}"><i class="fas fa-plus"></i> Add Task</button>
-        </div>
-      `;
+
+      card.innerHTML =
+        '<div class="subject-card-header">' +
+          '<div class="subject-card-title">' +
+            '<span class="subject-color-dot" style="background:' + (subject.color || "#2563EB") + '"></span>' +
+            '<h4>' + escapeHtml(subject.name) + '</h4>' +
+          '</div>' +
+          '<div class="subject-actions">' +
+            '<button class="btn-icon btn-edit-subject" data-id="' + subject.id + '" title="Edit subject">' +
+              '<i class="fas fa-pen"></i>' +
+            '</button>' +
+            '<button class="btn-icon btn-delete-subject" data-id="' + subject.id + '" title="Delete subject">' +
+              '<i class="fas fa-trash"></i>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="subject-meta">' +
+          '<span><i class="fas fa-user-tie"></i> ' + escapeHtml(subject.professor || "No professor assigned") + '</span>' +
+          '<span><i class="fas fa-calendar"></i> '  + escapeHtml(subject.schedule  || "No schedule set")      + '</span>' +
+        '</div>' +
+        progressHtml +
+        '<div class="subject-tasks">' +
+          tasksHtml +
+          '<button class="subject-add-task-btn" data-subject-id="' + subject.id + '">' +
+            '<i class="fas fa-plus"></i> Add Task' +
+          '</button>' +
+        '</div>';
+
       list.appendChild(card);
     });
 
     list.querySelectorAll(".btn-edit-subject").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        const id = btn.getAttribute("data-id");
-        editSubject(id);
-      });
+      btn.addEventListener("click", function () { editSubject(btn.getAttribute("data-id")); });
     });
 
-    list.querySelectorAll(".btn-delete").forEach(function (btn) {
+    list.querySelectorAll(".btn-delete-subject").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        const id = btn.getAttribute("data-id");
-        if (confirm("Delete this subject?")) {
-          deleteSubject(id);
+        showConfirm("Delete this subject and all its tasks?", function () {
+          deleteSubject(btn.getAttribute("data-id"));
           loadSubjects();
-        }
+          showToast("Subject deleted.", "info");
+        });
       });
     });
 
@@ -442,29 +649,30 @@
 
     list.querySelectorAll(".btn-task-delete").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        if (confirm("Delete this task?")) {
+        showConfirm("Delete this task?", function () {
           deleteSubjectTask(btn.getAttribute("data-subject-id"), btn.getAttribute("data-task-id"));
           loadSubjects();
-        }
+          showToast("Task deleted.", "info");
+        });
       });
     });
 
     list.querySelectorAll(".subject-add-task-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
         document.getElementById("subject-task-subject-id").value = btn.getAttribute("data-subject-id");
+        document.getElementById("subject-task-text").value = "";
         openModal("subject-task-modal-overlay");
       });
     });
   }
 
   function editSubject(id) {
-    const subjects = getSubjects();
-    const subject = subjects.find(function (s) { return s.id === id; });
+    const subject = getSubjects().find(function (s) { return s.id === id; });
     if (!subject) return;
-    document.getElementById("subject-edit-id").value = id;
-    document.getElementById("subject-name").value = subject.name;
-    document.getElementById("subject-professor").value = subject.professor || "";
-    document.getElementById("subject-schedule").value = subject.schedule || "";
+    document.getElementById("subject-edit-id").value       = id;
+    document.getElementById("subject-name").value          = subject.name;
+    document.getElementById("subject-professor").value     = subject.professor || "";
+    document.getElementById("subject-schedule").value      = subject.schedule  || "";
     document.getElementById("subject-modal-title").textContent = "Edit Subject";
     openModal("subject-modal-overlay");
   }
@@ -472,18 +680,18 @@
   /* ---------------------------------------------------------
      SCHEDULE FUNCTIONS
   --------------------------------------------------------- */
-  function getSchedule() { return getData(KEYS.SCHEDULE, []); }
-  function saveSchedule(schedule) { setData(KEYS.SCHEDULE, schedule); }
+  function getSchedule()          { return getData(userKey(KEYS.SCHEDULE), []); }
+  function saveSchedule(schedule) { setData(userKey(KEYS.SCHEDULE), schedule); }
 
   function addScheduleItem(subject, day, startTime, endTime, room) {
     const schedule = getSchedule();
     const item = {
       id: cryptoId(),
-      subject: subject.trim(),
-      day: day.trim(),
+      subject:   subject.trim(),
+      day:       day.trim(),
       startTime: startTime,
-      endTime: endTime,
-      room: room.trim(),
+      endTime:   endTime,
+      room:      room.trim(),
     };
     schedule.push(item);
     saveSchedule(schedule);
@@ -491,18 +699,16 @@
   }
 
   function updateScheduleItem(id, data) {
-    let schedule = getSchedule();
-    const index = schedule.findIndex(function (s) { return s.id === id; });
-    if (index === -1) return null;
-    schedule[index] = Object.assign({}, schedule[index], data);
+    const schedule = getSchedule();
+    const idx      = schedule.findIndex(function (s) { return s.id === id; });
+    if (idx === -1) return null;
+    schedule[idx] = Object.assign({}, schedule[idx], data);
     saveSchedule(schedule);
-    return schedule[index];
+    return schedule[idx];
   }
 
   function deleteScheduleItem(id) {
-    let schedule = getSchedule();
-    schedule = schedule.filter(function (s) { return s.id !== id; });
-    saveSchedule(schedule);
+    saveSchedule(getSchedule().filter(function (s) { return s.id !== id; }));
   }
 
   function loadSchedule() {
@@ -512,60 +718,75 @@
     list.innerHTML = "";
 
     if (schedule.length === 0) {
-      list.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No schedule entries yet. Click "Add Schedule" to get started!</p></div>';
+      list.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon"><i class="fas fa-calendar-days"></i></div>' +
+          '<p class="empty-title">No schedule yet</p>' +
+          '<p class="empty-sub">Click "Add Schedule" to get started.</p>' +
+        '</div>';
       return;
     }
 
-    const dayOrder = { "Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6 };
-    schedule.sort(function (a, b) {
-      var dayA = a.day ? a.day.substring(0, 3) : "";
-      var dayB = b.day ? b.day.substring(0, 3) : "";
-      return (dayOrder[dayA] || 0) - (dayOrder[dayB] || 0);
+    const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+    const sorted   = schedule.slice().sort(function (a, b) {
+      var da = a.day ? a.day.substring(0, 3) : "";
+      var db = b.day ? b.day.substring(0, 3) : "";
+      var od = (dayOrder[da] !== undefined ? dayOrder[da] : 99) -
+               (dayOrder[db] !== undefined ? dayOrder[db] : 99);
+      return od !== 0 ? od : (a.startTime || "").localeCompare(b.startTime || "");
     });
 
-    schedule.forEach(function (item) {
+    const badgeColors = ["#2563EB","#8B5CF6","#10B981","#F59E0B","#EF4444","#06B6D4","#EC4899"];
+
+    sorted.forEach(function (item) {
       const card = document.createElement("div");
       card.className = "schedule-card";
-      card.innerHTML = `
-        <div class="schedule-card-info">
-          <h4>${escapeHtml(item.subject)}</h4>
-          <p><i class="fas fa-calendar-day"></i> ${escapeHtml(item.day || "N/A")} &nbsp;|&nbsp; <i class="fas fa-clock"></i> ${escapeHtml(item.startTime || "")} - ${escapeHtml(item.endTime || "")}</p>
-          <p><i class="fas fa-location-dot"></i> ${escapeHtml(item.room || "No room assigned")}</p>
-        </div>
-        <div class="schedule-card-actions">
-          <button class="btn-icon btn-edit-schedule" data-id="${item.id}" title="Edit"><i class="fas fa-pen"></i></button>
-          <button class="btn-icon btn-delete" data-id="${item.id}" title="Delete"><i class="fas fa-trash"></i></button>
-        </div>
-      `;
+      var dayIdx = item.day ? (dayOrder[item.day.substring(0, 3)] || 0) : 0;
+
+      card.innerHTML =
+        '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
+          escapeHtml(item.day || "N/A") +
+        '</div>' +
+        '<div class="schedule-card-info">' +
+          '<h4>' + escapeHtml(item.subject) + '</h4>' +
+          '<p class="schedule-time"><i class="fas fa-clock"></i> ' +
+            formatTime12h(item.startTime) + ' &ndash; ' + formatTime12h(item.endTime) +
+          '</p>' +
+          '<p class="schedule-room"><i class="fas fa-location-dot"></i> ' +
+            escapeHtml(item.room || "No room assigned") +
+          '</p>' +
+        '</div>' +
+        '<div class="schedule-card-actions">' +
+          '<button class="btn-icon btn-edit-schedule" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
+          '<button class="btn-icon btn-delete-schedule" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
+        '</div>';
+
       list.appendChild(card);
     });
 
     list.querySelectorAll(".btn-edit-schedule").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        editScheduleItem(btn.getAttribute("data-id"));
-      });
+      btn.addEventListener("click", function () { editScheduleItem(btn.getAttribute("data-id")); });
     });
-
-    list.querySelectorAll(".btn-delete").forEach(function (btn) {
+    list.querySelectorAll(".btn-delete-schedule").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        if (confirm("Delete this schedule entry?")) {
+        showConfirm("Delete this schedule entry?", function () {
           deleteScheduleItem(btn.getAttribute("data-id"));
           loadSchedule();
-        }
+          showToast("Schedule entry deleted.", "info");
+        });
       });
     });
   }
 
   function editScheduleItem(id) {
-    const schedule = getSchedule();
-    const item = schedule.find(function (s) { return s.id === id; });
+    const item = getSchedule().find(function (s) { return s.id === id; });
     if (!item) return;
-    document.getElementById("schedule-edit-id").value = id;
-    document.getElementById("schedule-subject").value = item.subject;
-    document.getElementById("schedule-day").value = item.day || "";
-    document.getElementById("schedule-start-time").value = item.startTime || "";
-    document.getElementById("schedule-end-time").value = item.endTime || "";
-    document.getElementById("schedule-room").value = item.room || "";
+    document.getElementById("schedule-edit-id").value         = id;
+    document.getElementById("schedule-subject").value         = item.subject;
+    document.getElementById("schedule-day").value             = item.day       || "";
+    document.getElementById("schedule-start-time").value      = item.startTime || "";
+    document.getElementById("schedule-end-time").value        = item.endTime   || "";
+    document.getElementById("schedule-room").value            = item.room      || "";
     document.getElementById("schedule-modal-title").textContent = "Edit Schedule";
     openModal("schedule-modal-overlay");
   }
@@ -573,17 +794,18 @@
   /* ---------------------------------------------------------
      ASSIGNMENTS FUNCTIONS
   --------------------------------------------------------- */
-  function getAssignments() { return getData(KEYS.ASSIGNMENTS, []); }
-  function saveAssignments(assignments) { setData(KEYS.ASSIGNMENTS, assignments); }
+  function getAssignments()            { return getData(userKey(KEYS.ASSIGNMENTS), []); }
+  function saveAssignments(assignments){ setData(userKey(KEYS.ASSIGNMENTS), assignments); }
 
   function addAssignment(text, subject, dueDate) {
     const assignments = getAssignments();
     const item = {
-      id: cryptoId(),
-      text: text.trim(),
-      subject: subject.trim(),
-      dueDate: dueDate || "",
+      id:        cryptoId(),
+      text:      text.trim(),
+      subject:   subject.trim(),
+      dueDate:   dueDate || "",
       completed: false,
+      createdAt: Date.now(),
     };
     assignments.unshift(item);
     saveAssignments(assignments);
@@ -591,17 +813,26 @@
   }
 
   function toggleAssignment(id) {
-    let assignments = getAssignments();
-    const index = assignments.findIndex(function (a) { return a.id === id; });
-    if (index === -1) return;
-    assignments[index].completed = !assignments[index].completed;
+    const assignments = getAssignments();
+    const idx         = assignments.findIndex(function (a) { return a.id === id; });
+    if (idx === -1) return;
+    assignments[idx].completed = !assignments[idx].completed;
     saveAssignments(assignments);
   }
 
   function deleteAssignment(id) {
-    let assignments = getAssignments();
-    assignments = assignments.filter(function (a) { return a.id !== id; });
-    saveAssignments(assignments);
+    saveAssignments(getAssignments().filter(function (a) { return a.id !== id; }));
+  }
+
+  function isDueSoon(dueDate) {
+    if (!dueDate) return false;
+    var diff = (new Date(dueDate) - new Date()) / 86400000;
+    return diff >= 0 && diff <= 3;
+  }
+
+  function isOverdue(dueDate) {
+    if (!dueDate) return false;
+    return new Date(dueDate) < new Date();
   }
 
   function loadAssignments() {
@@ -611,28 +842,52 @@
     list.innerHTML = "";
 
     if (assignments.length === 0) {
-      list.innerHTML = '<div class="empty-state"><i class="fas fa-clipboard-list"></i><p>No assignments yet. Click "Add Task" to get started!</p></div>';
+      list.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon"><i class="fas fa-clipboard-check"></i></div>' +
+          '<p class="empty-title">No assignments yet</p>' +
+          '<p class="empty-sub">Click "Add Task" to get started.</p>' +
+        '</div>';
       return;
     }
 
-    assignments.forEach(function (item) {
+    const sorted = assignments.slice().sort(function (a, b) {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return 0;
+    });
+
+    sorted.forEach(function (item) {
       const div = document.createElement("div");
-      div.className = "assignment-item";
-      var dueHtml = "";
-      if (item.dueDate) {
-        dueHtml = ' <i class="fas fa-calendar"></i> Due: ' + escapeHtml(item.dueDate);
+      div.className = "assignment-item" + (item.completed ? " assignment-done" : "");
+
+      var dueCls   = "";
+      var dueLabel = "Due";
+      if (item.dueDate && !item.completed) {
+        if (isOverdue(item.dueDate))  { dueCls = "due-overdue"; dueLabel = "Overdue"; }
+        else if (isDueSoon(item.dueDate)) { dueCls = "due-soon"; }
       }
-      if (item.subject) {
-        dueHtml = ' <i class="fas fa-book"></i> ' + escapeHtml(item.subject) + dueHtml;
-      }
-      div.innerHTML = `
-        <input type="checkbox" class="assignment-checkbox" data-id="${item.id}" ${item.completed ? "checked" : ""}>
-        <div class="assignment-info">
-          <span class="assignment-text ${item.completed ? "completed" : ""}">${escapeHtml(item.text)}</span>
-          <div class="assignment-meta">${dueHtml}</div>
-        </div>
-        <button class="btn-assignment-delete" data-id="${item.id}"><i class="fas fa-trash"></i></button>
-      `;
+
+      var dueHtml = item.dueDate
+        ? '<span class="assignment-due ' + dueCls + '"><i class="fas fa-calendar-day"></i> ' + dueLabel + ': ' + escapeHtml(item.dueDate) + '</span>'
+        : "";
+
+      var subjectHtml = item.subject
+        ? '<span class="assignment-subject"><i class="fas fa-book"></i> ' + escapeHtml(item.subject) + '</span>'
+        : "";
+
+      div.innerHTML =
+        '<label class="assignment-check-wrap" title="Mark complete">' +
+          '<input type="checkbox" class="assignment-checkbox" data-id="' + item.id + '" ' + (item.completed ? "checked" : "") + '>' +
+          '<span class="assignment-checkmark"></span>' +
+        '</label>' +
+        '<div class="assignment-info">' +
+          '<span class="assignment-text ' + (item.completed ? "completed" : "") + '">' + escapeHtml(item.text) + '</span>' +
+          '<div class="assignment-meta">' + subjectHtml + dueHtml + '</div>' +
+        '</div>' +
+        '<button class="btn-assignment-delete" data-id="' + item.id + '" title="Delete task">' +
+          '<i class="fas fa-trash"></i>' +
+        '</button>';
+
       list.appendChild(div);
     });
 
@@ -645,10 +900,11 @@
 
     list.querySelectorAll(".btn-assignment-delete").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        if (confirm("Delete this assignment?")) {
+        showConfirm("Delete this task?", function () {
           deleteAssignment(btn.getAttribute("data-id"));
           loadAssignments();
-        }
+          showToast("Task deleted.", "info");
+        });
       });
     });
   }
@@ -656,18 +912,18 @@
   /* ---------------------------------------------------------
      GRADES FUNCTIONS
   --------------------------------------------------------- */
-  function getGrades() { return getData(KEYS.GRADES, []); }
-  function saveGrades(grades) { setData(KEYS.GRADES, grades); }
+  function getGrades()        { return getData(userKey(KEYS.GRADES), []); }
+  function saveGrades(grades) { setData(userKey(KEYS.GRADES), grades); }
 
   function addGrade(subject, gradeValue, year, semester, exclude) {
     const grades = getGrades();
-    const item = {
-      id: cryptoId(),
-      subject: subject.trim(),
-      grade: parseFloat(gradeValue),
-      year: year || "1st",
+    const item   = {
+      id:       cryptoId(),
+      subject:  subject.trim(),
+      grade:    parseFloat(gradeValue),
+      year:     year     || "1st",
       semester: semester || "1st",
-      exclude: !!exclude,
+      exclude:  !!exclude,
     };
     grades.push(item);
     saveGrades(grades);
@@ -675,129 +931,149 @@
   }
 
   function updateGrade(id, data) {
-    let grades = getGrades();
-    const index = grades.findIndex(function (g) { return g.id === id; });
-    if (index === -1) return null;
-    grades[index] = Object.assign({}, grades[index], data);
+    const grades = getGrades();
+    const idx    = grades.findIndex(function (g) { return g.id === id; });
+    if (idx === -1) return null;
+    grades[idx] = Object.assign({}, grades[idx], data);
     saveGrades(grades);
-    return grades[index];
+    return grades[idx];
   }
 
   function deleteGrade(id) {
-    let grades = getGrades();
-    grades = grades.filter(function (g) { return g.id !== id; });
-    saveGrades(grades);
+    saveGrades(getGrades().filter(function (g) { return g.id !== id; }));
   }
 
   function toggleGradeExclude(id) {
-    let grades = getGrades();
-    const index = grades.findIndex(function (g) { return g.id === id; });
-    if (index === -1) return;
-    grades[index].exclude = !grades[index].exclude;
+    const grades = getGrades();
+    const idx    = grades.findIndex(function (g) { return g.id === id; });
+    if (idx === -1) return;
+    grades[idx].exclude = !grades[idx].exclude;
     saveGrades(grades);
   }
 
+  function gradeColor(g) {
+    if (g >= 90) return "#10B981";
+    if (g >= 80) return "#2563EB";
+    if (g >= 75) return "#F59E0B";
+    if (g >= 70) return "#EF4444";
+    return "#94A3B8";
+  }
+
+  function gradeLabel(g) {
+    if (g >= 90) return "Excellent";
+    if (g >= 80) return "Good";
+    if (g >= 75) return "Satisfactory";
+    if (g >= 70) return "Passing";
+    return "Below Average";
+  }
+
   function calculateGWA(grades, year, semester) {
-    var filtered = grades.filter(function (g) {
-      return g.year === year && g.semester === semester;
+    const eligible = grades.filter(function (g) {
+      return g.year === year && g.semester === semester && !g.exclude;
     });
-    var eligible = filtered.filter(function (g) { return !g.exclude; });
-    if (eligible.length === 0) return 0;
-    var total = 0;
-    eligible.forEach(function (g) { total += g.grade; });
-    return total / eligible.length;
+    if (!eligible.length) return 0;
+    return eligible.reduce(function (sum, g) { return sum + g.grade; }, 0) / eligible.length;
   }
 
   function loadGrades() {
-    const list = document.getElementById("grades-list");
-    const display = document.getElementById("gwa-value");
+    const list       = document.getElementById("grades-list");
+    const gwaDisplay = document.getElementById("gwa-value");
     if (!list) return;
 
-    const year = document.getElementById("grade-year-filter") ? document.getElementById("grade-year-filter").value : "1st";
-    const semester = document.getElementById("grade-semester-filter") ? document.getElementById("grade-semester-filter").value : "1st";
+    const year     = (document.getElementById("grade-year-filter")     || {}).value || "1st";
+    const semester = (document.getElementById("grade-semester-filter") || {}).value || "1st";
 
-    const grades = getGrades();
-    var filtered = grades.filter(function (g) {
-      return g.year === year && g.semester === semester;
-    });
+    const grades   = getGrades();
+    const filtered = grades.filter(function (g) { return g.year === year && g.semester === semester; });
 
     list.innerHTML = "";
 
     if (filtered.length === 0) {
-      list.innerHTML = '<div class="empty-state"><i class="fas fa-chart-simple"></i><p>No grades entered for this semester. Add your grades!</p></div>';
-      if (display) display.textContent = "0.00";
+      list.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon"><i class="fas fa-chart-simple"></i></div>' +
+          '<p class="empty-title">No grades yet</p>' +
+          '<p class="empty-sub">Add your grades for this semester.</p>' +
+        '</div>';
+      if (gwaDisplay) { gwaDisplay.textContent = "0.00"; gwaDisplay.style.color = ""; }
       return;
     }
 
     filtered.forEach(function (item) {
       const div = document.createElement("div");
-      div.className = "grade-item";
-      var excludeBadge = item.exclude ? '<span class="grade-exclude-badge">Excluded</span>' : "";
-      div.innerHTML = `
-        <div class="grade-info">
-          <h4>${escapeHtml(item.subject)}</h4>
-          <p>${escapeHtml(item.year)} | ${escapeHtml(item.semester)} Semester</p>
-        </div>
-        <div class="grade-actions">
-          ${excludeBadge}
-          <span class="grade-value ${item.exclude ? "excluded" : ""}">${item.grade.toFixed(2)}</span>
-          <button class="btn-icon btn-toggle-exclude" data-id="${item.id}" title="Toggle Exclude"><i class="fas ${item.exclude ? "fa-circle-check" : "fa-circle-xmark"}"></i></button>
-          <button class="btn-icon btn-edit-grade" data-id="${item.id}" title="Edit"><i class="fas fa-pen"></i></button>
-          <button class="btn-icon btn-delete" data-id="${item.id}" title="Delete"><i class="fas fa-trash"></i></button>
-        </div>
-      `;
+      div.className = "grade-item" + (item.exclude ? " grade-excluded" : "");
+
+      var gc = item.exclude ? "#94A3B8" : gradeColor(item.grade);
+      var gl = item.exclude ? "Excluded" : gradeLabel(item.grade);
+
+      div.innerHTML =
+        '<div class="grade-info">' +
+          '<h4>' + escapeHtml(item.subject) + '</h4>' +
+          '<span class="grade-badge" style="background:' + gc + '20;color:' + gc + '">' + gl + '</span>' +
+        '</div>' +
+        '<div class="grade-actions">' +
+          '<span class="grade-value" style="color:' + gc + '">' +
+            (item.exclude ? '<s>' + item.grade.toFixed(2) + '</s>' : item.grade.toFixed(2)) +
+          '</span>' +
+          '<button class="btn-icon btn-toggle-exclude" data-id="' + item.id + '" ' +
+            'title="' + (item.exclude ? 'Include in average' : 'Exclude from average') + '">' +
+            '<i class="fas ' + (item.exclude ? 'fa-eye' : 'fa-eye-slash') + '"></i>' +
+          '</button>' +
+          '<button class="btn-icon btn-edit-grade" data-id="' + item.id + '" title="Edit grade">' +
+            '<i class="fas fa-pen"></i>' +
+          '</button>' +
+          '<button class="btn-icon btn-delete-grade" data-id="' + item.id + '" title="Delete grade">' +
+            '<i class="fas fa-trash"></i>' +
+          '</button>' +
+        '</div>';
+
       list.appendChild(div);
     });
 
     list.querySelectorAll(".btn-toggle-exclude").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        toggleGradeExclude(btn.getAttribute("data-id"));
-        loadGrades();
-      });
+      btn.addEventListener("click", function () { toggleGradeExclude(btn.getAttribute("data-id")); loadGrades(); });
     });
-
     list.querySelectorAll(".btn-edit-grade").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        editGradeItem(btn.getAttribute("data-id"));
-      });
+      btn.addEventListener("click", function () { editGradeItem(btn.getAttribute("data-id")); });
     });
-
-    list.querySelectorAll(".btn-delete").forEach(function (btn) {
+    list.querySelectorAll(".btn-delete-grade").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        if (confirm("Delete this grade?")) {
+        showConfirm("Delete this grade?", function () {
           deleteGrade(btn.getAttribute("data-id"));
           loadGrades();
-        }
+          showToast("Grade deleted.", "info");
+        });
       });
     });
 
     const gwa = calculateGWA(grades, year, semester);
-    if (display) display.textContent = gwa.toFixed(2);
+    if (gwaDisplay) {
+      gwaDisplay.textContent = gwa.toFixed(2);
+      gwaDisplay.style.color = gwa > 0 ? gradeColor(gwa) : "";
+    }
   }
 
   function editGradeItem(id) {
-    const grades = getGrades();
-    const item = grades.find(function (g) { return g.id === id; });
+    const item = getGrades().find(function (g) { return g.id === id; });
     if (!item) return;
-    document.getElementById("grade-edit-id").value = id;
-    document.getElementById("grade-subject").value = item.subject;
-    document.getElementById("grade-value").value = item.grade;
-    document.getElementById("grade-year").value = item.year;
-    document.getElementById("grade-semester").value = item.semester;
-    document.getElementById("grade-exclude").checked = item.exclude;
-    document.getElementById("grade-modal-title").textContent = "Edit Grade";
+    document.getElementById("grade-edit-id").value            = id;
+    document.getElementById("grade-subject").value            = item.subject;
+    document.getElementById("grade-value").value              = item.grade;
+    document.getElementById("grade-year").value               = item.year;
+    document.getElementById("grade-semester").value           = item.semester;
+    document.getElementById("grade-exclude").checked          = item.exclude;
+    document.getElementById("grade-modal-title").textContent  = "Edit Grade";
     openModal("grade-modal-overlay");
   }
 
   /* ---------------------------------------------------------
      CLASSMATES FUNCTIONS
   --------------------------------------------------------- */
-  function getClassmates() { return getData(KEYS.CLASSMATES, []); }
+  function getClassmates()            { return getData(KEYS.CLASSMATES, []); }
   function saveClassmates(classmates) { setData(KEYS.CLASSMATES, classmates); }
 
   function seedDemoClassmates() {
-    const existing = getClassmates();
-    if (existing.length > 0) return;
+    if (getClassmates().length > 0) return;
     saveClassmates(DEMO_CLASSMATES);
   }
 
@@ -808,20 +1084,30 @@
     list.innerHTML = "";
 
     if (classmates.length === 0) {
-      list.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No classmates found.</p></div>';
+      list.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon"><i class="fas fa-users"></i></div>' +
+          '<p class="empty-title">No classmates found</p>' +
+          '<p class="empty-sub">Classmates will appear here.</p>' +
+        '</div>';
       return;
     }
 
     classmates.forEach(function (cm) {
       const card = document.createElement("div");
       card.className = "classmate-card";
-      card.innerHTML = `
-        <div class="classmate-avatar">${initials(cm.name)}</div>
-        <div class="classmate-info">
-          <h4>${escapeHtml(cm.name)}</h4>
-          <p>${escapeHtml(cm.course || "")} ${escapeHtml(cm.year || "")} ${escapeHtml(cm.section || "")}</p>
-        </div>
-      `;
+      card.innerHTML =
+        '<div class="classmate-avatar" style="background:' + stringToColor(cm.name) + '">' +
+          escapeHtml(initials(cm.name)) +
+        '</div>' +
+        '<div class="classmate-info">' +
+          '<h4>' + escapeHtml(cm.name) + '</h4>' +
+          '<p>' +
+            (cm.course ? '<span><i class="fas fa-graduation-cap"></i> ' + escapeHtml(cm.course) + '</span> ' : '') +
+            (cm.year   ? '<span>' + escapeHtml(cm.year) + '</span>' : '') +
+          '</p>' +
+          (cm.section ? '<p class="classmate-section"><i class="fas fa-users"></i> ' + escapeHtml(cm.section) + '</p>' : '') +
+        '</div>';
       list.appendChild(card);
     });
   }
@@ -832,24 +1118,28 @@
   function loadFaqs() {
     const list = document.getElementById("faqs-list");
     if (!list) return;
-    if (list.querySelector(".faq-item")) return;
+    list.innerHTML = "";
 
-    DEMO_FAQS.forEach(function (faq, index) {
+    DEMO_FAQS.forEach(function (faq) {
       const div = document.createElement("div");
       div.className = "faq-item";
-      div.innerHTML = `
-        <div class="faq-question" data-index="${index}">
-          <i class="fas fa-chevron-right"></i> ${escapeHtml(faq.question)}
-        </div>
-        <div class="faq-answer">${escapeHtml(faq.answer)}</div>
-      `;
+      div.innerHTML =
+        '<div class="faq-question">' +
+          '<span>' + escapeHtml(faq.question) + '</span>' +
+          '<i class="fas fa-chevron-down faq-chevron"></i>' +
+        '</div>' +
+        '<div class="faq-answer">' + escapeHtml(faq.answer) + '</div>';
       list.appendChild(div);
     });
 
     list.querySelectorAll(".faq-question").forEach(function (q) {
       q.addEventListener("click", function () {
         var parent = q.parentElement;
-        parent.classList.toggle("open");
+        var isOpen = parent.classList.contains("open");
+        list.querySelectorAll(".faq-item.open").forEach(function (item) {
+          item.classList.remove("open");
+        });
+        if (!isOpen) parent.classList.add("open");
       });
     });
   }
@@ -857,51 +1147,35 @@
   /* ---------------------------------------------------------
      SETTINGS FUNCTIONS
   --------------------------------------------------------- */
-  function getSettings() { return getData(KEYS.SETTINGS, { darkMode: false, fontSize: "medium" }); }
+  function getSettings()          { return getData(KEYS.SETTINGS, { darkMode: false, fontSize: "medium" }); }
   function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
 
   function applySettings(settings) {
     if (!settings) settings = getSettings();
-    if (settings.darkMode) {
-      document.body.classList.add("dark-mode");
-    } else {
-      document.body.classList.remove("dark-mode");
-    }
-    var size = settings.fontSize || "medium";
-    if (size === "small") {
-      document.body.style.fontSize = "14px";
-    } else if (size === "large") {
-      document.body.style.fontSize = "18px";
-    } else {
-      document.body.style.fontSize = "16px";
-    }
+    document.body.classList.toggle("dark-mode", !!settings.darkMode);
+    document.documentElement.setAttribute("data-font-size", settings.fontSize || "medium");
   }
 
   function updateStorageDisplay() {
     var total = 0;
     for (var key in localStorage) {
-      if (localStorage.hasOwnProperty(key)) {
-        total += localStorage[key].length;
+      if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
+        total += ((localStorage[key] || "").length) * 2;
       }
     }
-    var display = document.getElementById("settings-storage");
-    if (display) {
-      if (total < 1024) {
-        display.textContent = total + " B";
-      } else if (total < 1048576) {
-        display.textContent = (total / 1024).toFixed(1) + " KB";
-      } else {
-        display.textContent = (total / 1048576).toFixed(1) + " MB";
-      }
-    }
+    var el = document.getElementById("settings-storage");
+    if (!el) return;
+    if (total < 1024)        el.textContent = total + " B";
+    else if (total < 1048576) el.textContent = (total / 1024).toFixed(1) + " KB";
+    else                      el.textContent = (total / 1048576).toFixed(2) + " MB";
   }
 
   function loadSettings() {
-    const settings = getSettings();
+    const settings   = getSettings();
     const darkToggle = document.getElementById("dark-mode-toggle");
-    if (darkToggle) darkToggle.checked = settings.darkMode || false;
     const fontSelect = document.getElementById("font-size-select");
-    if (fontSelect) fontSelect.value = settings.fontSize || "medium";
+    if (darkToggle) darkToggle.checked = !!settings.darkMode;
+    if (fontSelect) fontSelect.value   = settings.fontSize || "medium";
     applySettings(settings);
     updateStorageDisplay();
   }
@@ -909,43 +1183,44 @@
   /* ---------------------------------------------------------
      UI HELPERS
   --------------------------------------------------------- */
-  // ============ FIXED: showPage now locks/unlocks scrolling ============
   function showPage(pageId) {
-    // Hide all pages
-    document.querySelectorAll(".page").forEach(function (p) { p.classList.remove("active-page"); });
-    var targetPage = document.getElementById(pageId);
-    if (targetPage) {
-      targetPage.classList.add("active-page");
+    document.querySelectorAll(".page").forEach(function (p) {
+      p.classList.remove("active-page");
+    });
+    var target = document.getElementById(pageId);
+    if (target) target.classList.add("active-page");
+
+    var bottomNav = document.querySelector(".bottom-nav");
+    if (bottomNav) {
+      bottomNav.style.display = pageId === "dashboard-page" ? "" : "none";
     }
 
-    // Lock or unlock body scrolling based on the page shown
-    if (pageId === "login-page") {
-      // Prevent any scrolling on login page
-      document.body.classList.add("body-scroll-lock");
-      document.body.classList.remove("splash-active");
-    } else if (pageId === "dashboard-page") {
-      // Allow scrolling inside dashboard (but not between pages)
-      document.body.classList.remove("body-scroll-lock");
-      document.body.classList.remove("splash-active");
+    if (pageId === "dashboard-page") {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width    = "";
     } else {
-      // For other pages (like splash), we manage separately
-      document.body.classList.remove("body-scroll-lock");
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width    = "100%";
     }
   }
 
   function showLoginForm() {
-    var signupForm = document.getElementById("signup-form");
-    var loginForm = document.getElementById("login-form");
-    if (signupForm) signupForm.classList.remove("active-form");
-    if (loginForm) loginForm.classList.add("active-form");
+    var lf = document.getElementById("login-form");
+    var sf = document.getElementById("signup-form");
+    if (sf) sf.classList.remove("active-form");
+    if (lf) lf.classList.add("active-form");
     hideError("login-error");
+    hideError("signup-error");
   }
 
   function showSignupForm() {
-    var loginForm = document.getElementById("login-form");
-    var signupForm = document.getElementById("signup-form");
-    if (loginForm) loginForm.classList.remove("active-form");
-    if (signupForm) signupForm.classList.add("active-form");
+    var lf = document.getElementById("login-form");
+    var sf = document.getElementById("signup-form");
+    if (lf) lf.classList.remove("active-form");
+    if (sf) sf.classList.add("active-form");
+    hideError("login-error");
     hideError("signup-error");
   }
 
@@ -954,6 +1229,7 @@
     if (el) {
       el.textContent = message;
       el.hidden = false;
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }
 
@@ -963,110 +1239,131 @@
   }
 
   function setButtonLoading(btn, loading) {
-    var text = btn.querySelector(".btn-text");
+    if (!btn) return;
+    var text    = btn.querySelector(".btn-text");
     var spinner = btn.querySelector(".btn-spinner");
     btn.disabled = loading;
-    if (loading) {
-      if (text) text.style.visibility = "hidden";
-      if (spinner) spinner.hidden = false;
-    } else {
-      if (text) text.style.visibility = "visible";
-      if (spinner) spinner.hidden = true;
-    }
+    if (text)    text.style.opacity    = loading ? "0"    : "1";
+    if (spinner) spinner.hidden        = !loading;
   }
 
   function openModal(id) {
     var overlay = document.getElementById(id);
-    if (overlay) overlay.classList.add("active-modal");
+    if (!overlay) return;
+    overlay.classList.add("active-modal");
+    document.body.style.overflow = "hidden";
   }
 
   function closeModal(id) {
     var overlay = document.getElementById(id);
-    if (overlay) overlay.classList.remove("active-modal");
+    if (!overlay) return;
+    overlay.classList.remove("active-modal");
+    if (!document.querySelector(".modal-overlay.active-modal")) {
+      document.body.style.overflow = "";
+    }
   }
 
   function closeAllModals() {
     document.querySelectorAll(".modal-overlay").forEach(function (m) {
       m.classList.remove("active-modal");
     });
+    document.body.style.overflow = "";
   }
 
   function switchView(viewId) {
-    document.querySelectorAll(".dashboard-view").forEach(function (v) { v.classList.remove("active-view"); });
+    document.querySelectorAll(".dashboard-view").forEach(function (v) {
+      v.classList.remove("active-view");
+    });
     var target = document.getElementById(viewId);
-    if (target) target.classList.add("active-view");
-    document.querySelectorAll(".nav-item").forEach(function (btn) {
+    if (target) {
+      target.classList.add("active-view");
+      var main = document.querySelector(".dashboard-main");
+      if (main) main.scrollTop = 0;
+    }
+
+    document.querySelectorAll(".nav-item[data-view]").forEach(function (btn) {
       btn.classList.toggle("active-nav", btn.getAttribute("data-view") === viewId);
     });
-    document.querySelectorAll(".drawer-item").forEach(function (btn) {
+
+    document.querySelectorAll(".drawer-item[data-view]").forEach(function (btn) {
       btn.classList.toggle("active-drawer-item", btn.getAttribute("data-view") === viewId);
     });
+
     closeDrawer();
+
+    if (viewId === "view-settings") updateStorageDisplay();
+    if (viewId === "view-grades")   loadGrades();
+    if (viewId === "view-faqs")     loadFaqs();
   }
 
-  function navigateTo(viewId) {
-    switchView(viewId);
-  }
+  function navigateTo(viewId) { switchView(viewId); }
 
   /* ---------------------------------------------------------
-     DRAWER FUNCTIONS
+     DRAWER
   --------------------------------------------------------- */
   function openDrawer() {
     var overlay = document.getElementById("side-drawer-overlay");
-    var drawer = document.getElementById("side-drawer");
+    var drawer  = document.getElementById("side-drawer");
     if (overlay) overlay.classList.add("active-drawer");
-    if (drawer) drawer.classList.add("open");
+    if (drawer)  drawer.classList.add("open");
     document.body.style.overflow = "hidden";
   }
 
   function closeDrawer() {
     var overlay = document.getElementById("side-drawer-overlay");
-    var drawer = document.getElementById("side-drawer");
+    var drawer  = document.getElementById("side-drawer");
     if (overlay) overlay.classList.remove("active-drawer");
-    if (drawer) drawer.classList.remove("open");
-    document.body.style.overflow = "";
+    if (drawer)  drawer.classList.remove("open");
+    if (!document.querySelector(".modal-overlay.active-modal")) {
+      document.body.style.overflow = "";
+    }
   }
 
   function toggleDrawer() {
     var drawer = document.getElementById("side-drawer");
-    if (drawer && drawer.classList.contains("open")) {
-      closeDrawer();
-    } else {
-      openDrawer();
-    }
+    if (drawer && drawer.classList.contains("open")) closeDrawer();
+    else openDrawer();
   }
 
-  // ============ FIXED: loadDashboard now checks login status ============
+  /* ---------------------------------------------------------
+     LOAD DASHBOARD
+  --------------------------------------------------------- */
   function loadDashboard() {
-    // CRITICAL SECURITY FIX: If not logged in, redirect to login
     if (!isLoggedIn()) {
       showPage("login-page");
       showLoginForm();
       return;
     }
 
-    var user = getCurrentUser();
-    var name = user ? user.name : "Student";
+    var user  = getCurrentUser();
+    var name  = user ? user.name  : "Student";
     var email = user ? user.email : "";
 
-    var dashName = document.getElementById("dash-user-name");
-    var profileName = document.getElementById("profile-name");
-    var profileEmail = document.getElementById("profile-email");
-    var composerAvatar = document.getElementById("composer-avatar");
-    var profileAvatar = document.getElementById("profile-avatar");
-    var drawerAvatar = document.getElementById("drawer-avatar");
+    var dashName   = document.getElementById("dash-user-name");
     var drawerName = document.getElementById("drawer-name");
-    var drawerEmail = document.getElementById("drawer-email");
-
-    if (dashName) dashName.textContent = name;
-    if (profileName) profileName.textContent = name;
-    if (profileEmail) profileEmail.textContent = email;
-    if (composerAvatar) composerAvatar.textContent = initials(name);
-    if (profileAvatar) profileAvatar.textContent = initials(name);
-    if (drawerAvatar) drawerAvatar.textContent = initials(name);
-    if (drawerName) drawerName.textContent = name;
+    var drawerEmail= document.getElementById("drawer-email");
+    if (dashName)    dashName.textContent    = name;
+    if (drawerName)  drawerName.textContent  = name;
     if (drawerEmail) drawerEmail.textContent = email;
 
+    var composerAvatar = document.getElementById("composer-avatar");
+    if (composerAvatar) composerAvatar.textContent = initials(name);
+
+    var drawerAvatar = document.getElementById("drawer-avatar");
+    if (drawerAvatar) {
+      var photo = getProfilePhoto();
+      if (photo) {
+        drawerAvatar.style.backgroundImage    = "url(" + photo + ")";
+        drawerAvatar.style.backgroundSize     = "cover";
+        drawerAvatar.style.backgroundPosition = "center";
+        drawerAvatar.textContent              = "";
+      } else {
+        drawerAvatar.style.backgroundImage = "";
+        drawerAvatar.textContent           = initials(name);
+      }
+    }
+
+    seedDemoPosts();
     loadProfileForm();
     loadPosts();
     loadSubjects();
@@ -1081,59 +1378,51 @@
   }
 
   /* ---------------------------------------------------------
-     PROFILE FORM FUNCTIONS
+     PROFILE FORM
   --------------------------------------------------------- */
   function loadProfileForm() {
     var profile = getProfile();
-    var fields = {
-      "profile-fullname": profile.name || "",
-      "profile-email": profile.email || "",
-      "profile-bio": profile.bio || "",
-      "profile-student-id": profile.studentId || "",
-      "profile-course": profile.course || "",
-      "profile-year": profile.year || "",
-      "profile-section": profile.section || "",
-      "profile-contact": profile.contact || "",
-      "profile-birthdate": profile.birthdate || "",
-      "profile-gender": profile.gender || "",
-      "profile-address": profile.address || "",
-      "profile-emergency": profile.emergency || "",
-      "profile-guardian-name": profile.guardianName || "",
-      "profile-guardian-contact": profile.guardianContact || "",
-    };
-    for (var id in fields) {
-      var el = document.getElementById(id);
-      if (el) el.value = fields[id];
-    }
-    var avatar = document.getElementById("profile-avatar");
-    var photo = getProfilePhoto();
-    if (photo && avatar) {
-      avatar.style.backgroundImage = "url(" + photo + ")";
-      avatar.style.backgroundSize = "cover";
-      avatar.style.backgroundPosition = "center";
-      avatar.textContent = "";
-    } else if (avatar) {
-      avatar.style.backgroundImage = "";
-      avatar.textContent = initials(profile.name || "S");
-    }
-  }
+    var user    = getCurrentUser();
 
-  /* ---------------------------------------------------------
-     OFFLINE BANNER HANDLING
-  --------------------------------------------------------- */
-  function handleOffline(isOffline) {
-    var banner = document.getElementById("offline-banner");
-    if (banner) {
-      if (typeof isOffline === "boolean") {
-        banner.hidden = !isOffline;
+    var map = {
+      "profile-fullname":        profile.name          || (user ? user.name  : ""),
+      "profile-email":           profile.email         || (user ? user.email : ""),
+      "profile-bio":             profile.bio           || "",
+      "profile-student-id":      profile.studentId     || "",
+      "profile-course":          profile.course        || "",
+      "profile-year":            profile.year          || "",
+      "profile-section":         profile.section       || "",
+      "profile-contact":         profile.contact       || "",
+      "profile-birthdate":       profile.birthdate     || "",
+      "profile-gender":          profile.gender        || "",
+      "profile-address":         profile.address       || "",
+      "profile-emergency":       profile.emergency     || "",
+      "profile-guardian-name":   profile.guardianName  || "",
+      "profile-guardian-contact":profile.guardianContact || "",
+    };
+
+    for (var id in map) {
+      var el = document.getElementById(id);
+      if (el) el.value = map[id];
+    }
+
+    var avatar = document.getElementById("profile-avatar");
+    var photo  = getProfilePhoto();
+    if (avatar) {
+      if (photo) {
+        avatar.style.backgroundImage    = "url(" + photo + ")";
+        avatar.style.backgroundSize     = "cover";
+        avatar.style.backgroundPosition = "center";
+        avatar.textContent              = "";
       } else {
-        banner.hidden = navigator.onLine;
+        avatar.style.backgroundImage = "";
+        avatar.textContent = initials(profile.name || (user ? user.name : "S"));
       }
     }
   }
 
   /* ---------------------------------------------------------
-     POST TOOLBAR FUNCTIONS
+     POST TOOLBAR
   --------------------------------------------------------- */
   var currentPostImage = null;
 
@@ -1142,40 +1431,39 @@
     if (!editor) return;
 
     document.querySelectorAll(".toolbar-btn[data-command]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var command = btn.getAttribute("data-command");
-        document.execCommand(command, false, null);
-        editor.focus();
+      btn.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        document.execCommand(btn.getAttribute("data-command"), false, null);
+        btn.classList.toggle("active-toolbar");
       });
     });
 
     var fontSelect = document.getElementById("post-font-select");
     if (fontSelect) {
       fontSelect.addEventListener("change", function () {
-        var font = fontSelect.value;
-        document.execCommand("fontName", false, font);
+        document.execCommand("fontName", false, fontSelect.value);
         editor.focus();
       });
     }
 
-    var imageBtn = document.getElementById("post-image-btn");
+    var imageBtn   = document.getElementById("post-image-btn");
     var imageInput = document.getElementById("post-image-input");
     if (imageBtn && imageInput) {
-      imageBtn.addEventListener("click", function () {
-        imageInput.click();
-      });
+      imageBtn.addEventListener("click", function () { imageInput.click(); });
       imageInput.addEventListener("change", function () {
         var file = imageInput.files[0];
         if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+          showToast("Image must be smaller than 5 MB.", "error");
+          imageInput.value = "";
+          return;
+        }
         var reader = new FileReader();
         reader.onload = function (e) {
           currentPostImage = e.target.result;
           var preview = document.getElementById("post-image-preview");
-          var img = document.getElementById("post-preview-img");
-          if (preview && img) {
-            img.src = currentPostImage;
-            preview.hidden = false;
-          }
+          var img     = document.getElementById("post-preview-img");
+          if (preview && img) { img.src = currentPostImage; preview.hidden = false; }
           imageInput.value = "";
         };
         reader.readAsDataURL(file);
@@ -1187,18 +1475,16 @@
       removeBtn.addEventListener("click", function () {
         currentPostImage = null;
         var preview = document.getElementById("post-image-preview");
+        var img     = document.getElementById("post-preview-img");
         if (preview) preview.hidden = true;
-        var img = document.getElementById("post-preview-img");
-        if (img) img.src = "#";
-        editor.focus();
+        if (img)     img.src        = "#";
       });
     }
   }
 
   function getPostContent() {
     var editor = document.getElementById("post-content-editable");
-    if (!editor) return "";
-    return editor.innerHTML;
+    return editor ? editor.innerHTML.trim() : "";
   }
 
   function clearPostContent() {
@@ -1206,55 +1492,63 @@
     if (editor) editor.innerHTML = "";
     currentPostImage = null;
     var preview = document.getElementById("post-image-preview");
+    var img     = document.getElementById("post-preview-img");
     if (preview) preview.hidden = true;
-    var img = document.getElementById("post-preview-img");
-    if (img) img.src = "#";
+    if (img)     img.src        = "#";
+    var fontSel = document.getElementById("post-font-select");
+    if (fontSel) fontSel.selectedIndex = 0;
+    document.querySelectorAll(".toolbar-btn.active-toolbar").forEach(function (b) {
+      b.classList.remove("active-toolbar");
+    });
+  }
+
+  function isPostContentEmpty(html) {
+    var tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return !tmp.textContent.trim() && !tmp.querySelector("img");
   }
 
   /* ---------------------------------------------------------
      SETTINGS COLLAPSIBLE
   --------------------------------------------------------- */
   function toggleSettingsGroup(groupId) {
-    var group = document.getElementById(groupId);
-    var parent = group ? group.parentElement : null;
-    if (group) {
-      if (group.style.display === "none") {
-        group.style.display = "block";
-        if (parent) parent.classList.add("open");
-      } else {
-        group.style.display = "none";
-        if (parent) parent.classList.remove("open");
-      }
-    }
+    var group   = document.getElementById(groupId);
+    if (!group) return;
+    var isHidden = group.style.display === "none" || group.style.display === "";
+    group.style.display = isHidden ? "block" : "none";
+    var chevronId = groupId.replace("-group", "-chevron");
+    var chevron   = document.getElementById(chevronId);
+    if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "";
   }
 
   /* ---------------------------------------------------------
-     EXPORT / IMPORT FUNCTIONS
+     EXPORT / IMPORT
   --------------------------------------------------------- */
   function exportData() {
+    var user = getCurrentUser();
     var data = {
-      users: getUsers(),
-      posts: getPosts(),
-      subjects: getSubjects(),
-      schedule: getSchedule(),
+      version:     "1.0.0",
+      exportedAt:  new Date().toISOString(),
+      exportedBy:  user ? user.email : "unknown",
+      posts:       getPosts(),
+      subjects:    getSubjects(),
+      schedule:    getSchedule(),
       assignments: getAssignments(),
-      grades: getGrades(),
-      profile: getProfile(),
-      settings: getSettings(),
-      classmates: getClassmates(),
-      exportedAt: new Date().toISOString(),
-      version: "1.0.0",
+      grades:      getGrades(),
+      profile:     getProfile(),
+      settings:    getSettings(),
+      classmates:  getClassmates(),
     };
-    var json = JSON.stringify(data, null, 2);
-    var blob = new Blob([json], { type: "application/json" });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href   = url;
     a.download = "classconnect-backup-" + new Date().toISOString().slice(0, 10) + ".json";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    showToast("Data exported successfully.", "success");
   }
 
   function importData(file) {
@@ -1262,242 +1556,230 @@
     reader.onload = function (e) {
       try {
         var data = JSON.parse(e.target.result);
-        if (!data.version) {
-          alert("Invalid backup file.");
-          return;
-        }
-        if (!confirm("This will overwrite all your current data. Are you sure?")) return;
-        if (data.users) saveUsers(data.users);
-        if (data.posts) savePosts(data.posts);
-        if (data.subjects) saveSubjects(data.subjects);
-        if (data.schedule) saveSchedule(data.schedule);
-        if (data.assignments) saveAssignments(data.assignments);
-        if (data.grades) saveGrades(data.grades);
-        if (data.profile) saveProfile(data.profile);
-        if (data.settings) saveSettings(data.settings);
-        if (data.classmates) saveClassmates(data.classmates);
-        alert("Data imported successfully! The page will reload.");
-        location.reload();
+        if (!data.version) { showToast("Invalid backup file.", "error"); return; }
+        showConfirm("This will replace all your current data. Continue?", function () {
+          if (data.posts)       savePosts(data.posts);
+          if (data.subjects)    saveSubjects(data.subjects);
+          if (data.schedule)    saveSchedule(data.schedule);
+          if (data.assignments) saveAssignments(data.assignments);
+          if (data.grades)      saveGrades(data.grades);
+          if (data.profile)     saveProfile(data.profile);
+          if (data.settings)    saveSettings(data.settings);
+          if (data.classmates)  saveClassmates(data.classmates);
+          showToast("Data imported. Reloading...", "success");
+          setTimeout(function () { location.reload(); }, 1500);
+        });
       } catch (err) {
-        alert("Failed to import data. Please check the file format.");
+        showToast("Failed to import. Check the file format.", "error");
       }
     };
     reader.readAsText(file);
   }
 
   /* ---------------------------------------------------------
-     CLEAR DATA
+     CLEAR ALL DATA
   --------------------------------------------------------- */
   function clearAllData() {
-    if (!confirm("Are you sure you want to delete ALL your data? This cannot be undone!")) return;
-    if (!confirm("Really? All your subjects, grades, assignments, and posts will be gone.")) return;
-    var keys = Object.values(KEYS);
-    keys.forEach(function (key) {
-      localStorage.removeItem(key);
+    showConfirm("Delete all your data? This cannot be undone.", function () {
+      showConfirm("This is permanent. Are you absolutely sure?", function () {
+        var user = getCurrentUser();
+        if (user) {
+          var scope = "_" + user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+          Object.keys(localStorage).forEach(function (key) {
+            if (key.indexOf(scope) !== -1) localStorage.removeItem(key);
+          });
+          localStorage.removeItem(KEYS.POSTS);
+          localStorage.removeItem(KEYS.SUBJECTS);
+          localStorage.removeItem(KEYS.SCHEDULE);
+          localStorage.removeItem(KEYS.ASSIGNMENTS);
+          localStorage.removeItem(KEYS.GRADES);
+        }
+        showToast("All data cleared. Reloading...", "info");
+        setTimeout(function () { location.reload(); }, 1500);
+      });
     });
-    alert("All data cleared. The page will reload.");
-    location.reload();
   }
 
   /* ---------------------------------------------------------
      CHANGE PASSWORD
   --------------------------------------------------------- */
   function changePassword(currentPwd, newPwd, confirmPwd) {
-    var user = getCurrentUser();
-    if (!user) return { success: false, message: "Not logged in." };
+    if (!currentPwd || !newPwd || !confirmPwd) {
+      return { success: false, message: "Please fill in all password fields." };
+    }
     if (newPwd.length < 6) {
       return { success: false, message: "New password must be at least 6 characters." };
     }
     if (newPwd !== confirmPwd) {
-      return { success: false, message: "Passwords do not match." };
+      return { success: false, message: "New passwords do not match." };
     }
+    var user  = getCurrentUser();
+    if (!user) return { success: false, message: "Not logged in." };
     var users = getUsers();
-    var index = users.findIndex(function (u) { return u.email.toLowerCase() === user.email.toLowerCase(); });
-    if (index === -1) return { success: false, message: "User not found." };
-    if (users[index].password !== currentPwd) {
+    var idx   = users.findIndex(function (u) {
+      return u.email.toLowerCase() === user.email.toLowerCase();
+    });
+    if (idx === -1) return { success: false, message: "User account not found." };
+    if (users[idx].password !== currentPwd) {
       return { success: false, message: "Current password is incorrect." };
     }
-    users[index].password = newPwd;
+    users[idx].password = newPwd;
     saveUsers(users);
-    return { success: true, message: "Password updated successfully!" };
+    return { success: true, message: "Password updated successfully." };
+  }
+
+  /* ---------------------------------------------------------
+     OFFLINE BANNER
+  --------------------------------------------------------- */
+  function handleOffline(isOffline) {
+    var banner = document.getElementById("offline-banner");
+    if (banner) banner.hidden = !isOffline;
+  }
+
+  /* ---------------------------------------------------------
+     PWA
+  --------------------------------------------------------- */
+  function registerServiceWorker() {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(function (err) {
+        console.warn("Service worker registration failed:", err);
+      });
+    }
   }
 
   /* ---------------------------------------------------------
      EVENT WIRING
   --------------------------------------------------------- */
   function initEventListeners() {
-    // ---- AUTH ----
+
+    /* ---- AUTH FORM SWITCHING ---- */
     var showSignupLink = document.getElementById("show-signup");
-    var showLoginLink = document.getElementById("show-login");
+    var showLoginLink  = document.getElementById("show-login");
     if (showSignupLink) {
-      showSignupLink.addEventListener("click", function (e) {
-        e.preventDefault();
-        showSignupForm();
-      });
+      showSignupLink.addEventListener("click", function (e) { e.preventDefault(); showSignupForm(); });
     }
     if (showLoginLink) {
-      showLoginLink.addEventListener("click", function (e) {
-        e.preventDefault();
-        showLoginForm();
-      });
+      showLoginLink.addEventListener("click", function (e) { e.preventDefault(); showLoginForm(); });
     }
 
-    // Password toggles
+    /* ---- PASSWORD VISIBILITY TOGGLES ---- */
     document.querySelectorAll(".toggle-password").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        var targetId = btn.getAttribute("data-target");
-        var input = document.getElementById(targetId);
-        var icon = btn.querySelector("i");
-        if (input && icon) {
-          if (input.type === "password") {
-            input.type = "text";
-            icon.classList.remove("fa-eye");
-            icon.classList.add("fa-eye-slash");
-          } else {
-            input.type = "password";
-            icon.classList.remove("fa-eye-slash");
-            icon.classList.add("fa-eye");
-          }
+        var input = document.getElementById(btn.getAttribute("data-target"));
+        var icon  = btn.querySelector("i");
+        if (!input || !icon) return;
+        if (input.type === "password") {
+          input.type = "text";
+          icon.classList.replace("fa-eye", "fa-eye-slash");
+        } else {
+          input.type = "password";
+          icon.classList.replace("fa-eye-slash", "fa-eye");
         }
       });
     });
 
-    // Login form
+    /* ---- LOGIN FORM ---- */
     var loginForm = document.getElementById("login-form");
     if (loginForm) {
       loginForm.addEventListener("submit", function (e) {
         e.preventDefault();
         hideError("login-error");
+        var email    = (document.getElementById("login-email").value    || "").trim();
+        var password =  document.getElementById("login-password").value || "";
 
-        var emailEl = document.getElementById("login-email");
-        var passwordEl = document.getElementById("login-password");
-        var email = emailEl ? emailEl.value.trim() : "";
-        var password = passwordEl ? passwordEl.value : "";
-
-        if (!isValidEmail(email)) {
-          showError("login-error", "Please enter a valid email address.");
-          return;
-        }
-        if (!password) {
-          showError("login-error", "Please enter your password.");
-          return;
-        }
+        if (!isValidEmail(email)) { showError("login-error", "Please enter a valid email address."); return; }
+        if (!password)            { showError("login-error", "Please enter your password."); return; }
 
         var btn = document.getElementById("login-submit-btn");
         setButtonLoading(btn, true);
-
         setTimeout(function () {
           var result = login(email, password);
           setButtonLoading(btn, false);
-          if (!result.success) {
-            showError("login-error", result.message);
-            return;
-          }
+          if (!result.success) { showError("login-error", result.message); return; }
           loginForm.reset();
           showPage("dashboard-page");
           loadDashboard();
-        }, 500);
+          showToast("Welcome back, " + getCurrentUser().name + ".", "success");
+        }, 600);
       });
     }
 
-    // Signup form
+    /* ---- SIGNUP FORM ---- */
     var signupForm = document.getElementById("signup-form");
     if (signupForm) {
       signupForm.addEventListener("submit", function (e) {
         e.preventDefault();
         hideError("signup-error");
+        var name     = (document.getElementById("signup-name").value     || "").trim();
+        var email    = (document.getElementById("signup-email").value    || "").trim();
+        var password =  document.getElementById("signup-password").value || "";
+        var confirm  =  document.getElementById("signup-confirm").value  || "";
 
-        var nameEl = document.getElementById("signup-name");
-        var emailEl = document.getElementById("signup-email");
-        var passwordEl = document.getElementById("signup-password");
-        var confirmEl = document.getElementById("signup-confirm");
-
-        var name = nameEl ? nameEl.value.trim() : "";
-        var email = emailEl ? emailEl.value.trim() : "";
-        var password = passwordEl ? passwordEl.value : "";
-        var confirm = confirmEl ? confirmEl.value : "";
-
-        if (!name) {
-          showError("signup-error", "Please enter your full name.");
-          return;
-        }
-        if (!isValidEmail(email)) {
-          showError("signup-error", "Please enter a valid email address.");
-          return;
-        }
-        if (password.length < 6) {
-          showError("signup-error", "Password must be at least 6 characters.");
-          return;
-        }
-        if (password !== confirm) {
-          showError("signup-error", "Passwords do not match.");
-          return;
-        }
+        if (name.length < 2)      { showError("signup-error", "Please enter your full name."); return; }
+        if (!isValidEmail(email)) { showError("signup-error", "Please enter a valid email address."); return; }
+        if (password.length < 6)  { showError("signup-error", "Password must be at least 6 characters."); return; }
+        if (password !== confirm)  { showError("signup-error", "Passwords do not match."); return; }
 
         var btn = document.getElementById("signup-submit-btn");
         setButtonLoading(btn, true);
-
         setTimeout(function () {
           var result = signup(name, email, password);
           setButtonLoading(btn, false);
-          if (!result.success) {
-            showError("signup-error", result.message);
-            return;
-          }
+          if (!result.success) { showError("signup-error", result.message); return; }
           signupForm.reset();
           showPage("dashboard-page");
           loadDashboard();
-        }, 500);
+          showToast("Account created. Welcome, " + name + ".", "success");
+        }, 600);
       });
     }
 
-    // ---- LOGOUT ----
-    var logoutBtn1 = document.getElementById("logout-btn");
-    var logoutBtn2 = document.getElementById("logout-btn-2");
-    var logoutBtn3 = document.getElementById("drawer-logout-btn");
-    var logoutBtn4 = document.getElementById("settings-logout-btn");
-    if (logoutBtn1) logoutBtn1.addEventListener("click", logout);
-    if (logoutBtn2) logoutBtn2.addEventListener("click", logout);
-    if (logoutBtn3) logoutBtn3.addEventListener("click", logout);
-    if (logoutBtn4) logoutBtn4.addEventListener("click", logout);
+    /* ---- LOGOUT ---- */
+    ["logout-btn", "drawer-logout-btn", "settings-logout-btn"].forEach(function (id) {
+      var btn = document.getElementById(id);
+      if (btn) btn.addEventListener("click", logout);
+    });
 
-    // ---- HAMBURGER / DRAWER ----
-    var hamburger = document.getElementById("hamburger-btn");
-    var drawerClose = document.getElementById("drawer-close-btn");
+    /* ---- HAMBURGER / DRAWER ---- */
+    var hamburger     = document.getElementById("hamburger-btn");
+    var drawerClose   = document.getElementById("drawer-close-btn");
     var drawerOverlay = document.getElementById("side-drawer-overlay");
-    if (hamburger) hamburger.addEventListener("click", toggleDrawer);
-    if (drawerClose) drawerClose.addEventListener("click", closeDrawer);
+    if (hamburger)     hamburger.addEventListener("click", toggleDrawer);
+    if (drawerClose)   drawerClose.addEventListener("click", closeDrawer);
     if (drawerOverlay) {
       drawerOverlay.addEventListener("click", function (e) {
         if (e.target === drawerOverlay) closeDrawer();
       });
     }
 
-    // ---- DRAWER NAVIGATION ----
+    /* ---- DRAWER NAVIGATION ---- */
     document.querySelectorAll(".drawer-item[data-view]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var view = btn.getAttribute("data-view");
-        switchView(view);
-      });
+      btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
-    // ---- BOTTOM NAV ----
-    document.querySelectorAll(".nav-item").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var view = btn.getAttribute("data-view");
-        switchView(view);
-      });
+    /* ---- BOTTOM NAV ---- */
+    document.querySelectorAll(".nav-item[data-view]").forEach(function (btn) {
+      btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
-    // ---- CREATE POST MODAL ----
-    var composerBtn1 = document.getElementById("open-composer-btn");
-    var composerBtn2 = document.getElementById("open-composer-btn-2");
+    /* ---- CREATE POST MODAL ---- */
+    var composerBtn1  = document.getElementById("open-composer-btn");
+    var composerBtn2  = document.getElementById("open-composer-btn-2");
     var closeModalBtn = document.getElementById("close-modal-btn");
-    var postOverlay = document.getElementById("post-modal-overlay");
+    var postOverlay   = document.getElementById("post-modal-overlay");
     var submitPostBtn = document.getElementById("submit-post-btn");
 
-    if (composerBtn1) composerBtn1.addEventListener("click", function () { openModal("post-modal-overlay"); });
-    if (composerBtn2) composerBtn2.addEventListener("click", function () { openModal("post-modal-overlay"); });
+    function openPostModal() {
+      openModal("post-modal-overlay");
+      setTimeout(function () {
+        var ed = document.getElementById("post-content-editable");
+        if (ed) ed.focus();
+      }, 300);
+    }
+
+    if (composerBtn1) composerBtn1.addEventListener("click", openPostModal);
+    if (composerBtn2) composerBtn2.addEventListener("click", openPostModal);
+
     if (closeModalBtn) {
       closeModalBtn.addEventListener("click", function () {
         closeModal("post-modal-overlay");
@@ -1506,17 +1788,14 @@
     }
     if (postOverlay) {
       postOverlay.addEventListener("click", function (e) {
-        if (e.target === postOverlay) {
-          closeModal("post-modal-overlay");
-          clearPostContent();
-        }
+        if (e.target === postOverlay) { closeModal("post-modal-overlay"); clearPostContent(); }
       });
     }
     if (submitPostBtn) {
       submitPostBtn.addEventListener("click", function () {
         var content = getPostContent();
-        if (!content || content === "<br>" || content === "<div><br></div>") {
-          alert("Please enter some content for your post.");
+        if (isPostContentEmpty(content) && !currentPostImage) {
+          showToast("Please write something before posting.", "warning");
           return;
         }
         createPost(content, currentPostImage);
@@ -1524,28 +1803,27 @@
         clearPostContent();
         loadPosts();
         switchView("view-home");
+        showToast("Post shared successfully.", "success");
       });
     }
 
-    // ---- SUBJECT MODAL ----
-    var addSubjectBtn = document.getElementById("add-subject-btn");
-    var closeSubjectModal = document.getElementById("close-subject-modal-btn");
-    var subjectOverlay = document.getElementById("subject-modal-overlay");
-    var subjectForm = document.getElementById("subject-form");
+    /* ---- SUBJECT MODAL ---- */
+    var addSubjectBtn      = document.getElementById("add-subject-btn");
+    var closeSubjectModal  = document.getElementById("close-subject-modal-btn");
+    var subjectOverlay     = document.getElementById("subject-modal-overlay");
+    var subjectForm        = document.getElementById("subject-form");
 
     if (addSubjectBtn) {
       addSubjectBtn.addEventListener("click", function () {
-        document.getElementById("subject-edit-id").value = "";
-        document.getElementById("subject-name").value = "";
-        document.getElementById("subject-professor").value = "";
-        document.getElementById("subject-schedule").value = "";
+        document.getElementById("subject-edit-id").value           = "";
+        document.getElementById("subject-name").value              = "";
+        document.getElementById("subject-professor").value         = "";
+        document.getElementById("subject-schedule").value          = "";
         document.getElementById("subject-modal-title").textContent = "Add Subject";
         openModal("subject-modal-overlay");
       });
     }
-    if (closeSubjectModal) {
-      closeSubjectModal.addEventListener("click", function () { closeModal("subject-modal-overlay"); });
-    }
+    if (closeSubjectModal) closeSubjectModal.addEventListener("click", function () { closeModal("subject-modal-overlay"); });
     if (subjectOverlay) {
       subjectOverlay.addEventListener("click", function (e) {
         if (e.target === subjectOverlay) closeModal("subject-modal-overlay");
@@ -1554,35 +1832,25 @@
     if (subjectForm) {
       subjectForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var id = document.getElementById("subject-edit-id").value;
-        var name = document.getElementById("subject-name").value.trim();
-        var professor = document.getElementById("subject-professor").value.trim();
-        var schedule = document.getElementById("subject-schedule").value.trim();
-
-        if (!name) {
-          alert("Please enter a subject name.");
-          return;
-        }
-
-        if (id) {
-          updateSubject(id, { name: name, professor: professor, schedule: schedule });
-        } else {
-          addSubject(name, professor, schedule);
-        }
+        var id        = document.getElementById("subject-edit-id").value;
+        var name      = (document.getElementById("subject-name").value      || "").trim();
+        var professor = (document.getElementById("subject-professor").value || "").trim();
+        var schedule  = (document.getElementById("subject-schedule").value  || "").trim();
+        if (!name) { showToast("Please enter a subject name.", "warning"); return; }
+        if (id) { updateSubject(id, { name: name, professor: professor, schedule: schedule }); showToast("Subject updated.", "success"); }
+        else    { addSubject(name, professor, schedule); showToast("Subject added.", "success"); }
         closeModal("subject-modal-overlay");
         subjectForm.reset();
         loadSubjects();
       });
     }
 
-    // ---- SUBJECT TASK MODAL ----
+    /* ---- SUBJECT TASK MODAL ---- */
     var closeSubjectTaskModal = document.getElementById("close-subject-task-modal-btn");
-    var subjectTaskOverlay = document.getElementById("subject-task-modal-overlay");
-    var subjectTaskForm = document.getElementById("subject-task-form");
+    var subjectTaskOverlay    = document.getElementById("subject-task-modal-overlay");
+    var subjectTaskForm       = document.getElementById("subject-task-form");
 
-    if (closeSubjectTaskModal) {
-      closeSubjectTaskModal.addEventListener("click", function () { closeModal("subject-task-modal-overlay"); });
-    }
+    if (closeSubjectTaskModal) closeSubjectTaskModal.addEventListener("click", function () { closeModal("subject-task-modal-overlay"); });
     if (subjectTaskOverlay) {
       subjectTaskOverlay.addEventListener("click", function (e) {
         if (e.target === subjectTaskOverlay) closeModal("subject-task-modal-overlay");
@@ -1592,39 +1860,35 @@
       subjectTaskForm.addEventListener("submit", function (e) {
         e.preventDefault();
         var subjectId = document.getElementById("subject-task-subject-id").value;
-        var text = document.getElementById("subject-task-text").value.trim();
-        if (!text) {
-          alert("Please enter a task description.");
-          return;
-        }
+        var text      = (document.getElementById("subject-task-text").value || "").trim();
+        if (!text) { showToast("Please enter a task description.", "warning"); return; }
         addSubjectTask(subjectId, text);
         closeModal("subject-task-modal-overlay");
         subjectTaskForm.reset();
         loadSubjects();
+        showToast("Task added.", "success");
       });
     }
 
-    // ---- SCHEDULE MODAL ----
-    var addScheduleBtn = document.getElementById("add-schedule-btn");
-    var closeScheduleModal = document.getElementById("close-schedule-modal-btn");
-    var scheduleOverlay = document.getElementById("schedule-modal-overlay");
-    var scheduleForm = document.getElementById("schedule-form");
+    /* ---- SCHEDULE MODAL ---- */
+    var addScheduleBtn    = document.getElementById("add-schedule-btn");
+    var closeScheduleMdl  = document.getElementById("close-schedule-modal-btn");
+    var scheduleOverlay   = document.getElementById("schedule-modal-overlay");
+    var scheduleForm      = document.getElementById("schedule-form");
 
     if (addScheduleBtn) {
       addScheduleBtn.addEventListener("click", function () {
-        document.getElementById("schedule-edit-id").value = "";
-        document.getElementById("schedule-subject").value = "";
-        document.getElementById("schedule-day").value = "";
-        document.getElementById("schedule-start-time").value = "";
-        document.getElementById("schedule-end-time").value = "";
-        document.getElementById("schedule-room").value = "";
+        document.getElementById("schedule-edit-id").value           = "";
+        document.getElementById("schedule-subject").value           = "";
+        document.getElementById("schedule-day").value               = "";
+        document.getElementById("schedule-start-time").value        = "";
+        document.getElementById("schedule-end-time").value          = "";
+        document.getElementById("schedule-room").value              = "";
         document.getElementById("schedule-modal-title").textContent = "Add Schedule";
         openModal("schedule-modal-overlay");
       });
     }
-    if (closeScheduleModal) {
-      closeScheduleModal.addEventListener("click", function () { closeModal("schedule-modal-overlay"); });
-    }
+    if (closeScheduleMdl) closeScheduleMdl.addEventListener("click", function () { closeModal("schedule-modal-overlay"); });
     if (scheduleOverlay) {
       scheduleOverlay.addEventListener("click", function (e) {
         if (e.target === scheduleOverlay) closeModal("schedule-modal-overlay");
@@ -1633,46 +1897,39 @@
     if (scheduleForm) {
       scheduleForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var id = document.getElementById("schedule-edit-id").value;
-        var subject = document.getElementById("schedule-subject").value.trim();
-        var day = document.getElementById("schedule-day").value.trim();
-        var startTime = document.getElementById("schedule-start-time").value;
-        var endTime = document.getElementById("schedule-end-time").value;
-        var room = document.getElementById("schedule-room").value.trim();
+        var id        = document.getElementById("schedule-edit-id").value;
+        var subject   = (document.getElementById("schedule-subject").value    || "").trim();
+        var day       = (document.getElementById("schedule-day").value        || "").trim();
+        var startTime =  document.getElementById("schedule-start-time").value;
+        var endTime   =  document.getElementById("schedule-end-time").value;
+        var room      = (document.getElementById("schedule-room").value       || "").trim();
 
         if (!subject || !day || !startTime || !endTime) {
-          alert("Please fill in all required fields.");
-          return;
+          showToast("Please fill in all required fields.", "warning"); return;
         }
-
-        if (id) {
-          updateScheduleItem(id, { subject: subject, day: day, startTime: startTime, endTime: endTime, room: room });
-        } else {
-          addScheduleItem(subject, day, startTime, endTime, room);
-        }
+        if (id) { updateScheduleItem(id, { subject: subject, day: day, startTime: startTime, endTime: endTime, room: room }); showToast("Schedule updated.", "success"); }
+        else    { addScheduleItem(subject, day, startTime, endTime, room); showToast("Schedule added.", "success"); }
         closeModal("schedule-modal-overlay");
         scheduleForm.reset();
         loadSchedule();
       });
     }
 
-    // ---- ASSIGNMENT MODAL ----
-    var addAssignmentBtn = document.getElementById("add-assignment-btn");
-    var closeAssignmentModal = document.getElementById("close-assignment-modal-btn");
-    var assignmentOverlay = document.getElementById("assignment-modal-overlay");
-    var assignmentForm = document.getElementById("assignment-form");
+    /* ---- ASSIGNMENT MODAL ---- */
+    var addAssignmentBtn    = document.getElementById("add-assignment-btn");
+    var closeAssignmentMdl  = document.getElementById("close-assignment-modal-btn");
+    var assignmentOverlay   = document.getElementById("assignment-modal-overlay");
+    var assignmentForm      = document.getElementById("assignment-form");
 
     if (addAssignmentBtn) {
       addAssignmentBtn.addEventListener("click", function () {
-        document.getElementById("assignment-text").value = "";
-        document.getElementById("assignment-subject").value = "";
-        document.getElementById("assignment-due-date").value = "";
+        document.getElementById("assignment-text").value      = "";
+        document.getElementById("assignment-subject").value   = "";
+        document.getElementById("assignment-due-date").value  = "";
         openModal("assignment-modal-overlay");
       });
     }
-    if (closeAssignmentModal) {
-      closeAssignmentModal.addEventListener("click", function () { closeModal("assignment-modal-overlay"); });
-    }
+    if (closeAssignmentMdl) closeAssignmentMdl.addEventListener("click", function () { closeModal("assignment-modal-overlay"); });
     if (assignmentOverlay) {
       assignmentOverlay.addEventListener("click", function (e) {
         if (e.target === assignmentOverlay) closeModal("assignment-modal-overlay");
@@ -1681,49 +1938,43 @@
     if (assignmentForm) {
       assignmentForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var text = document.getElementById("assignment-text").value.trim();
-        var subject = document.getElementById("assignment-subject").value.trim();
-        var dueDate = document.getElementById("assignment-due-date").value;
-
-        if (!text) {
-          alert("Please enter a task description.");
-          return;
-        }
-
-        addAssignment(text, subject, dueDate);
+        var text    = (document.getElementById("assignment-text").value    || "").trim();
+        var subject = (document.getElementById("assignment-subject").value || "").trim();
+        var due     =  document.getElementById("assignment-due-date").value;
+        if (!text) { showToast("Please enter a task description.", "warning"); return; }
+        addAssignment(text, subject, due);
         closeModal("assignment-modal-overlay");
         assignmentForm.reset();
         loadAssignments();
+        showToast("Assignment added.", "success");
       });
     }
 
-    // ---- GRADE MODAL ----
-    var closeGradeModal = document.getElementById("close-grade-modal-btn");
-    var gradeOverlay = document.getElementById("grade-modal-overlay");
-    var gradeForm = document.getElementById("grade-form");
-
-    var gradesViewHeader = document.querySelector("#view-grades .view-header");
-    if (gradesViewHeader && !document.getElementById("add-grade-btn")) {
-      var addGradeBtn2 = document.createElement("button");
-      addGradeBtn2.id = "add-grade-btn";
-      addGradeBtn2.className = "btn-add";
-      addGradeBtn2.innerHTML = '<i class="fas fa-plus"></i> Add Grade';
-      gradesViewHeader.appendChild(addGradeBtn2);
-      addGradeBtn2.addEventListener("click", function () {
-        document.getElementById("grade-edit-id").value = "";
-        document.getElementById("grade-subject").value = "";
-        document.getElementById("grade-value").value = "";
-        document.getElementById("grade-year").value = "1st";
-        document.getElementById("grade-semester").value = "1st";
-        document.getElementById("grade-exclude").checked = false;
+    /* ---- GRADE MODAL (inject Add Grade button) ---- */
+    var gradesHeader = document.querySelector("#view-grades .view-header");
+    if (gradesHeader && !document.getElementById("add-grade-btn")) {
+      var addGradeBtn = document.createElement("button");
+      addGradeBtn.id        = "add-grade-btn";
+      addGradeBtn.className = "btn-add";
+      addGradeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Grade';
+      gradesHeader.appendChild(addGradeBtn);
+      addGradeBtn.addEventListener("click", function () {
+        document.getElementById("grade-edit-id").value           = "";
+        document.getElementById("grade-subject").value           = "";
+        document.getElementById("grade-value").value             = "";
+        document.getElementById("grade-year").value              = (document.getElementById("grade-year-filter") || {}).value || "1st";
+        document.getElementById("grade-semester").value          = (document.getElementById("grade-semester-filter") || {}).value || "1st";
+        document.getElementById("grade-exclude").checked         = false;
         document.getElementById("grade-modal-title").textContent = "Add Grade";
         openModal("grade-modal-overlay");
       });
     }
 
-    if (closeGradeModal) {
-      closeGradeModal.addEventListener("click", function () { closeModal("grade-modal-overlay"); });
-    }
+    var closeGradeMdl = document.getElementById("close-grade-modal-btn");
+    var gradeOverlay  = document.getElementById("grade-modal-overlay");
+    var gradeForm     = document.getElementById("grade-form");
+
+    if (closeGradeMdl) closeGradeMdl.addEventListener("click", function () { closeModal("grade-modal-overlay"); });
     if (gradeOverlay) {
       gradeOverlay.addEventListener("click", function (e) {
         if (e.target === gradeOverlay) closeModal("grade-modal-overlay");
@@ -1732,93 +1983,83 @@
     if (gradeForm) {
       gradeForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var id = document.getElementById("grade-edit-id").value;
-        var subject = document.getElementById("grade-subject").value.trim();
+        var id       = document.getElementById("grade-edit-id").value;
+        var subject  = (document.getElementById("grade-subject").value || "").trim();
         var gradeVal = parseFloat(document.getElementById("grade-value").value);
-        var year = document.getElementById("grade-year").value;
+        var year     = document.getElementById("grade-year").value;
         var semester = document.getElementById("grade-semester").value;
-        var exclude = document.getElementById("grade-exclude").checked;
+        var exclude  = document.getElementById("grade-exclude").checked;
 
-        if (!subject) {
-          alert("Please enter a subject name.");
-          return;
-        }
+        if (!subject) { showToast("Please enter a subject name.", "warning"); return; }
         if (isNaN(gradeVal) || gradeVal < 0 || gradeVal > 100) {
-          alert("Please enter a valid grade between 0 and 100.");
-          return;
+          showToast("Please enter a valid grade between 0 and 100.", "warning"); return;
         }
-
-        if (id) {
-          updateGrade(id, { subject: subject, grade: gradeVal, year: year, semester: semester, exclude: exclude });
-        } else {
-          addGrade(subject, gradeVal, year, semester, exclude);
-        }
+        if (id) { updateGrade(id, { subject: subject, grade: gradeVal, year: year, semester: semester, exclude: exclude }); showToast("Grade updated.", "success"); }
+        else    { addGrade(subject, gradeVal, year, semester, exclude); showToast("Grade added.", "success"); }
         closeModal("grade-modal-overlay");
         gradeForm.reset();
         loadGrades();
       });
     }
 
-    // ---- GRADE FILTERS ----
+    /* ---- GRADE FILTERS ---- */
     var yearFilter = document.getElementById("grade-year-filter");
-    var semesterFilter = document.getElementById("grade-semester-filter");
+    var semFilter  = document.getElementById("grade-semester-filter");
     if (yearFilter) yearFilter.addEventListener("change", loadGrades);
-    if (semesterFilter) semesterFilter.addEventListener("change", loadGrades);
+    if (semFilter)  semFilter.addEventListener("change",  loadGrades);
 
-    // ---- PROFILE FORM ----
+    /* ---- PROFILE FORM ---- */
     var profileForm = document.getElementById("profile-form");
     if (profileForm) {
       profileForm.addEventListener("submit", function (e) {
         e.preventDefault();
         var data = {
-          name: document.getElementById("profile-fullname").value.trim(),
-          bio: document.getElementById("profile-bio").value.trim(),
-          studentId: document.getElementById("profile-student-id").value.trim(),
-          course: document.getElementById("profile-course").value.trim(),
-          year: document.getElementById("profile-year").value,
-          section: document.getElementById("profile-section").value.trim(),
-          contact: document.getElementById("profile-contact").value.trim(),
-          birthdate: document.getElementById("profile-birthdate").value,
-          gender: document.getElementById("profile-gender").value,
-          address: document.getElementById("profile-address").value.trim(),
-          emergency: document.getElementById("profile-emergency").value.trim(),
-          guardianName: document.getElementById("profile-guardian-name").value.trim(),
-          guardianContact: document.getElementById("profile-guardian-contact").value.trim(),
+          name:           (document.getElementById("profile-fullname").value         || "").trim(),
+          bio:            (document.getElementById("profile-bio").value              || "").trim(),
+          studentId:      (document.getElementById("profile-student-id").value       || "").trim(),
+          course:         (document.getElementById("profile-course").value           || "").trim(),
+          year:            document.getElementById("profile-year").value,
+          section:        (document.getElementById("profile-section").value          || "").trim(),
+          contact:        (document.getElementById("profile-contact").value          || "").trim(),
+          birthdate:       document.getElementById("profile-birthdate").value,
+          gender:          document.getElementById("profile-gender").value,
+          address:        (document.getElementById("profile-address").value          || "").trim(),
+          emergency:      (document.getElementById("profile-emergency").value        || "").trim(),
+          guardianName:   (document.getElementById("profile-guardian-name").value    || "").trim(),
+          guardianContact:(document.getElementById("profile-guardian-contact").value || "").trim(),
         };
+        if (!data.name) { showToast("Please enter your full name.", "warning"); return; }
         saveProfile(data);
-        alert("Profile saved successfully!");
         loadDashboard();
+        showToast("Profile saved successfully.", "success");
       });
     }
 
-    // ---- PROFILE PHOTO UPLOAD ----
+    /* ---- PROFILE PHOTO ---- */
     var photoUploadBtn = document.getElementById("upload-photo-btn");
-    var photoInput = document.getElementById("profile-photo-input");
+    var photoInput     = document.getElementById("profile-photo-input");
     if (photoUploadBtn && photoInput) {
-      photoUploadBtn.addEventListener("click", function () {
-        photoInput.click();
-      });
+      photoUploadBtn.addEventListener("click", function () { photoInput.click(); });
       photoInput.addEventListener("change", function () {
         var file = photoInput.files[0];
         if (!file) return;
+        if (file.size > 3 * 1024 * 1024) {
+          showToast("Photo must be smaller than 3 MB.", "error");
+          photoInput.value = "";
+          return;
+        }
         var reader = new FileReader();
         reader.onload = function (e) {
-          var base64 = e.target.result;
-          saveProfilePhoto(base64);
+          saveProfilePhoto(e.target.result);
           loadProfileForm();
-          var avatar = document.getElementById("profile-avatar");
-          if (avatar) {
-            avatar.style.backgroundImage = "url(" + base64 + ")";
-            avatar.style.backgroundSize = "cover";
-            avatar.style.backgroundPosition = "center";
-            avatar.textContent = "";
-          }
+          showToast("Profile photo updated.", "success");
         };
         reader.readAsDataURL(file);
+        photoInput.value = "";
       });
     }
 
-    // ---- SETTINGS ----
+    /* ---- SETTINGS: DARK MODE ---- */
     var darkToggle = document.getElementById("dark-mode-toggle");
     if (darkToggle) {
       darkToggle.addEventListener("change", function () {
@@ -1826,130 +2067,80 @@
         settings.darkMode = darkToggle.checked;
         saveSettings(settings);
         applySettings(settings);
+        showToast(settings.darkMode ? "Dark mode enabled." : "Light mode enabled.", "info");
       });
     }
 
-    var fontSelect = document.getElementById("font-size-select");
-    if (fontSelect) {
-      fontSelect.addEventListener("change", function () {
+    /* ---- SETTINGS: FONT SIZE ---- */
+    var fontSizeSelect = document.getElementById("font-size-select");
+    if (fontSizeSelect) {
+      fontSizeSelect.addEventListener("change", function () {
         var settings = getSettings();
-        settings.fontSize = fontSelect.value;
+        settings.fontSize = fontSizeSelect.value;
         saveSettings(settings);
         applySettings(settings);
+        showToast("Font size updated.", "info");
       });
     }
 
+    /* ---- SETTINGS: CHANGE PASSWORD ---- */
     var changePwdBtn = document.getElementById("settings-change-password-btn");
     if (changePwdBtn) {
       changePwdBtn.addEventListener("click", function () {
         var current = document.getElementById("settings-current-password").value;
-        var newPwd = document.getElementById("settings-new-password").value;
+        var newPwd  = document.getElementById("settings-new-password").value;
         var confirm = document.getElementById("settings-confirm-password").value;
-        var result = changePassword(current, newPwd, confirm);
+        var result  = changePassword(current, newPwd, confirm);
         if (result.success) {
-          alert(result.message);
+          showToast(result.message, "success");
           document.getElementById("settings-current-password").value = "";
-          document.getElementById("settings-new-password").value = "";
+          document.getElementById("settings-new-password").value     = "";
           document.getElementById("settings-confirm-password").value = "";
+          toggleSettingsGroup("password-group");
         } else {
-          alert(result.message);
+          showToast(result.message, "error");
         }
       });
     }
 
+    /* ---- SETTINGS: CLEAR DATA ---- */
     var clearDataBtn = document.getElementById("settings-clear-data-btn");
-    if (clearDataBtn) {
-      clearDataBtn.addEventListener("click", clearAllData);
-    }
+    if (clearDataBtn) clearDataBtn.addEventListener("click", clearAllData);
 
+    /* ---- SETTINGS: EXPORT ---- */
     var exportBtn = document.getElementById("settings-export-btn");
-    if (exportBtn) {
-      exportBtn.addEventListener("click", exportData);
-    }
+    if (exportBtn) exportBtn.addEventListener("click", exportData);
 
-    var importBtn = document.getElementById("settings-import-btn");
+    /* ---- SETTINGS: IMPORT ---- */
+    var importBtn   = document.getElementById("settings-import-btn");
     var importInput = document.getElementById("settings-import-input");
     if (importBtn && importInput) {
-      importBtn.addEventListener("click", function () {
-        importInput.click();
-      });
+      importBtn.addEventListener("click", function () { importInput.click(); });
       importInput.addEventListener("change", function () {
         var file = importInput.files[0];
-        if (file) {
-          importData(file);
-          importInput.value = "";
-        }
+        if (file) { importData(file); importInput.value = ""; }
       });
     }
 
-    // ---- SETTINGS COLLAPSIBLE ----
-    document.querySelectorAll(".settings-collapsible .settings-item-left").forEach(function (item) {
-      item.addEventListener("click", function () {
-        var parent = item.parentElement;
-        var group = parent ? parent.nextElementSibling : null;
-        if (group && group.classList.contains("settings-group")) {
-          if (group.style.display === "none") {
-            group.style.display = "block";
-            if (parent) parent.classList.add("open");
-          } else {
-            group.style.display = "none";
-            if (parent) parent.classList.remove("open");
-          }
-        }
+    /* ---- SETTINGS: COLLAPSIBLE ---- */
+    var pwdCollapsible = document.querySelector(".settings-collapsible");
+    if (pwdCollapsible) {
+      pwdCollapsible.addEventListener("click", function (e) {
+        if (e.target.closest("input") || e.target.closest("button")) return;
+        toggleSettingsGroup("password-group");
       });
+    }
+
+    /* ---- OFFLINE ---- */
+    window.addEventListener("offline", function () { handleOffline(true); });
+    window.addEventListener("online",  function () {
+      handleOffline(false);
+      showToast("Connection restored.", "success");
     });
 
-    var passwordSettingsItem = document.querySelector(".settings-collapsible");
-    if (passwordSettingsItem) {
-      var clickable = passwordSettingsItem.querySelector(".settings-item-left");
-      if (clickable) {
-        clickable.addEventListener("click", function () {
-          var group = document.getElementById("password-group");
-          var parent = passwordSettingsItem;
-          if (group) {
-            if (group.style.display === "none") {
-              group.style.display = "block";
-              parent.classList.add("open");
-            } else {
-              group.style.display = "none";
-              parent.classList.remove("open");
-            }
-          }
-        });
-      }
-    }
-
-    // ---- SETTINGS NAVIGATION LINKS ----
-    var aboutLink = document.querySelector(".settings-link[onclick*='view-about']");
-    var policyLink = document.querySelector(".settings-link[onclick*='view-policy']");
-    if (aboutLink) {
-      aboutLink.addEventListener("click", function () { switchView("view-about"); });
-    }
-    if (policyLink) {
-      policyLink.addEventListener("click", function () { switchView("view-policy"); });
-    }
-
-    // ---- OFFLINE ----
-    window.addEventListener("offline", function () { handleOffline(true); });
-    window.addEventListener("online", function () { handleOffline(false); });
-  }
-
-  /* ---------------------------------------------------------
-     PWA FUNCTIONS
-  --------------------------------------------------------- */
-  function registerServiceWorker() {
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js").catch(function (err) {
-          console.warn("Service worker registration failed:", err);
-        });
-      });
-    }
-  }
-
-  function checkInstallStatus() {
-    window.addEventListener("beforeinstallprompt", function (e) {
-      window.deferredInstallPrompt = e;
+    /* ---- ESCAPE KEY ---- */
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { closeAllModals(); closeDrawer(); }
     });
   }
 
@@ -1957,57 +2148,52 @@
      INIT
   --------------------------------------------------------- */
   function init() {
-    try {
-      seedDemoPosts();
-      seedDemoClassmates();
-    } catch (e) {
-      console.warn("Seed data failed:", e);
-    }
+    seedDemoClassmates();
+    applySettings(getSettings());
+
+    // Hide bottom nav until dashboard is shown
+    var bottomNav = document.querySelector(".bottom-nav");
+    if (bottomNav) bottomNav.style.display = "none";
 
     initEventListeners();
-    registerServiceWorker();
-    checkInstallStatus();
-
     setupPostToolbar();
+    registerServiceWorker();
     handleOffline(!navigator.onLine);
 
-    // Prevent scrolling during splash
-    document.body.classList.add("splash-active");
+    // Lock scroll during splash
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width    = "100%";
 
+    // Splash duration
     setTimeout(function () {
-      try {
-        document.body.classList.remove("splash-active");
-        var splashPage = document.getElementById("splash-page");
-        if (splashPage) {
-          splashPage.classList.remove("active-page");
-          splashPage.style.display = "none";
-        }
+      var splash = document.getElementById("splash-page");
+      if (splash) {
+        splash.style.transition = "opacity 0.45s ease";
+        splash.style.opacity    = "0";
+        setTimeout(function () {
+          splash.classList.remove("active-page");
+          splash.style.display = "none";
+          splash.style.opacity = "";
 
-        // ============ SECURITY CHECK ============
-        if (isLoggedIn()) {
-          showPage("dashboard-page");
-          loadDashboard();
-        } else {
-          showPage("login-page");
-          showLoginForm();
-        }
-      } catch (err) {
-        console.error("Splash transition error:", err);
-        document.body.classList.remove("splash-active");
-        var splashPage = document.getElementById("splash-page");
-        if (splashPage) {
-          splashPage.classList.remove("active-page");
-          splashPage.style.display = "none";
-        }
-        showPage("login-page");
-        showLoginForm();
+          if (isLoggedIn()) {
+            showPage("dashboard-page");
+            loadDashboard();
+          } else {
+            showPage("login-page");
+            showLoginForm();
+          }
+        }, 450);
       }
-    }, 2200);
+    }, 2400);
   }
 
-  // Expose for inline onclick
-  window.navigateTo = navigateTo;
+  /* ---------------------------------------------------------
+     EXPOSE GLOBALS
+  --------------------------------------------------------- */
+  window.navigateTo          = navigateTo;
   window.toggleSettingsGroup = toggleSettingsGroup;
 
   document.addEventListener("DOMContentLoaded", init);
+
 })();
