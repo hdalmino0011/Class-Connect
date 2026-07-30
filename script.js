@@ -154,6 +154,7 @@
 
   function loadPosts() {
     const feed = document.getElementById("posts-feed");
+    if (!feed) return;
     const posts = getPosts();
     feed.innerHTML = "";
 
@@ -198,6 +199,7 @@
 
   function loadClasses() {
     const list = document.getElementById("classes-list");
+    if (!list) return;
     list.innerHTML = "";
     DEMO_CLASSES.forEach((cls) => {
       const card = document.createElement("div");
@@ -245,33 +247,41 @@
   function showPage(pageId) {
     document.querySelectorAll(".page").forEach((p) => p.classList.remove("active-page"));
     const targetPage = document.getElementById(pageId);
-    targetPage.classList.add("active-page");
+    if (targetPage) {
+      targetPage.classList.add("active-page");
+    }
     if (pageId === "login-page" || pageId === "dashboard-page") {
       document.body.classList.remove("splash-active");
     }
   }
 
   function showLoginForm() {
-    document.getElementById("signup-form").classList.remove("active-form");
-    document.getElementById("login-form").classList.add("active-form");
+    const signupForm = document.getElementById("signup-form");
+    const loginForm = document.getElementById("login-form");
+    if (signupForm) signupForm.classList.remove("active-form");
+    if (loginForm) loginForm.classList.add("active-form");
     hideError("login-error");
   }
 
   function showSignupForm() {
-    document.getElementById("login-form").classList.remove("active-form");
-    document.getElementById("signup-form").classList.add("active-form");
+    const loginForm = document.getElementById("login-form");
+    const signupForm = document.getElementById("signup-form");
+    if (loginForm) loginForm.classList.remove("active-form");
+    if (signupForm) signupForm.classList.add("active-form");
     hideError("signup-error");
   }
 
   function showError(elId, message) {
     const el = document.getElementById(elId);
-    el.textContent = message;
-    el.hidden = false;
+    if (el) {
+      el.textContent = message;
+      el.hidden = false;
+    }
   }
 
   function hideError(elId) {
     const el = document.getElementById(elId);
-    el.hidden = true;
+    if (el) el.hidden = true;
   }
 
   function setButtonLoading(btn, loading) {
@@ -279,22 +289,29 @@
     const spinner = btn.querySelector(".btn-spinner");
     btn.disabled = loading;
     if (loading) {
-      text.style.visibility = "hidden";
-      spinner.hidden = false;
+      if (text) text.style.visibility = "hidden";
+      if (spinner) spinner.hidden = false;
     } else {
-      text.style.visibility = "visible";
-      spinner.hidden = true;
+      if (text) text.style.visibility = "visible";
+      if (spinner) spinner.hidden = true;
     }
   }
 
   function loadDashboard() {
     const user = getCurrentUser();
     const name = user ? user.name : "Student";
-    document.getElementById("dash-user-name").textContent = name;
-    document.getElementById("profile-name").textContent = name;
-    document.getElementById("profile-email").textContent = user ? user.email : "";
-    document.getElementById("composer-avatar").textContent = initials(name);
-    document.getElementById("profile-avatar").textContent = initials(name);
+    
+    const dashName = document.getElementById("dash-user-name");
+    const profileName = document.getElementById("profile-name");
+    const profileEmail = document.getElementById("profile-email");
+    const composerAvatar = document.getElementById("composer-avatar");
+    const profileAvatar = document.getElementById("profile-avatar");
+
+    if (dashName) dashName.textContent = name;
+    if (profileName) profileName.textContent = name;
+    if (profileEmail) profileEmail.textContent = user ? user.email : "";
+    if (composerAvatar) composerAvatar.textContent = initials(name);
+    if (profileAvatar) profileAvatar.textContent = initials(name);
 
     loadPosts();
     loadClasses();
@@ -303,32 +320,38 @@
 
   function switchView(viewId) {
     document.querySelectorAll(".dashboard-view").forEach((v) => v.classList.remove("active-view"));
-    document.getElementById(viewId).classList.add("active-view");
+    const target = document.getElementById(viewId);
+    if (target) target.classList.add("active-view");
     document.querySelectorAll(".nav-item").forEach((btn) => {
       btn.classList.toggle("active-nav", btn.getAttribute("data-view") === viewId);
     });
   }
 
   function openModal() {
-    document.getElementById("post-modal-overlay").classList.add("active-modal");
-    document.getElementById("post-content-input").focus();
+    const overlay = document.getElementById("post-modal-overlay");
+    const input = document.getElementById("post-content-input");
+    if (overlay) overlay.classList.add("active-modal");
+    if (input) input.focus();
   }
 
   function closeModal() {
-    document.getElementById("post-modal-overlay").classList.remove("active-modal");
-    document.getElementById("post-content-input").value = "";
+    const overlay = document.getElementById("post-modal-overlay");
+    const input = document.getElementById("post-content-input");
+    if (overlay) overlay.classList.remove("active-modal");
+    if (input) input.value = "";
   }
 
   /* ---------------------------------------------------------
-     OFFLINE BANNER HANDLING (FIXED)
+     OFFLINE BANNER HANDLING
   --------------------------------------------------------- */
   function handleOffline(isOffline) {
     const banner = document.getElementById("offline-banner");
-    // Only react if a boolean is passed; otherwise use navigator.onLine
-    if (typeof isOffline === "boolean") {
-      banner.hidden = !isOffline;
-    } else {
-      banner.hidden = navigator.onLine;
+    if (banner) {
+      if (typeof isOffline === "boolean") {
+        banner.hidden = !isOffline;
+      } else {
+        banner.hidden = navigator.onLine;
+      }
     }
   }
 
@@ -337,14 +360,20 @@
   --------------------------------------------------------- */
   function initEventListeners() {
     // Switch between login/signup forms
-    document.getElementById("show-signup").addEventListener("click", (e) => {
-      e.preventDefault();
-      showSignupForm();
-    });
-    document.getElementById("show-login").addEventListener("click", (e) => {
-      e.preventDefault();
-      showLoginForm();
-    });
+    const showSignupLink = document.getElementById("show-signup");
+    const showLoginLink = document.getElementById("show-login");
+    if (showSignupLink) {
+      showSignupLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        showSignupForm();
+      });
+    }
+    if (showLoginLink) {
+      showLoginLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        showLoginForm();
+      });
+    }
 
     // Password show/hide toggles
     document.querySelectorAll(".toggle-password").forEach((btn) => {
@@ -352,97 +381,114 @@
         const targetId = btn.getAttribute("data-target");
         const input = document.getElementById(targetId);
         const icon = btn.querySelector("i");
-        if (input.type === "password") {
-          input.type = "text";
-          icon.classList.remove("fa-eye");
-          icon.classList.add("fa-eye-slash");
-        } else {
-          input.type = "password";
-          icon.classList.remove("fa-eye-slash");
-          icon.classList.add("fa-eye");
+        if (input && icon) {
+          if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+          } else {
+            input.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+          }
         }
       });
     });
 
     // Login form submit
-    document.getElementById("login-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      hideError("login-error");
+    const loginForm = document.getElementById("login-form");
+    if (loginForm) {
+      loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        hideError("login-error");
 
-      const email = document.getElementById("login-email").value.trim();
-      const password = document.getElementById("login-password").value;
+        const email = document.getElementById("login-email");
+        const password = document.getElementById("login-password");
+        const emailVal = email ? email.value.trim() : "";
+        const passwordVal = password ? password.value : "";
 
-      if (!isValidEmail(email)) {
-        showError("login-error", "Please enter a valid email address.");
-        return;
-      }
-      if (!password) {
-        showError("login-error", "Please enter your password.");
-        return;
-      }
-
-      const btn = document.getElementById("login-submit-btn");
-      setButtonLoading(btn, true);
-
-      setTimeout(() => {
-        const result = login(email, password);
-        setButtonLoading(btn, false);
-        if (!result.success) {
-          showError("login-error", result.message);
+        if (!isValidEmail(emailVal)) {
+          showError("login-error", "Please enter a valid email address.");
           return;
         }
-        e.target.reset();
-        showPage("dashboard-page");
-        loadDashboard();
-      }, 500);
-    });
+        if (!passwordVal) {
+          showError("login-error", "Please enter your password.");
+          return;
+        }
+
+        const btn = document.getElementById("login-submit-btn");
+        setButtonLoading(btn, true);
+
+        setTimeout(() => {
+          const result = login(emailVal, passwordVal);
+          setButtonLoading(btn, false);
+          if (!result.success) {
+            showError("login-error", result.message);
+            return;
+          }
+          loginForm.reset();
+          showPage("dashboard-page");
+          loadDashboard();
+        }, 500);
+      });
+    }
 
     // Signup form submit
-    document.getElementById("signup-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      hideError("signup-error");
+    const signupForm = document.getElementById("signup-form");
+    if (signupForm) {
+      signupForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        hideError("signup-error");
 
-      const name = document.getElementById("signup-name").value.trim();
-      const email = document.getElementById("signup-email").value.trim();
-      const password = document.getElementById("signup-password").value;
-      const confirm = document.getElementById("signup-confirm").value;
+        const nameInput = document.getElementById("signup-name");
+        const emailInput = document.getElementById("signup-email");
+        const passwordInput = document.getElementById("signup-password");
+        const confirmInput = document.getElementById("signup-confirm");
 
-      if (!name) {
-        showError("signup-error", "Please enter your full name.");
-        return;
-      }
-      if (!isValidEmail(email)) {
-        showError("signup-error", "Please enter a valid email address.");
-        return;
-      }
-      if (password.length < 6) {
-        showError("signup-error", "Password must be at least 6 characters.");
-        return;
-      }
-      if (password !== confirm) {
-        showError("signup-error", "Passwords do not match.");
-        return;
-      }
+        const name = nameInput ? nameInput.value.trim() : "";
+        const email = emailInput ? emailInput.value.trim() : "";
+        const password = passwordInput ? passwordInput.value : "";
+        const confirm = confirmInput ? confirmInput.value : "";
 
-      const btn = document.getElementById("signup-submit-btn");
-      setButtonLoading(btn, true);
-
-      setTimeout(() => {
-        const result = signup(name, email, password);
-        setButtonLoading(btn, false);
-        if (!result.success) {
-          showError("signup-error", result.message);
+        if (!name) {
+          showError("signup-error", "Please enter your full name.");
           return;
         }
-        e.target.reset();
-        showPage("dashboard-page");
-        loadDashboard();
-      }, 500);
-    });
+        if (!isValidEmail(email)) {
+          showError("signup-error", "Please enter a valid email address.");
+          return;
+        }
+        if (password.length < 6) {
+          showError("signup-error", "Password must be at least 6 characters.");
+          return;
+        }
+        if (password !== confirm) {
+          showError("signup-error", "Passwords do not match.");
+          return;
+        }
+
+        const btn = document.getElementById("signup-submit-btn");
+        setButtonLoading(btn, true);
+
+        setTimeout(() => {
+          const result = signup(name, email, password);
+          setButtonLoading(btn, false);
+          if (!result.success) {
+            showError("signup-error", result.message);
+            return;
+          }
+          signupForm.reset();
+          showPage("dashboard-page");
+          loadDashboard();
+        }, 500);
+      });
+    }
 
     // Logout
-    document.getElementById("logout-btn").addEventListener("click", logout);
-    document.getElementById("logout-btn-2").addEventListener("click", logout);
+    const logoutBtn1 = document.getElementById("logout-btn");
+    const logoutBtn2 = document.getElementById("logout-btn-2");
+    if (logoutBtn1) logoutBtn1.addEventListener("click", logout);
+    if (logoutBtn2) logoutBtn2.addEventListener("click", logout);
 
     // Bottom nav
     document.querySelectorAll(".nav-item").forEach((btn) => {
@@ -450,27 +496,36 @@
     });
 
     // Create post modal
-    document.getElementById("open-composer-btn").addEventListener("click", openModal);
-    document.getElementById("open-composer-btn-2").addEventListener("click", openModal);
-    document.getElementById("close-modal-btn").addEventListener("click", closeModal);
-    document.getElementById("post-modal-overlay").addEventListener("click", (e) => {
-      if (e.target.id === "post-modal-overlay") closeModal();
-    });
+    const composerBtn1 = document.getElementById("open-composer-btn");
+    const composerBtn2 = document.getElementById("open-composer-btn-2");
+    const closeModalBtn = document.getElementById("close-modal-btn");
+    const overlay = document.getElementById("post-modal-overlay");
+    const submitBtn = document.getElementById("submit-post-btn");
 
-    document.getElementById("submit-post-btn").addEventListener("click", () => {
-      const input = document.getElementById("post-content-input");
-      const content = input.value.trim();
-      if (!content) {
-        input.focus();
-        return;
-      }
-      createPost(content);
-      closeModal();
-      loadPosts();
-      switchView("view-home");
-    });
+    if (composerBtn1) composerBtn1.addEventListener("click", openModal);
+    if (composerBtn2) composerBtn2.addEventListener("click", openModal);
+    if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
+    if (overlay) {
+      overlay.addEventListener("click", (e) => {
+        if (e.target.id === "post-modal-overlay") closeModal();
+      });
+    }
+    if (submitBtn) {
+      submitBtn.addEventListener("click", () => {
+        const input = document.getElementById("post-content-input");
+        const content = input ? input.value.trim() : "";
+        if (!content) {
+          if (input) input.focus();
+          return;
+        }
+        createPost(content);
+        closeModal();
+        loadPosts();
+        switchView("view-home");
+      });
+    }
 
-    // Offline / online detection — now with proper initial state
+    // Offline / online detection
     window.addEventListener("offline", () => handleOffline(true));
     window.addEventListener("online", () => handleOffline(false));
   }
@@ -499,29 +554,58 @@
   }
 
   /* ---------------------------------------------------------
-     INIT / SPLASH TRANSITION
+     INIT / SPLASH TRANSITION (FIXED)
   --------------------------------------------------------- */
   function init() {
-    seedDemoPosts();
+    try {
+      seedDemoPosts();
+    } catch (e) {
+      console.warn("Seed posts failed:", e);
+    }
+
     initEventListeners();
     registerServiceWorker();
     checkInstallStatus();
 
-    // Set initial offline banner state based on actual connectivity
-    // This corrects the false-positive issue when testing locally.
+    // Set initial offline banner state
     handleOffline(!navigator.onLine);
 
+    // Prevent scrolling during splash
     document.body.classList.add("splash-active");
 
-    setTimeout(() => {
-      if (isLoggedIn()) {
-        showPage("dashboard-page");
-        loadDashboard();
-      } else {
+    // Transition from splash to main app
+    setTimeout(function () {
+      try {
+        // HIDE SPLASH FIRST - always remove the splash class regardless of errors
+        document.body.classList.remove("splash-active");
+
+        // Also explicitly hide the splash page
+        const splashPage = document.getElementById("splash-page");
+        if (splashPage) {
+          splashPage.classList.remove("active-page");
+          splashPage.style.display = "none";
+        }
+
+        // Then show the appropriate page
+        if (isLoggedIn()) {
+          showPage("dashboard-page");
+          loadDashboard();
+        } else {
+          showPage("login-page");
+          showLoginForm();
+        }
+      } catch (err) {
+        // If anything fails, force show login page as fallback
+        console.error("Splash transition error:", err);
+        document.body.classList.remove("splash-active");
+        const splashPage = document.getElementById("splash-page");
+        if (splashPage) {
+          splashPage.classList.remove("active-page");
+          splashPage.style.display = "none";
+        }
         showPage("login-page");
         showLoginForm();
       }
-      document.body.classList.remove("splash-active");
     }, 2200);
   }
 
