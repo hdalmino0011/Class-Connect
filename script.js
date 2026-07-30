@@ -148,8 +148,17 @@
     return getData(KEYS.SESSION, null);
   }
 
+  // ============ FIXED: isLoggedIn now properly validates session ============
   function isLoggedIn() {
-    return !!getCurrentUser();
+    const session = getCurrentUser();
+    if (!session || !session.email) {
+      return false;
+    }
+    const users = getUsers();
+    const exists = users.some(function (u) {
+      return u.email.toLowerCase() === session.email.toLowerCase();
+    });
+    return exists;
   }
 
   /* ---------------------------------------------------------
@@ -159,7 +168,6 @@
     const user = getCurrentUser();
     if (!user) return {};
     const profile = getData(KEYS.PROFILE, {});
-    // Ensure email matches session
     if (profile.email !== user.email) {
       profile.email = user.email;
     }
@@ -170,11 +178,9 @@
     const user = getCurrentUser();
     if (!user) return;
     const profile = getProfile();
-    // Merge and ensure email is from session
     data.email = user.email;
     const merged = Object.assign({}, profile, data);
     setData(KEYS.PROFILE, merged);
-    // Update session name if changed
     if (data.name && data.name !== user.name) {
       const users = getUsers();
       const found = users.find(function (u) { return u.email.toLowerCase() === user.email.toLowerCase(); });
@@ -410,7 +416,6 @@
       list.appendChild(card);
     });
 
-    // Event listeners for subject actions
     list.querySelectorAll(".btn-edit-subject").forEach(function (btn) {
       btn.addEventListener("click", function () {
         const id = btn.getAttribute("data-id");
@@ -511,7 +516,6 @@
       return;
     }
 
-    // Sort by day of week
     const dayOrder = { "Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6 };
     schedule.sort(function (a, b) {
       var dayA = a.day ? a.day.substring(0, 3) : "";
@@ -767,7 +771,6 @@
       });
     });
 
-    // Calculate GWA
     const gwa = calculateGWA(grades, year, semester);
     if (display) display.textContent = gwa.toFixed(2);
   }
@@ -829,8 +832,6 @@
   function loadFaqs() {
     const list = document.getElementById("faqs-list");
     if (!list) return;
-
-    // Check if FAQs already rendered
     if (list.querySelector(".faq-item")) return;
 
     DEMO_FAQS.forEach(function (faq, index) {
@@ -861,13 +862,11 @@
 
   function applySettings(settings) {
     if (!settings) settings = getSettings();
-    // Dark Mode
     if (settings.darkMode) {
       document.body.classList.add("dark-mode");
     } else {
       document.body.classList.remove("dark-mode");
     }
-    // Font Size
     var size = settings.fontSize || "medium";
     if (size === "small") {
       document.body.style.fontSize = "14px";
@@ -899,29 +898,38 @@
 
   function loadSettings() {
     const settings = getSettings();
-    // Dark mode toggle
     const darkToggle = document.getElementById("dark-mode-toggle");
     if (darkToggle) darkToggle.checked = settings.darkMode || false;
-    // Font size select
     const fontSelect = document.getElementById("font-size-select");
     if (fontSelect) fontSelect.value = settings.fontSize || "medium";
-    // Apply settings
     applySettings(settings);
-    // Update storage display
     updateStorageDisplay();
   }
 
   /* ---------------------------------------------------------
      UI HELPERS
   --------------------------------------------------------- */
+  // ============ FIXED: showPage now locks/unlocks scrolling ============
   function showPage(pageId) {
+    // Hide all pages
     document.querySelectorAll(".page").forEach(function (p) { p.classList.remove("active-page"); });
     var targetPage = document.getElementById(pageId);
     if (targetPage) {
       targetPage.classList.add("active-page");
     }
-    if (pageId === "login-page" || pageId === "dashboard-page") {
+
+    // Lock or unlock body scrolling based on the page shown
+    if (pageId === "login-page") {
+      // Prevent any scrolling on login page
+      document.body.classList.add("body-scroll-lock");
       document.body.classList.remove("splash-active");
+    } else if (pageId === "dashboard-page") {
+      // Allow scrolling inside dashboard (but not between pages)
+      document.body.classList.remove("body-scroll-lock");
+      document.body.classList.remove("splash-active");
+    } else {
+      // For other pages (like splash), we manage separately
+      document.body.classList.remove("body-scroll-lock");
     }
   }
 
@@ -993,7 +1001,6 @@
     document.querySelectorAll(".drawer-item").forEach(function (btn) {
       btn.classList.toggle("active-drawer-item", btn.getAttribute("data-view") === viewId);
     });
-    // Close drawer on mobile after navigation
     closeDrawer();
   }
 
@@ -1029,7 +1036,15 @@
     }
   }
 
+  // ============ FIXED: loadDashboard now checks login status ============
   function loadDashboard() {
+    // CRITICAL SECURITY FIX: If not logged in, redirect to login
+    if (!isLoggedIn()) {
+      showPage("login-page");
+      showLoginForm();
+      return;
+    }
+
     var user = getCurrentUser();
     var name = user ? user.name : "Student";
     var email = user ? user.email : "";
@@ -1052,9 +1067,7 @@
     if (drawerName) drawerName.textContent = name;
     if (drawerEmail) drawerEmail.textContent = email;
 
-    // Load profile data into form
     loadProfileForm();
-    // Load all data
     loadPosts();
     loadSubjects();
     loadSchedule();
@@ -1064,7 +1077,6 @@
     loadFaqs();
     loadSettings();
 
-    // Set active view
     switchView("view-home");
   }
 
@@ -1093,7 +1105,6 @@
       var el = document.getElementById(id);
       if (el) el.value = fields[id];
     }
-    // Load photo
     var avatar = document.getElementById("profile-avatar");
     var photo = getProfilePhoto();
     if (photo && avatar) {
@@ -1130,7 +1141,6 @@
     var editor = document.getElementById("post-content-editable");
     if (!editor) return;
 
-    // Toolbar buttons
     document.querySelectorAll(".toolbar-btn[data-command]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var command = btn.getAttribute("data-command");
@@ -1139,7 +1149,6 @@
       });
     });
 
-    // Font selector
     var fontSelect = document.getElementById("post-font-select");
     if (fontSelect) {
       fontSelect.addEventListener("change", function () {
@@ -1149,7 +1158,6 @@
       });
     }
 
-    // Image upload
     var imageBtn = document.getElementById("post-image-btn");
     var imageInput = document.getElementById("post-image-input");
     if (imageBtn && imageInput) {
@@ -1174,7 +1182,6 @@
       });
     }
 
-    // Remove image button
     var removeBtn = document.getElementById("post-remove-image-btn");
     if (removeBtn) {
       removeBtn.addEventListener("click", function () {
@@ -1220,12 +1227,6 @@
       }
     }
   }
-
-  /* ---------------------------------------------------------
-     DARK MODE CSS
-  --------------------------------------------------------- */
-  // Dark mode styles are applied via JavaScript (body class)
-  // CSS handles the rest
 
   /* ---------------------------------------------------------
      EXPORT / IMPORT FUNCTIONS
@@ -1697,14 +1698,10 @@
     }
 
     // ---- GRADE MODAL ----
-    var addGradeBtn = document.getElementById("add-grade-btn");
     var closeGradeModal = document.getElementById("close-grade-modal-btn");
     var gradeOverlay = document.getElementById("grade-modal-overlay");
     var gradeForm = document.getElementById("grade-form");
 
-    // Add grade button doesn't exist in HTML, we'll use a different approach
-    // We'll create a floating add button or use the view header
-    // For now, let's add a grade button dynamically
     var gradesViewHeader = document.querySelector("#view-grades .view-header");
     if (gradesViewHeader && !document.getElementById("add-grade-btn")) {
       var addGradeBtn2 = document.createElement("button");
@@ -1809,7 +1806,6 @@
           var base64 = e.target.result;
           saveProfilePhoto(base64);
           loadProfileForm();
-          // Update avatar in dashboard
           var avatar = document.getElementById("profile-avatar");
           if (avatar) {
             avatar.style.backgroundImage = "url(" + base64 + ")";
@@ -1843,7 +1839,6 @@
       });
     }
 
-    // Change Password
     var changePwdBtn = document.getElementById("settings-change-password-btn");
     if (changePwdBtn) {
       changePwdBtn.addEventListener("click", function () {
@@ -1862,19 +1857,16 @@
       });
     }
 
-    // Clear Data
     var clearDataBtn = document.getElementById("settings-clear-data-btn");
     if (clearDataBtn) {
       clearDataBtn.addEventListener("click", clearAllData);
     }
 
-    // Export Data
     var exportBtn = document.getElementById("settings-export-btn");
     if (exportBtn) {
       exportBtn.addEventListener("click", exportData);
     }
 
-    // Import Data
     var importBtn = document.getElementById("settings-import-btn");
     var importInput = document.getElementById("settings-import-input");
     if (importBtn && importInput) {
@@ -1894,8 +1886,6 @@
     document.querySelectorAll(".settings-collapsible .settings-item-left").forEach(function (item) {
       item.addEventListener("click", function () {
         var parent = item.parentElement;
-        var groupId = parent ? parent.id + "-group" : "";
-        // Actually we need to find the group by the parent's next sibling
         var group = parent ? parent.nextElementSibling : null;
         if (group && group.classList.contains("settings-group")) {
           if (group.style.display === "none") {
@@ -1909,7 +1899,6 @@
       });
     });
 
-    // Fix: make password change collapsible work
     var passwordSettingsItem = document.querySelector(".settings-collapsible");
     if (passwordSettingsItem) {
       var clickable = passwordSettingsItem.querySelector(".settings-item-left");
@@ -1979,19 +1968,14 @@
     registerServiceWorker();
     checkInstallStatus();
 
-    // Setup post toolbar
     setupPostToolbar();
-
-    // Set initial offline banner state
     handleOffline(!navigator.onLine);
 
     // Prevent scrolling during splash
     document.body.classList.add("splash-active");
 
-    // Transition from splash to main app
     setTimeout(function () {
       try {
-        // Hide splash
         document.body.classList.remove("splash-active");
         var splashPage = document.getElementById("splash-page");
         if (splashPage) {
@@ -1999,6 +1983,7 @@
           splashPage.style.display = "none";
         }
 
+        // ============ SECURITY CHECK ============
         if (isLoggedIn()) {
           showPage("dashboard-page");
           loadDashboard();
@@ -2020,7 +2005,7 @@
     }, 2200);
   }
 
-  // Expose functions for inline onclick handlers
+  // Expose for inline onclick
   window.navigateTo = navigateTo;
   window.toggleSettingsGroup = toggleSettingsGroup;
 
