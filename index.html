@@ -1,25 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-font-size="medium">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ClassConnect</title>
-<meta name="description" content="Connect with your classmates">
-<meta name="theme-color" content="#1A2A4A">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ClassConnect</title>
+  <meta name="description" content="Connect with your classmates — manage subjects, assignments, grades, and more.">
+  <meta name="theme-color" content="#0F172A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
 
-<!-- PWA -->
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="logo.png">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="icon" type="image/png" href="logo.png">
 
-<!-- Font Awesome -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-<link rel="stylesheet" href="style.css">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <!-- ==================== PAGE 1: SPLASH SCREEN ==================== -->
-<section id="splash-page" class="page active-page">
+<section id="splash-page" class="page active-page" aria-label="Loading">
   <div class="splash-content">
     <div class="splash-logo">
       <img src="logo.png" alt="ClassConnect Logo">
@@ -31,39 +37,53 @@
       <span></span>
     </div>
   </div>
-  <footer class="splash-footer">HDDev | All Rights Reserved 2026</footer>
+  <footer class="splash-footer">HDDev &bull; All Rights Reserved 2026</footer>
 </section>
 
 <!-- ==================== PAGE 2: LOGIN / SIGNUP ==================== -->
-<section id="login-page" class="page">
+<section id="login-page" class="page" aria-label="Authentication">
   <div class="auth-wrapper">
     <div class="auth-card">
 
-      <div class="auth-logo">
+      <div class="auth-logo" aria-hidden="true">
         <i class="fas fa-graduation-cap"></i>
       </div>
 
       <!-- LOGIN FORM -->
-      <form id="login-form" class="auth-form active-form" novalidate>
-        <h2 class="auth-title">Welcome Back!</h2>
+      <form id="login-form" class="auth-form active-form" novalidate autocomplete="on">
+        <h2 class="auth-title">Welcome Back</h2>
         <p class="auth-subtitle">Log in to continue to ClassConnect</p>
 
         <div id="login-error" class="form-error" hidden></div>
 
         <div class="input-group">
-          <i class="fas fa-envelope input-icon"></i>
-          <input type="email" id="login-email" placeholder="Email address" required autocomplete="email">
+          <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
+          <input
+            type="email"
+            id="login-email"
+            placeholder="Email address"
+            required
+            autocomplete="email"
+            inputmode="email"
+            spellcheck="false"
+          >
         </div>
 
         <div class="input-group">
-          <i class="fas fa-lock input-icon"></i>
-          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
-          <button type="button" class="toggle-password" data-target="login-password" aria-label="Show password">
+          <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+          <input
+            type="password"
+            id="login-password"
+            placeholder="Password"
+            required
+            autocomplete="current-password"
+          >
+          <button type="button" class="toggle-password" data-target="login-password" aria-label="Toggle password visibility">
             <i class="fas fa-eye"></i>
           </button>
         </div>
 
-        <a href="#" class="forgot-link">Forgot Password?</a>
+        <a href="#" class="forgot-link" onclick="return false;">Forgot Password?</a>
 
         <button type="submit" class="btn-primary" id="login-submit-btn">
           <span class="btn-text">Log In</span>
@@ -71,40 +91,68 @@
         </button>
 
         <p class="switch-form-text">
-          Don't have an account yet?
+          Don't have an account?
           <a href="#" id="show-signup">Sign Up</a>
         </p>
       </form>
 
       <!-- SIGNUP FORM -->
-      <form id="signup-form" class="auth-form" novalidate>
+      <form id="signup-form" class="auth-form" novalidate autocomplete="on">
         <h2 class="auth-title">Create Account</h2>
         <p class="auth-subtitle">Join your classmates on ClassConnect</p>
 
         <div id="signup-error" class="form-error" hidden></div>
 
         <div class="input-group">
-          <i class="fas fa-user input-icon"></i>
-          <input type="text" id="signup-name" placeholder="Full Name" required autocomplete="name">
+          <i class="fas fa-user input-icon" aria-hidden="true"></i>
+          <input
+            type="text"
+            id="signup-name"
+            placeholder="Full Name"
+            required
+            autocomplete="name"
+            spellcheck="false"
+          >
         </div>
 
         <div class="input-group">
-          <i class="fas fa-envelope input-icon"></i>
-          <input type="email" id="signup-email" placeholder="Email address" required autocomplete="email">
+          <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
+          <input
+            type="email"
+            id="signup-email"
+            placeholder="Email address"
+            required
+            autocomplete="email"
+            inputmode="email"
+            spellcheck="false"
+          >
         </div>
 
         <div class="input-group">
-          <i class="fas fa-lock input-icon"></i>
-          <input type="password" id="signup-password" placeholder="Password" required autocomplete="new-password">
-          <button type="button" class="toggle-password" data-target="signup-password" aria-label="Show password">
+          <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+          <input
+            type="password"
+            id="signup-password"
+            placeholder="Password (min 6 characters)"
+            required
+            autocomplete="new-password"
+            minlength="6"
+          >
+          <button type="button" class="toggle-password" data-target="signup-password" aria-label="Toggle password visibility">
             <i class="fas fa-eye"></i>
           </button>
         </div>
 
         <div class="input-group">
-          <i class="fas fa-lock input-icon"></i>
-          <input type="password" id="signup-confirm" placeholder="Confirm Password" required autocomplete="new-password">
-          <button type="button" class="toggle-password" data-target="signup-confirm" aria-label="Show password">
+          <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+          <input
+            type="password"
+            id="signup-confirm"
+            placeholder="Confirm Password"
+            required
+            autocomplete="new-password"
+          >
+          <button type="button" class="toggle-password" data-target="signup-confirm" aria-label="Toggle password visibility">
             <i class="fas fa-eye"></i>
           </button>
         </div>
@@ -116,7 +164,7 @@
 
         <p class="switch-form-text">
           Already have an account?
-          <a href="#" id="show-login">Login</a>
+          <a href="#" id="show-login">Log In</a>
         </p>
       </form>
 
@@ -125,41 +173,42 @@
 </section>
 
 <!-- ==================== PAGE 3: DASHBOARD ==================== -->
-<section id="dashboard-page" class="page">
+<section id="dashboard-page" class="page" aria-label="Dashboard">
 
   <!-- TOP NAV -->
   <header class="dashboard-topnav">
     <div class="topnav-left">
-      <button id="hamburger-btn" class="hamburger-btn" aria-label="Menu">
+      <button id="hamburger-btn" class="hamburger-btn" aria-label="Open menu">
         <i class="fas fa-bars"></i>
       </button>
       <div class="topnav-brand">
-        <i class="fas fa-graduation-cap"></i>
+        <i class="fas fa-graduation-cap" aria-hidden="true"></i>
         <span>ClassConnect</span>
       </div>
     </div>
     <div class="topnav-right">
       <span class="welcome-text">Welcome, <strong id="dash-user-name">Student</strong></span>
-      <button id="logout-btn" class="btn-logout">
+      <button id="logout-btn" class="btn-logout" aria-label="Log out">
         <i class="fas fa-right-from-bracket"></i>
         <span class="logout-label">Logout</span>
       </button>
     </div>
   </header>
 
-  <!-- SIDE DRAWER / HAMBURGER MENU -->
-  <div id="side-drawer-overlay" class="drawer-overlay">
-    <div id="side-drawer" class="side-drawer">
+  <!-- SIDE DRAWER -->
+  <div id="side-drawer-overlay" class="drawer-overlay" aria-hidden="true">
+    <aside id="side-drawer" class="side-drawer" role="navigation" aria-label="Main navigation">
       <div class="drawer-header">
         <div class="drawer-avatar" id="drawer-avatar">S</div>
         <div class="drawer-user-info">
           <span class="drawer-name" id="drawer-name">Student</span>
           <span class="drawer-email" id="drawer-email">student@email.com</span>
         </div>
-        <button id="drawer-close-btn" class="drawer-close">
+        <button id="drawer-close-btn" class="drawer-close" aria-label="Close menu">
           <i class="fas fa-xmark"></i>
         </button>
       </div>
+
       <nav class="drawer-nav">
         <button class="drawer-item" data-view="view-home">
           <i class="fas fa-house"></i> Dashboard
@@ -200,10 +249,9 @@
           <i class="fas fa-right-from-bracket"></i> Logout
         </button>
       </nav>
-      <div class="drawer-footer">
-        <span>HDDev | v1.0.0</span>
-      </div>
-    </div>
+
+      <div class="drawer-footer">HDDev &bull; v1.0.0</div>
+    </aside>
   </div>
 
   <!-- MAIN CONTENT -->
@@ -215,15 +263,17 @@
       <div class="create-post-card">
         <div class="create-post-row">
           <div class="avatar-circle" id="composer-avatar">S</div>
-          <button id="open-composer-btn" class="composer-fake-input">What's happening in class?</button>
+          <button id="open-composer-btn" class="composer-fake-input" type="button">
+            What's happening in class?
+          </button>
         </div>
-        <button id="open-composer-btn-2" class="btn-cta">
+        <button id="open-composer-btn-2" class="btn-cta" type="button">
           <i class="fas fa-plus"></i> Create Post
         </button>
       </div>
 
       <div id="posts-feed" class="posts-feed">
-        <!-- posts injected by script.js -->
+        <!-- posts rendered by script.js -->
       </div>
     </div>
 
@@ -231,12 +281,12 @@
     <div id="view-subjects" class="dashboard-view">
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-book"></i> My Subjects</h2>
-        <button id="add-subject-btn" class="btn-add">
+        <button id="add-subject-btn" class="btn-add" type="button">
           <i class="fas fa-plus"></i> Add Subject
         </button>
       </div>
       <div id="subjects-list" class="subjects-list">
-        <!-- subjects injected by script.js -->
+        <!-- subjects rendered by script.js -->
       </div>
     </div>
 
@@ -244,12 +294,12 @@
     <div id="view-schedule" class="dashboard-view">
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-calendar-days"></i> My Schedule</h2>
-        <button id="add-schedule-btn" class="btn-add">
+        <button id="add-schedule-btn" class="btn-add" type="button">
           <i class="fas fa-plus"></i> Add Schedule
         </button>
       </div>
       <div id="schedule-list" class="schedule-list">
-        <!-- schedule injected by script.js -->
+        <!-- schedule rendered by script.js -->
       </div>
     </div>
 
@@ -257,12 +307,12 @@
     <div id="view-assignments" class="dashboard-view">
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-clipboard-list"></i> Assignments</h2>
-        <button id="add-assignment-btn" class="btn-add">
+        <button id="add-assignment-btn" class="btn-add" type="button">
           <i class="fas fa-plus"></i> Add Task
         </button>
       </div>
       <div id="assignments-list" class="assignments-list">
-        <!-- assignments injected by script.js -->
+        <!-- assignments rendered by script.js -->
       </div>
     </div>
 
@@ -270,10 +320,11 @@
     <div id="view-grades" class="dashboard-view">
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-chart-simple"></i> Grades</h2>
+        <!-- Add Grade button is injected by script.js -->
       </div>
       <div class="grades-controls">
         <div class="grade-filter">
-          <label>Year Level</label>
+          <label for="grade-year-filter">Year Level</label>
           <select id="grade-year-filter">
             <option value="1st">1st Year</option>
             <option value="2nd">2nd Year</option>
@@ -282,7 +333,7 @@
           </select>
         </div>
         <div class="grade-filter">
-          <label>Semester</label>
+          <label for="grade-semester-filter">Semester</label>
           <select id="grade-semester-filter">
             <option value="1st">1st Semester</option>
             <option value="2nd">2nd Semester</option>
@@ -290,10 +341,10 @@
         </div>
       </div>
       <div id="grades-list" class="grades-list">
-        <!-- grades injected by script.js -->
+        <!-- grades rendered by script.js -->
       </div>
       <div class="gwa-display" id="gwa-display">
-        <span>General Average:</span>
+        <span>General Weighted Average</span>
         <strong id="gwa-value">0.00</strong>
       </div>
     </div>
@@ -304,7 +355,7 @@
         <h2 class="view-heading"><i class="fas fa-users"></i> Classmates</h2>
       </div>
       <div id="classmates-list" class="classmates-list">
-        <!-- classmates injected by script.js -->
+        <!-- classmates rendered by script.js -->
       </div>
     </div>
 
@@ -312,41 +363,42 @@
     <div id="view-profile" class="dashboard-view">
       <h2 class="view-heading"><i class="fas fa-user"></i> Profile</h2>
       <form id="profile-form" class="profile-form" novalidate>
+
         <div class="profile-photo-section">
           <div class="profile-photo-wrapper" id="profile-photo-wrapper">
             <div class="avatar-circle avatar-large" id="profile-avatar">S</div>
-            <button type="button" id="upload-photo-btn" class="photo-upload-btn">
+            <button type="button" id="upload-photo-btn" class="photo-upload-btn" aria-label="Upload profile photo">
               <i class="fas fa-camera"></i>
             </button>
             <input type="file" id="profile-photo-input" accept="image/*" hidden>
           </div>
-          <p class="photo-hint">Click the camera icon to upload a photo</p>
+          <p class="photo-hint">Tap the camera icon to upload a photo</p>
         </div>
 
         <div class="profile-fields">
           <div class="form-group">
-            <label>Full Name</label>
-            <input type="text" id="profile-fullname" placeholder="Your full name">
+            <label for="profile-fullname">Full Name</label>
+            <input type="text" id="profile-fullname" placeholder="Your full name" autocomplete="name">
           </div>
           <div class="form-group">
-            <label>Email Address</label>
+            <label for="profile-email">Email Address</label>
             <input type="email" id="profile-email" placeholder="Your email" readonly>
           </div>
-          <div class="form-group">
-            <label>Bio / About Me</label>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label for="profile-bio">Bio / About Me</label>
             <textarea id="profile-bio" rows="3" placeholder="Tell us about yourself..."></textarea>
           </div>
           <div class="form-group">
-            <label>Student ID</label>
+            <label for="profile-student-id">Student ID</label>
             <input type="text" id="profile-student-id" placeholder="e.g. 2023-12345">
           </div>
           <div class="form-group">
-            <label>Course / Program</label>
+            <label for="profile-course">Course / Program</label>
             <input type="text" id="profile-course" placeholder="e.g. BS Information Technology">
           </div>
-          <div class="form-row">
+          <div class="form-row" style="grid-column: 1 / -1;">
             <div class="form-group">
-              <label>Year Level</label>
+              <label for="profile-year">Year Level</label>
               <select id="profile-year">
                 <option value="">Select</option>
                 <option value="1st Year">1st Year</option>
@@ -356,20 +408,20 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Section</label>
+              <label for="profile-section">Section</label>
               <input type="text" id="profile-section" placeholder="e.g. BSIT 3-A">
             </div>
           </div>
           <div class="form-group">
-            <label>Contact Number</label>
-            <input type="tel" id="profile-contact" placeholder="e.g. 0912-345-6789">
+            <label for="profile-contact">Contact Number</label>
+            <input type="tel" id="profile-contact" placeholder="e.g. 0912-345-6789" inputmode="tel">
           </div>
           <div class="form-group">
-            <label>Birthdate</label>
+            <label for="profile-birthdate">Birthdate</label>
             <input type="date" id="profile-birthdate">
           </div>
           <div class="form-group">
-            <label>Gender</label>
+            <label for="profile-gender">Gender</label>
             <select id="profile-gender">
               <option value="">Select</option>
               <option value="Male">Male</option>
@@ -378,80 +430,35 @@
               <option value="Prefer not to say">Prefer not to say</option>
             </select>
           </div>
-          <div class="form-group">
-            <label>Address</label>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label for="profile-address">Address</label>
             <input type="text" id="profile-address" placeholder="Your home address">
           </div>
-          <div class="form-group">
-            <label>Emergency Contact</label>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label for="profile-emergency">Emergency Contact</label>
             <input type="text" id="profile-emergency" placeholder="Name and number">
           </div>
           <div class="form-group">
-            <label>Guardian Name</label>
+            <label for="profile-guardian-name">Guardian Name</label>
             <input type="text" id="profile-guardian-name" placeholder="Guardian's full name">
           </div>
           <div class="form-group">
-            <label>Guardian Contact</label>
-            <input type="tel" id="profile-guardian-contact" placeholder="Guardian's contact number">
+            <label for="profile-guardian-contact">Guardian Contact</label>
+            <input type="tel" id="profile-guardian-contact" placeholder="Guardian's contact number" inputmode="tel">
           </div>
         </div>
 
-        <button type="submit" class="btn-primary">Save Profile</button>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-check"></i> Save Profile
+        </button>
       </form>
     </div>
 
-    <!-- ===== VIEW: FAQS ===== -->
+    <!-- ===== VIEW: FAQs ===== -->
     <div id="view-faqs" class="dashboard-view">
       <h2 class="view-heading"><i class="fas fa-circle-question"></i> Frequently Asked Questions</h2>
       <div class="faqs-list" id="faqs-list">
-        <div class="faq-item">
-          <div class="faq-question">
-            <i class="fas fa-chevron-right"></i> What is ClassConnect?
-          </div>
-          <div class="faq-answer">ClassConnect is a platform designed to help students connect with classmates, manage subjects, track assignments, and stay organized throughout their academic journey.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">
-            <i class="fas fa-chevron-right"></i> How do I create an account?
-          </div>
-          <div class="faq-answer">Simply click on "Sign Up" on the login page, fill in your full name, email address, and a password (at least 6 characters), then confirm your password and submit.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">
-            <i class="fas fa-chevron-right"></i> Can I access ClassConnect on multiple devices?
-          </div>
-          <div class="faq-answer">Yes! ClassConnect is a Progressive Web App (PWA) that works on both mobile phones and desktop computers. You can install it as an app for the best experience.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">
-            <i class="fas fa-chevron-right"></i> How do I add a subject?
-          </div>
-          <div class="faq-answer">Go to the Subjects page from the menu, click the "Add Subject" button, fill in the subject name, professor, and schedule, then click save.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">
-            <i class="fas fa-chevron-right"></i> How do I track my assignments?
-          </div>
-          <div class="faq-answer">Navigate to the Assignments page, click "Add Task" to create new tasks, and check them off as you complete them using the checkbox.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">
-            <i class="fas fa-chevron-right"></i> How does the Grades page work?
-          </div>
-          <div class="faq-answer">Enter your grade for each subject, select your year level and semester, and the app will automatically calculate your general average. You can also exclude subjects from the calculation.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">
-            <i class="fas fa-chevron-right"></i> Is my data safe?
-          </div>
-          <div class="faq-answer">Your data is stored locally in your browser and is not shared with anyone. We prioritize your privacy and security. For more details, please read our Privacy Policy.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">
-            <i class="fas fa-chevron-right"></i> Can I edit my profile information?
-          </div>
-          <div class="faq-answer">Yes! Go to the Profile page from the menu, update any of your personal information, and click "Save Profile" to save your changes.</div>
-        </div>
+        <!-- FAQs rendered by script.js -->
       </div>
     </div>
 
@@ -459,15 +466,15 @@
     <div id="view-about" class="dashboard-view">
       <h2 class="view-heading"><i class="fas fa-info-circle"></i> About ClassConnect</h2>
       <div class="about-card">
-        <div class="about-logo">
+        <div class="about-logo" aria-hidden="true">
           <i class="fas fa-graduation-cap"></i>
         </div>
         <h3>ClassConnect</h3>
         <p class="about-tagline">Connecting students, one class at a time.</p>
         <div class="about-divider"></div>
         <p class="about-description">
-          ClassConnect is a comprehensive student management platform designed to help college students stay organized, 
-          collaborate with classmates, and track their academic progress. From subject management and assignment tracking 
+          ClassConnect is a comprehensive student management platform designed to help college students stay organized,
+          collaborate with classmates, and track their academic progress. From subject management and assignment tracking
           to grade calculation and classmate profiles, ClassConnect brings everything you need into one seamless app.
         </p>
         <div class="about-divider"></div>
@@ -481,7 +488,7 @@
             <span class="about-value">HDDev</span>
           </div>
           <div class="about-info-item">
-            <span class="about-label">Release Date</span>
+            <span class="about-label">Release</span>
             <span class="about-value">2026</span>
           </div>
           <div class="about-info-item">
@@ -491,23 +498,25 @@
         </div>
         <div class="about-divider"></div>
         <p class="about-footer">
-          Built with passion for students everywhere.<br>
-          <strong>HDDev | All Rights Reserved 2026</strong>
+          Built with dedication for students everywhere.<br>
+          <strong>HDDev &bull; All Rights Reserved 2026</strong>
         </p>
       </div>
     </div>
 
     <!-- ===== VIEW: POLICY ===== -->
     <div id="view-policy" class="dashboard-view">
-      <h2 class="view-heading"><i class="fas fa-file-lines"></i> Privacy Policy & Terms</h2>
+      <h2 class="view-heading"><i class="fas fa-file-lines"></i> Privacy Policy &amp; Terms</h2>
       <div class="policy-card">
+
         <div class="policy-section">
           <h3><i class="fas fa-shield-halved"></i> Privacy Policy</h3>
           <p><strong>Last Updated:</strong> 2026</p>
           <p>
-            ClassConnect respects your privacy and is committed to protecting your personal information. 
+            ClassConnect respects your privacy and is committed to protecting your personal information.
             This Privacy Policy explains how we collect, use, and safeguard your data when you use our platform.
           </p>
+
           <h4>Information We Collect</h4>
           <ul>
             <li>Name, email address, and contact details</li>
@@ -515,6 +524,7 @@
             <li>Profile photo and bio (optional)</li>
             <li>Usage data and preferences</li>
           </ul>
+
           <h4>How We Use Your Information</h4>
           <ul>
             <li>To provide and maintain the ClassConnect service</li>
@@ -522,16 +532,18 @@
             <li>To help you manage your academic tasks</li>
             <li>To improve the app based on user feedback</li>
           </ul>
+
           <h4>Data Storage</h4>
           <p>
-            Your data is stored locally in your browser. We do not share your personal information with third parties. 
+            Your data is stored locally in your browser. We do not share your personal information with third parties.
             Future versions may include cloud synchronization with your explicit consent.
           </p>
+
           <h4>Your Rights</h4>
           <ul>
             <li>Access, update, or delete your profile information</li>
-            <li>Export your data</li>
-            <li>Request deletion of your account</li>
+            <li>Export your data at any time</li>
+            <li>Request deletion of your account and all associated data</li>
           </ul>
         </div>
 
@@ -543,23 +555,27 @@
           <p>
             By using ClassConnect, you agree to the following terms and conditions. Please read them carefully.
           </p>
+
           <h4>Acceptance of Terms</h4>
           <p>
-            By creating an account and using ClassConnect, you agree to comply with these Terms of Service. 
+            By creating an account and using ClassConnect, you agree to comply with these Terms of Service.
             If you do not agree, please do not use the platform.
           </p>
+
           <h4>User Accounts</h4>
           <ul>
             <li>You are responsible for maintaining the confidentiality of your account credentials</li>
             <li>You agree to provide accurate and complete information</li>
             <li>You are solely responsible for all activities under your account</li>
           </ul>
+
           <h4>User Content</h4>
           <ul>
             <li>You retain ownership of your content (posts, assignments, grades, etc.)</li>
             <li>You grant ClassConnect a license to display your content within the app</li>
             <li>You agree not to post harmful or inappropriate content</li>
           </ul>
+
           <h4>Prohibited Activities</h4>
           <ul>
             <li>Unauthorized access to other users' accounts</li>
@@ -567,14 +583,18 @@
             <li>Sharing false or misleading information</li>
             <li>Any activity that violates applicable laws</li>
           </ul>
+
           <h4>Modification and Termination</h4>
           <p>
-            We reserve the right to modify or terminate the service at any time. We will provide notice of significant changes.
+            We reserve the right to modify or terminate the service at any time.
+            We will provide notice of significant changes.
           </p>
+
           <h4>Disclaimer</h4>
           <p>
-            ClassConnect is provided "as is" without warranties of any kind. We are not responsible for any loss of data or 
-            academic outcomes. Always back up your important information.
+            ClassConnect is provided "as is" without warranties of any kind.
+            We are not responsible for any loss of data or academic outcomes.
+            Always back up your important information.
           </p>
         </div>
 
@@ -583,10 +603,10 @@
         <div class="policy-section">
           <h3><i class="fas fa-handshake"></i> Contact Us</h3>
           <p>
-            If you have any questions about our Privacy Policy or Terms of Service, please contact us through the 
+            If you have any questions about our Privacy Policy or Terms of Service, please contact us through the
             app's feedback feature or reach out to HDDev.
           </p>
-          <p><strong>HDDev | All Rights Reserved 2026</strong></p>
+          <p><strong>HDDev &bull; All Rights Reserved 2026</strong></p>
         </div>
       </div>
     </div>
@@ -595,6 +615,7 @@
     <div id="view-settings" class="dashboard-view">
       <h2 class="view-heading"><i class="fas fa-gear"></i> Settings</h2>
       <div class="settings-card">
+
         <!-- Dark Mode -->
         <div class="settings-item">
           <div class="settings-item-left">
@@ -628,7 +649,7 @@
 
         <!-- Change Password -->
         <div class="settings-item settings-collapsible">
-          <div class="settings-item-left" onclick="toggleSettingsGroup('password-group')">
+          <div class="settings-item-left">
             <i class="fas fa-key"></i>
             <div>
               <span class="settings-label">Change Password</span>
@@ -639,18 +660,20 @@
         </div>
         <div class="settings-group" id="password-group" style="display:none;">
           <div class="form-group">
-            <label>Current Password</label>
-            <input type="password" id="settings-current-password" placeholder="Enter current password">
+            <label for="settings-current-password">Current Password</label>
+            <input type="password" id="settings-current-password" placeholder="Enter current password" autocomplete="current-password">
           </div>
           <div class="form-group">
-            <label>New Password</label>
-            <input type="password" id="settings-new-password" placeholder="Enter new password (min 6 chars)">
+            <label for="settings-new-password">New Password</label>
+            <input type="password" id="settings-new-password" placeholder="Enter new password (min 6 chars)" autocomplete="new-password" minlength="6">
           </div>
           <div class="form-group">
-            <label>Confirm New Password</label>
-            <input type="password" id="settings-confirm-password" placeholder="Confirm new password">
+            <label for="settings-confirm-password">Confirm New Password</label>
+            <input type="password" id="settings-confirm-password" placeholder="Confirm new password" autocomplete="new-password">
           </div>
-          <button id="settings-change-password-btn" class="btn-secondary">Update Password</button>
+          <button type="button" id="settings-change-password-btn" class="btn-secondary">
+            <i class="fas fa-check"></i> Update Password
+          </button>
         </div>
 
         <!-- Clear Data -->
@@ -662,7 +685,7 @@
               <span class="settings-desc">Delete all your data from the app</span>
             </div>
           </div>
-          <button id="settings-clear-data-btn" class="btn-danger">Clear Data</button>
+          <button type="button" id="settings-clear-data-btn" class="btn-danger">Clear</button>
         </div>
 
         <!-- Export Data -->
@@ -674,7 +697,7 @@
               <span class="settings-desc">Download your data as a JSON file</span>
             </div>
           </div>
-          <button id="settings-export-btn" class="btn-secondary">Export</button>
+          <button type="button" id="settings-export-btn" class="btn-secondary">Export</button>
         </div>
 
         <!-- Import Data -->
@@ -686,7 +709,7 @@
               <span class="settings-desc">Restore data from a backup file</span>
             </div>
           </div>
-          <button id="settings-import-btn" class="btn-secondary">Import</button>
+          <button type="button" id="settings-import-btn" class="btn-secondary">Import</button>
           <input type="file" id="settings-import-input" accept=".json" hidden>
         </div>
 
@@ -738,33 +761,34 @@
           <i class="fas fa-chevron-right"></i>
         </div>
 
-        <!-- Logout Button -->
+        <!-- Logout -->
         <div class="settings-item settings-logout" id="settings-logout-btn">
           <div class="settings-item-left">
             <i class="fas fa-right-from-bracket"></i>
             <div>
-              <span class="settings-label" style="color: var(--coral-pink);">Logout</span>
+              <span class="settings-label">Logout</span>
               <span class="settings-desc">Sign out of your account</span>
             </div>
           </div>
           <i class="fas fa-chevron-right"></i>
         </div>
+
       </div>
     </div>
 
   </main>
 
   <!-- BOTTOM NAV -->
-  <nav class="bottom-nav">
-    <button class="nav-item active-nav" data-view="view-home">
+  <nav class="bottom-nav" aria-label="Quick navigation">
+    <button class="nav-item active-nav" data-view="view-home" aria-label="Dashboard">
       <i class="fas fa-house"></i>
       <span>Home</span>
     </button>
-    <button class="nav-item" data-view="view-subjects">
+    <button class="nav-item" data-view="view-subjects" aria-label="Subjects">
       <i class="fas fa-book"></i>
       <span>Subjects</span>
     </button>
-    <button class="nav-item" data-view="view-profile">
+    <button class="nav-item" data-view="view-profile" aria-label="Profile">
       <i class="fas fa-user"></i>
       <span>Profile</span>
     </button>
@@ -772,222 +796,247 @@
 
 </section>
 
-<!-- ==================== CREATE POST MODAL ==================== -->
-<div id="post-modal-overlay" class="modal-overlay">
-  <div class="modal-card">
+<!-- ==================== MODALS ==================== -->
+
+<!-- CREATE POST MODAL -->
+<div id="post-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="post-modal-heading">
     <div class="modal-header">
-      <h3>Create Post</h3>
+      <h3 id="post-modal-heading">Create Post</h3>
       <button id="close-modal-btn" class="modal-close" aria-label="Close">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
 
     <!-- Rich Text Toolbar -->
-    <div class="post-toolbar">
-      <button type="button" class="toolbar-btn" data-command="bold" title="Bold">
+    <div class="post-toolbar" role="toolbar" aria-label="Text formatting">
+      <button type="button" class="toolbar-btn" data-command="bold" title="Bold" aria-label="Bold">
         <i class="fas fa-bold"></i>
       </button>
-      <button type="button" class="toolbar-btn" data-command="italic" title="Italic">
+      <button type="button" class="toolbar-btn" data-command="italic" title="Italic" aria-label="Italic">
         <i class="fas fa-italic"></i>
       </button>
-      <button type="button" class="toolbar-btn" data-command="underline" title="Underline">
+      <button type="button" class="toolbar-btn" data-command="underline" title="Underline" aria-label="Underline">
         <i class="fas fa-underline"></i>
       </button>
-      <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Strikethrough">
+      <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Strikethrough" aria-label="Strikethrough">
         <i class="fas fa-strikethrough"></i>
       </button>
       <span class="toolbar-divider"></span>
-      <select class="toolbar-font-select" id="post-font-select">
+      <select class="toolbar-font-select" id="post-font-select" aria-label="Font family">
         <option value="Times New Roman">Times New Roman</option>
         <option value="Arial">Arial</option>
         <option value="Georgia">Georgia</option>
         <option value="Courier New">Courier New</option>
       </select>
       <span class="toolbar-divider"></span>
-      <button type="button" class="toolbar-btn" id="post-image-btn" title="Upload Image">
+      <button type="button" class="toolbar-btn" id="post-image-btn" title="Upload Image" aria-label="Upload image">
         <i class="fas fa-image"></i>
       </button>
       <input type="file" id="post-image-input" accept="image/*" hidden>
     </div>
 
     <div id="post-content-wrapper" class="post-content-wrapper">
-      <div id="post-content-editable" class="post-content-editable" contenteditable="true" role="textbox" aria-multiline="true" placeholder="Share an announcement or update with your classmates..."></div>
+      <div
+        id="post-content-editable"
+        class="post-content-editable"
+        contenteditable="true"
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Post content"
+        placeholder="Share an announcement or update with your classmates..."
+      ></div>
     </div>
 
     <div id="post-image-preview" class="post-image-preview" hidden>
-      <img id="post-preview-img" src="#" alt="Preview">
-      <button type="button" id="post-remove-image-btn" class="remove-image-btn">
+      <img id="post-preview-img" src="#" alt="Image preview">
+      <button type="button" id="post-remove-image-btn" class="remove-image-btn" aria-label="Remove image">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
 
-    <button id="submit-post-btn" class="btn-primary">Post</button>
+    <button type="button" id="submit-post-btn" class="btn-primary">
+      <i class="fas fa-paper-plane"></i> Post
+    </button>
   </div>
 </div>
 
-<!-- ==================== SUBJECT MODAL ==================== -->
-<div id="subject-modal-overlay" class="modal-overlay">
-  <div class="modal-card">
+<!-- SUBJECT MODAL -->
+<div id="subject-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="subject-modal-title">
     <div class="modal-header">
       <h3 id="subject-modal-title">Add Subject</h3>
-      <button id="close-subject-modal-btn" class="modal-close">
+      <button id="close-subject-modal-btn" class="modal-close" aria-label="Close">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
     <form id="subject-form" novalidate>
       <input type="hidden" id="subject-edit-id">
       <div class="form-group">
-        <label>Subject Name</label>
+        <label for="subject-name">Subject Name</label>
         <input type="text" id="subject-name" placeholder="e.g. Web Systems and Technologies" required>
       </div>
       <div class="form-group">
-        <label>Professor</label>
+        <label for="subject-professor">Professor</label>
         <input type="text" id="subject-professor" placeholder="e.g. Prof. Santos">
       </div>
       <div class="form-group">
-        <label>Schedule</label>
+        <label for="subject-schedule">Schedule</label>
         <input type="text" id="subject-schedule" placeholder="e.g. MWF 10:00-11:30 AM | Rm 301">
       </div>
-      <button type="submit" class="btn-primary">Save Subject</button>
+      <button type="submit" class="btn-primary">
+        <i class="fas fa-check"></i> Save Subject
+      </button>
     </form>
   </div>
 </div>
 
-<!-- ==================== SUBJECT TASK MODAL ==================== -->
-<div id="subject-task-modal-overlay" class="modal-overlay">
-  <div class="modal-card">
+<!-- SUBJECT TASK MODAL -->
+<div id="subject-task-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="subject-task-modal-heading">
     <div class="modal-header">
-      <h3>Add Task</h3>
-      <button id="close-subject-task-modal-btn" class="modal-close">
+      <h3 id="subject-task-modal-heading">Add Task</h3>
+      <button id="close-subject-task-modal-btn" class="modal-close" aria-label="Close">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
     <form id="subject-task-form" novalidate>
       <input type="hidden" id="subject-task-subject-id">
       <div class="form-group">
-        <label>Task Description</label>
+        <label for="subject-task-text">Task Description</label>
         <input type="text" id="subject-task-text" placeholder="e.g. Read Chapter 3" required>
       </div>
-      <button type="submit" class="btn-primary">Add Task</button>
+      <button type="submit" class="btn-primary">
+        <i class="fas fa-plus"></i> Add Task
+      </button>
     </form>
   </div>
 </div>
 
-<!-- ==================== SCHEDULE MODAL ==================== -->
-<div id="schedule-modal-overlay" class="modal-overlay">
-  <div class="modal-card">
+<!-- SCHEDULE MODAL -->
+<div id="schedule-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
     <div class="modal-header">
       <h3 id="schedule-modal-title">Add Schedule</h3>
-      <button id="close-schedule-modal-btn" class="modal-close">
+      <button id="close-schedule-modal-btn" class="modal-close" aria-label="Close">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
     <form id="schedule-form" novalidate>
       <input type="hidden" id="schedule-edit-id">
       <div class="form-group">
-        <label>Subject</label>
+        <label for="schedule-subject">Subject</label>
         <input type="text" id="schedule-subject" placeholder="e.g. Data Structures" required>
       </div>
       <div class="form-group">
-        <label>Day(s)</label>
-        <input type="text" id="schedule-day" placeholder="e.g. MWF or TTH" required>
+        <label for="schedule-day">Day(s)</label>
+        <input type="text" id="schedule-day" placeholder="e.g. Mon, Tue, Wed" required>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Start Time</label>
+          <label for="schedule-start-time">Start Time</label>
           <input type="time" id="schedule-start-time" required>
         </div>
         <div class="form-group">
-          <label>End Time</label>
+          <label for="schedule-end-time">End Time</label>
           <input type="time" id="schedule-end-time" required>
         </div>
       </div>
       <div class="form-group">
-        <label>Room</label>
-        <input type="text" id="schedule-room" placeholder="e.g. Rm 301">
+        <label for="schedule-room">Room</label>
+        <input type="text" id="schedule-room" placeholder="e.g. Room 301">
       </div>
-      <button type="submit" class="btn-primary">Save Schedule</button>
+      <button type="submit" class="btn-primary">
+        <i class="fas fa-check"></i> Save Schedule
+      </button>
     </form>
   </div>
 </div>
 
-<!-- ==================== ASSIGNMENT MODAL ==================== -->
-<div id="assignment-modal-overlay" class="modal-overlay">
-  <div class="modal-card">
+<!-- ASSIGNMENT MODAL -->
+<div id="assignment-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="assignment-modal-heading">
     <div class="modal-header">
-      <h3>Add Assignment Task</h3>
-      <button id="close-assignment-modal-btn" class="modal-close">
+      <h3 id="assignment-modal-heading">Add Assignment</h3>
+      <button id="close-assignment-modal-btn" class="modal-close" aria-label="Close">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
     <form id="assignment-form" novalidate>
       <div class="form-group">
-        <label>Task Description</label>
+        <label for="assignment-text">Task Description</label>
         <input type="text" id="assignment-text" placeholder="e.g. Submit Project Proposal" required>
       </div>
       <div class="form-group">
-        <label>Subject</label>
+        <label for="assignment-subject">Subject</label>
         <input type="text" id="assignment-subject" placeholder="e.g. Web Systems">
       </div>
       <div class="form-group">
-        <label>Due Date (optional)</label>
+        <label for="assignment-due-date">Due Date (optional)</label>
         <input type="date" id="assignment-due-date">
       </div>
-      <button type="submit" class="btn-primary">Add Task</button>
+      <button type="submit" class="btn-primary">
+        <i class="fas fa-plus"></i> Add Task
+      </button>
     </form>
   </div>
 </div>
 
-<!-- ==================== GRADE MODAL ==================== -->
-<div id="grade-modal-overlay" class="modal-overlay">
-  <div class="modal-card">
+<!-- GRADE MODAL -->
+<div id="grade-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="grade-modal-title">
     <div class="modal-header">
       <h3 id="grade-modal-title">Add Grade</h3>
-      <button id="close-grade-modal-btn" class="modal-close">
+      <button id="close-grade-modal-btn" class="modal-close" aria-label="Close">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
     <form id="grade-form" novalidate>
       <input type="hidden" id="grade-edit-id">
       <div class="form-group">
-        <label>Subject</label>
+        <label for="grade-subject">Subject</label>
         <input type="text" id="grade-subject" placeholder="e.g. Networking II" required>
       </div>
       <div class="form-group">
-        <label>Grade</label>
-        <input type="number" id="grade-value" placeholder="e.g. 92.5" step="0.01" min="0" max="100" required>
+        <label for="grade-value">Grade</label>
+        <input type="number" id="grade-value" placeholder="e.g. 92.5" step="0.01" min="0" max="100" required inputmode="decimal">
       </div>
-      <div class="form-group">
-        <label>Year Level</label>
-        <select id="grade-year">
-          <option value="1st">1st Year</option>
-          <option value="2nd">2nd Year</option>
-          <option value="3rd">3rd Year</option>
-          <option value="4th">4th Year</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Semester</label>
-        <select id="grade-semester">
-          <option value="1st">1st Semester</option>
-          <option value="2nd">2nd Semester</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="grade-year">Year Level</label>
+          <select id="grade-year">
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="grade-semester">Semester</label>
+          <select id="grade-semester">
+            <option value="1st">1st Semester</option>
+            <option value="2nd">2nd Semester</option>
+          </select>
+        </div>
       </div>
       <div class="form-group">
         <label>
           <input type="checkbox" id="grade-exclude"> Exclude from General Average
         </label>
       </div>
-      <button type="submit" class="btn-primary">Save Grade</button>
+      <button type="submit" class="btn-primary">
+        <i class="fas fa-check"></i> Save Grade
+      </button>
     </form>
   </div>
 </div>
 
 <!-- ==================== OFFLINE BANNER ==================== -->
-<div id="offline-banner" class="offline-banner" hidden>
+<div id="offline-banner" class="offline-banner" hidden aria-live="polite">
   <i class="fas fa-wifi"></i> You are currently offline
 </div>
 
+<!-- Script -->
 <script src="script.js"></script>
 </body>
 </html>
