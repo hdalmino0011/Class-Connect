@@ -1,15 +1,8 @@
-/* =========================================================
-   ClassConnect — script.js
-   Auth, UI, Posts, Subjects, Schedule, Assignments, Grades,
-   Profile, FAQs, About, Policy, Settings — localStorage only
-   ========================================================= */
+/* file: script.js */
 
 (function () {
   "use strict";
 
-  /* ---------------------------------------------------------
-     STORAGE KEYS
-  --------------------------------------------------------- */
   const KEYS = {
     USERS: "cc_users",
     SESSION: "cc_session",
@@ -23,9 +16,6 @@
     CLASSMATES: "cc_classmates",
   };
 
-  /* ---------------------------------------------------------
-     DEMO DATA
-  --------------------------------------------------------- */
   const DEMO_CLASSMATES = [
     { name: "Maria Delacruz", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
     { name: "Juan Reyes",     course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
@@ -35,43 +25,17 @@
   ];
 
   const DEMO_FAQS = [
-    {
-      question: "What is ClassConnect?",
-      answer: "ClassConnect is a platform designed to help students connect with classmates, manage subjects, track assignments, and stay organized throughout their academic journey.",
-    },
-    {
-      question: "How do I create an account?",
-      answer: "Click on Sign Up on the login page, fill in your full name, email address, and a password of at least 6 characters, then confirm your password and submit.",
-    },
-    {
-      question: "Can I access ClassConnect on multiple devices?",
-      answer: "Yes. ClassConnect is a Progressive Web App that works on both mobile phones and desktop computers. You can install it as an app for the best experience.",
-    },
-    {
-      question: "How do I add a subject?",
-      answer: "Go to the Subjects page from the menu, click the Add Subject button, fill in the subject name, professor, and schedule, then click Save.",
-    },
-    {
-      question: "How do I track my assignments?",
-      answer: "Navigate to the Assignments page, click Add Task to create new tasks, and check them off as you complete them using the checkbox.",
-    },
-    {
-      question: "How does the Grades page work?",
-      answer: "Enter your grade for each subject, select your year level and semester, and the app will automatically calculate your general weighted average. You can also exclude subjects from the calculation.",
-    },
-    {
-      question: "Is my data safe?",
-      answer: "Your data is stored locally in your browser and is not shared with anyone. We prioritize your privacy and security. For more details, please read our Privacy Policy.",
-    },
-    {
-      question: "Can I edit my profile information?",
-      answer: "Yes. Go to the Profile page from the menu, update any of your personal information, and click Save Profile to apply your changes.",
-    },
+    { question: "What is ClassConnect?", answer: "ClassConnect is a platform designed to help students connect with classmates, manage subjects, track assignments, and stay organized throughout their academic journey." },
+    { question: "How do I create an account?", answer: "Click on Sign Up on the login page, fill in your full name, email address, and a password of at least 6 characters, then confirm your password and submit." },
+    { question: "Can I access ClassConnect on multiple devices?", answer: "Yes. ClassConnect is a Progressive Web App that works on both mobile phones and desktop computers. You can install it as an app for the best experience." },
+    { question: "How do I add a subject?", answer: "Go to the Subjects page from the menu, click the Add Subject button, fill in the subject name, professor, and schedule, then click Save." },
+    { question: "How do I track my assignments?", answer: "Navigate to the Assignments page, click Add Task to create new tasks, and check them off as you complete them using the checkbox." },
+    { question: "How does the Grades page work?", answer: "Enter your grade for each subject, select your year level and semester, and the app will automatically calculate your general weighted average. You can also exclude subjects from the calculation." },
+    { question: "Is my data safe?", answer: "Your data is stored locally in your browser and is not shared with anyone. We prioritize your privacy and security. For more details, please read our Privacy Policy." },
+    { question: "Can I edit my profile information?", answer: "Yes. Go to the Profile page from the menu, update any of your personal information, and click Save Profile to apply your changes." },
   ];
 
-  /* ---------------------------------------------------------
-     UTILITY FUNCTIONS
-  --------------------------------------------------------- */
+  /* UTILITY FUNCTIONS */
   function cryptoId() {
     return "id-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
   }
@@ -147,22 +111,17 @@
     return h + ":" + m + " " + ampm;
   }
 
-  /* ---------------------------------------------------------
-     TOAST NOTIFICATIONS
-  --------------------------------------------------------- */
+  /* TOAST */
   function showToast(message, type) {
     type = type || "success";
-
     var existing = document.getElementById("cc-toast");
     if (existing) existing.remove();
-
     var iconMap = {
       success: "fa-circle-check",
       error:   "fa-circle-xmark",
       warning: "fa-triangle-exclamation",
       info:    "fa-circle-info",
     };
-
     var toast = document.createElement("div");
     toast.id = "cc-toast";
     toast.className = "cc-toast cc-toast-" + type;
@@ -170,19 +129,15 @@
       '<i class="fas ' + (iconMap[type] || "fa-circle-info") + ' toast-icon"></i>' +
       '<span class="toast-msg">' + escapeHtml(message) + '</span>' +
       '<button class="toast-close" aria-label="Close"><i class="fas fa-xmark"></i></button>';
-
     document.body.appendChild(toast);
-
     toast.querySelector(".toast-close").addEventListener("click", function () {
       dismissToast(toast);
     });
-
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         toast.classList.add("cc-toast-show");
       });
     });
-
     var timer = setTimeout(function () { dismissToast(toast); }, 3500);
     toast._timer = timer;
   }
@@ -194,13 +149,10 @@
     setTimeout(function () { if (toast.parentNode) toast.remove(); }, 380);
   }
 
-  /* ---------------------------------------------------------
-     CONFIRM DIALOG
-  --------------------------------------------------------- */
+  /* CONFIRM DIALOG */
   function showConfirm(message, onConfirm) {
     var existing = document.getElementById("cc-confirm-overlay");
     if (existing) existing.remove();
-
     var overlay = document.createElement("div");
     overlay.id = "cc-confirm-overlay";
     overlay.className = "cc-confirm-overlay";
@@ -215,20 +167,16 @@
           '<button class="cc-confirm-ok">Confirm</button>' +
         '</div>' +
       '</div>';
-
     document.body.appendChild(overlay);
-
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         overlay.classList.add("active");
       });
     });
-
     function closeConfirm() {
       overlay.classList.remove("active");
       setTimeout(function () { if (overlay.parentNode) overlay.remove(); }, 300);
     }
-
     overlay.querySelector(".cc-confirm-cancel").addEventListener("click", closeConfirm);
     overlay.querySelector(".cc-confirm-ok").addEventListener("click", function () {
       closeConfirm();
@@ -239,9 +187,45 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     AUTH FUNCTIONS
-  --------------------------------------------------------- */
+  /* SUCCESS MODAL (for signup) */
+  function showSuccessModal(message, buttonText, onButtonClick) {
+    var existing = document.getElementById("cc-success-overlay");
+    if (existing) existing.remove();
+    var overlay = document.createElement("div");
+    overlay.id = "cc-success-overlay";
+    overlay.className = "cc-success-overlay";
+    overlay.innerHTML =
+      '<div class="cc-success-box" role="dialog" aria-modal="true">' +
+        '<div class="cc-success-icon-wrap">' +
+          '<i class="fas fa-check-circle"></i>' +
+        '</div>' +
+        '<h3 class="cc-success-title">Success!</h3>' +
+        '<p class="cc-success-msg">' + escapeHtml(message) + '</p>' +
+        '<button class="cc-success-btn btn-primary">' + escapeHtml(buttonText || "OK") + '</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        overlay.classList.add("active");
+      });
+    });
+    function closeSuccess() {
+      overlay.classList.remove("active");
+      setTimeout(function () { if (overlay.parentNode) overlay.remove(); }, 300);
+    }
+    overlay.querySelector(".cc-success-btn").addEventListener("click", function () {
+      closeSuccess();
+      if (typeof onButtonClick === "function") onButtonClick();
+    });
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) {
+        closeSuccess();
+        if (typeof onButtonClick === "function") onButtonClick();
+      }
+    });
+  }
+
+  /* AUTH */
   function getUsers()       { return getData(KEYS.USERS, []); }
   function saveUsers(users) { setData(KEYS.USERS, users); }
 
@@ -303,9 +287,7 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     PROFILE FUNCTIONS
-  --------------------------------------------------------- */
+  /* PROFILE */
   function getProfile() {
     const user = getCurrentUser();
     if (!user) return {};
@@ -321,7 +303,6 @@
     data.email     = user.email.toLowerCase();
     all[user.email.toLowerCase()] = Object.assign({}, existing, data);
     setData(KEYS.PROFILE + "_all", all);
-
     if (data.name && data.name !== user.name) {
       const users = getUsers();
       const found = users.find(function (u) {
@@ -345,18 +326,14 @@
     saveProfile(p);
   }
 
-  /* ---------------------------------------------------------
-     USER-SCOPED KEY HELPER
-  --------------------------------------------------------- */
+  /* USER-SCOPED KEY */
   function userKey(base) {
     const user = getCurrentUser();
     if (!user) return base;
     return base + "_" + user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
   }
 
-  /* ---------------------------------------------------------
-     POSTS FUNCTIONS
-  --------------------------------------------------------- */
+  /* POSTS */
   function getPosts()        { return getData(userKey(KEYS.POSTS), []); }
   function savePosts(posts)  { setData(userKey(KEYS.POSTS), posts); }
 
@@ -415,7 +392,6 @@
     if (!feed) return;
     const posts = getPosts();
     feed.innerHTML = "";
-
     if (posts.length === 0) {
       feed.innerHTML =
         '<div class="empty-state">' +
@@ -425,19 +401,15 @@
         '</div>';
       return;
     }
-
     posts.forEach(function (post) {
       const card = document.createElement("div");
       card.className = "post-card";
-
       var imgHtml = post.image
         ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy"></div>'
         : "";
-
       var tagHtml = post.tag
         ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>'
         : "";
-
       card.innerHTML =
         tagHtml +
         '<div class="post-header">' +
@@ -455,10 +427,8 @@
             '<i class="fas fa-trash"></i> Delete' +
           '</button>' +
         '</div>';
-
       feed.appendChild(card);
     });
-
     feed.querySelectorAll(".btn-delete-post").forEach(function (btn) {
       btn.addEventListener("click", function () {
         showConfirm("Delete this post?", function () {
@@ -470,9 +440,7 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     SUBJECTS FUNCTIONS
-  --------------------------------------------------------- */
+  /* SUBJECTS */
   function getSubjects()           { return getData(userKey(KEYS.SUBJECTS), []); }
   function saveSubjects(subjects)  { setData(userKey(KEYS.SUBJECTS), subjects); }
 
@@ -543,7 +511,6 @@
     if (!list) return;
     const subjects = getSubjects();
     list.innerHTML = "";
-
     if (subjects.length === 0) {
       list.innerHTML =
         '<div class="empty-state">' +
@@ -553,17 +520,14 @@
         '</div>';
       return;
     }
-
     subjects.forEach(function (subject) {
       const card   = document.createElement("div");
       card.className = "subject-card";
       card.style.borderLeftColor = subject.color || "#2563EB";
-
       const tasks    = subject.tasks || [];
       const done     = tasks.filter(function (t) { return t.completed; }).length;
       const total    = tasks.length;
       const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
-
       var progressHtml = total > 0
         ? '<div class="subject-progress-wrap">' +
             '<div class="subject-progress-track">' +
@@ -572,7 +536,6 @@
             '<span class="subject-progress-label">' + done + ' / ' + total + ' tasks complete</span>' +
           '</div>'
         : "";
-
       var tasksHtml = "";
       if (tasks.length > 0) {
         tasksHtml += '<p class="subject-tasks-label"><i class="fas fa-list-check"></i> Tasks</p>';
@@ -595,7 +558,6 @@
             '</div>';
         });
       }
-
       card.innerHTML =
         '<div class="subject-card-header">' +
           '<div class="subject-card-title">' +
@@ -622,14 +584,11 @@
             '<i class="fas fa-plus"></i> Add Task' +
           '</button>' +
         '</div>';
-
       list.appendChild(card);
     });
-
     list.querySelectorAll(".btn-edit-subject").forEach(function (btn) {
       btn.addEventListener("click", function () { editSubject(btn.getAttribute("data-id")); });
     });
-
     list.querySelectorAll(".btn-delete-subject").forEach(function (btn) {
       btn.addEventListener("click", function () {
         showConfirm("Delete this subject and all its tasks?", function () {
@@ -639,14 +598,12 @@
         });
       });
     });
-
     list.querySelectorAll(".task-checkbox").forEach(function (cb) {
       cb.addEventListener("change", function () {
         toggleSubjectTask(cb.getAttribute("data-subject-id"), cb.getAttribute("data-task-id"));
         loadSubjects();
       });
     });
-
     list.querySelectorAll(".btn-task-delete").forEach(function (btn) {
       btn.addEventListener("click", function () {
         showConfirm("Delete this task?", function () {
@@ -656,7 +613,6 @@
         });
       });
     });
-
     list.querySelectorAll(".subject-add-task-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
         document.getElementById("subject-task-subject-id").value = btn.getAttribute("data-subject-id");
@@ -677,9 +633,7 @@
     openModal("subject-modal-overlay");
   }
 
-  /* ---------------------------------------------------------
-     SCHEDULE FUNCTIONS
-  --------------------------------------------------------- */
+  /* SCHEDULE */
   function getSchedule()          { return getData(userKey(KEYS.SCHEDULE), []); }
   function saveSchedule(schedule) { setData(userKey(KEYS.SCHEDULE), schedule); }
 
@@ -716,7 +670,6 @@
     if (!list) return;
     const schedule = getSchedule();
     list.innerHTML = "";
-
     if (schedule.length === 0) {
       list.innerHTML =
         '<div class="empty-state">' +
@@ -726,7 +679,6 @@
         '</div>';
       return;
     }
-
     const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
     const sorted   = schedule.slice().sort(function (a, b) {
       var da = a.day ? a.day.substring(0, 3) : "";
@@ -735,14 +687,11 @@
                (dayOrder[db] !== undefined ? dayOrder[db] : 99);
       return od !== 0 ? od : (a.startTime || "").localeCompare(b.startTime || "");
     });
-
     const badgeColors = ["#2563EB","#8B5CF6","#10B981","#F59E0B","#EF4444","#06B6D4","#EC4899"];
-
     sorted.forEach(function (item) {
       const card = document.createElement("div");
       card.className = "schedule-card";
       var dayIdx = item.day ? (dayOrder[item.day.substring(0, 3)] || 0) : 0;
-
       card.innerHTML =
         '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
           escapeHtml(item.day || "N/A") +
@@ -760,10 +709,8 @@
           '<button class="btn-icon btn-edit-schedule" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
           '<button class="btn-icon btn-delete-schedule" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
         '</div>';
-
       list.appendChild(card);
     });
-
     list.querySelectorAll(".btn-edit-schedule").forEach(function (btn) {
       btn.addEventListener("click", function () { editScheduleItem(btn.getAttribute("data-id")); });
     });
@@ -791,9 +738,7 @@
     openModal("schedule-modal-overlay");
   }
 
-  /* ---------------------------------------------------------
-     ASSIGNMENTS FUNCTIONS
-  --------------------------------------------------------- */
+  /* ASSIGNMENTS */
   function getAssignments()            { return getData(userKey(KEYS.ASSIGNMENTS), []); }
   function saveAssignments(assignments){ setData(userKey(KEYS.ASSIGNMENTS), assignments); }
 
@@ -840,7 +785,6 @@
     if (!list) return;
     const assignments = getAssignments();
     list.innerHTML = "";
-
     if (assignments.length === 0) {
       list.innerHTML =
         '<div class="empty-state">' +
@@ -850,31 +794,25 @@
         '</div>';
       return;
     }
-
     const sorted = assignments.slice().sort(function (a, b) {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return 0;
     });
-
     sorted.forEach(function (item) {
       const div = document.createElement("div");
       div.className = "assignment-item" + (item.completed ? " assignment-done" : "");
-
       var dueCls   = "";
       var dueLabel = "Due";
       if (item.dueDate && !item.completed) {
         if (isOverdue(item.dueDate))  { dueCls = "due-overdue"; dueLabel = "Overdue"; }
         else if (isDueSoon(item.dueDate)) { dueCls = "due-soon"; }
       }
-
       var dueHtml = item.dueDate
         ? '<span class="assignment-due ' + dueCls + '"><i class="fas fa-calendar-day"></i> ' + dueLabel + ': ' + escapeHtml(item.dueDate) + '</span>'
         : "";
-
       var subjectHtml = item.subject
         ? '<span class="assignment-subject"><i class="fas fa-book"></i> ' + escapeHtml(item.subject) + '</span>'
         : "";
-
       div.innerHTML =
         '<label class="assignment-check-wrap" title="Mark complete">' +
           '<input type="checkbox" class="assignment-checkbox" data-id="' + item.id + '" ' + (item.completed ? "checked" : "") + '>' +
@@ -887,17 +825,14 @@
         '<button class="btn-assignment-delete" data-id="' + item.id + '" title="Delete task">' +
           '<i class="fas fa-trash"></i>' +
         '</button>';
-
       list.appendChild(div);
     });
-
     list.querySelectorAll(".assignment-checkbox").forEach(function (cb) {
       cb.addEventListener("change", function () {
         toggleAssignment(cb.getAttribute("data-id"));
         loadAssignments();
       });
     });
-
     list.querySelectorAll(".btn-assignment-delete").forEach(function (btn) {
       btn.addEventListener("click", function () {
         showConfirm("Delete this task?", function () {
@@ -909,9 +844,7 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     GRADES FUNCTIONS
-  --------------------------------------------------------- */
+  /* GRADES */
   function getGrades()        { return getData(userKey(KEYS.GRADES), []); }
   function saveGrades(grades) { setData(userKey(KEYS.GRADES), grades); }
 
@@ -979,15 +912,11 @@
     const list       = document.getElementById("grades-list");
     const gwaDisplay = document.getElementById("gwa-value");
     if (!list) return;
-
     const year     = (document.getElementById("grade-year-filter")     || {}).value || "1st";
     const semester = (document.getElementById("grade-semester-filter") || {}).value || "1st";
-
     const grades   = getGrades();
     const filtered = grades.filter(function (g) { return g.year === year && g.semester === semester; });
-
     list.innerHTML = "";
-
     if (filtered.length === 0) {
       list.innerHTML =
         '<div class="empty-state">' +
@@ -998,14 +927,11 @@
       if (gwaDisplay) { gwaDisplay.textContent = "0.00"; gwaDisplay.style.color = ""; }
       return;
     }
-
     filtered.forEach(function (item) {
       const div = document.createElement("div");
       div.className = "grade-item" + (item.exclude ? " grade-excluded" : "");
-
       var gc = item.exclude ? "#94A3B8" : gradeColor(item.grade);
       var gl = item.exclude ? "Excluded" : gradeLabel(item.grade);
-
       div.innerHTML =
         '<div class="grade-info">' +
           '<h4>' + escapeHtml(item.subject) + '</h4>' +
@@ -1026,10 +952,8 @@
             '<i class="fas fa-trash"></i>' +
           '</button>' +
         '</div>';
-
       list.appendChild(div);
     });
-
     list.querySelectorAll(".btn-toggle-exclude").forEach(function (btn) {
       btn.addEventListener("click", function () { toggleGradeExclude(btn.getAttribute("data-id")); loadGrades(); });
     });
@@ -1045,7 +969,6 @@
         });
       });
     });
-
     const gwa = calculateGWA(grades, year, semester);
     if (gwaDisplay) {
       gwaDisplay.textContent = gwa.toFixed(2);
@@ -1066,9 +989,7 @@
     openModal("grade-modal-overlay");
   }
 
-  /* ---------------------------------------------------------
-     CLASSMATES FUNCTIONS
-  --------------------------------------------------------- */
+  /* CLASSMATES */
   function getClassmates()            { return getData(KEYS.CLASSMATES, []); }
   function saveClassmates(classmates) { setData(KEYS.CLASSMATES, classmates); }
 
@@ -1082,7 +1003,6 @@
     if (!list) return;
     const classmates = getClassmates();
     list.innerHTML = "";
-
     if (classmates.length === 0) {
       list.innerHTML =
         '<div class="empty-state">' +
@@ -1092,7 +1012,6 @@
         '</div>';
       return;
     }
-
     classmates.forEach(function (cm) {
       const card = document.createElement("div");
       card.className = "classmate-card";
@@ -1112,14 +1031,11 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     FAQS FUNCTIONS
-  --------------------------------------------------------- */
+  /* FAQS */
   function loadFaqs() {
     const list = document.getElementById("faqs-list");
     if (!list) return;
     list.innerHTML = "";
-
     DEMO_FAQS.forEach(function (faq) {
       const div = document.createElement("div");
       div.className = "faq-item";
@@ -1131,7 +1047,6 @@
         '<div class="faq-answer">' + escapeHtml(faq.answer) + '</div>';
       list.appendChild(div);
     });
-
     list.querySelectorAll(".faq-question").forEach(function (q) {
       q.addEventListener("click", function () {
         var parent = q.parentElement;
@@ -1144,9 +1059,7 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     SETTINGS FUNCTIONS
-  --------------------------------------------------------- */
+  /* SETTINGS */
   function getSettings()          { return getData(KEYS.SETTINGS, { darkMode: false, fontSize: "medium" }); }
   function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
 
@@ -1180,9 +1093,7 @@
     updateStorageDisplay();
   }
 
-  /* ---------------------------------------------------------
-     UI HELPERS
-  --------------------------------------------------------- */
+  /* UI HELPERS — FIXED SCROLL LOCK */
   function showPage(pageId) {
     document.querySelectorAll(".page").forEach(function (p) {
       p.classList.remove("active-page");
@@ -1195,11 +1106,14 @@
       bottomNav.style.display = pageId === "dashboard-page" ? "" : "none";
     }
 
+    // SCROLL LOCK: when not on dashboard, lock body; when on dashboard, unlock.
     if (pageId === "dashboard-page") {
+      document.body.classList.remove("body-scroll-lock");
       document.body.style.overflow = "";
       document.body.style.position = "";
       document.body.style.width    = "";
     } else {
+      document.body.classList.add("body-scroll-lock");
       document.body.style.overflow = "hidden";
       document.body.style.position = "fixed";
       document.body.style.width    = "100%";
@@ -1238,13 +1152,10 @@
     if (el) el.hidden = true;
   }
 
+  // Button loading state (spinner removed, just disables button)
   function setButtonLoading(btn, loading) {
     if (!btn) return;
-    var text    = btn.querySelector(".btn-text");
-    var spinner = btn.querySelector(".btn-spinner");
     btn.disabled = loading;
-    if (text)    text.style.opacity    = loading ? "0"    : "1";
-    if (spinner) spinner.hidden        = !loading;
   }
 
   function openModal(id) {
@@ -1280,17 +1191,13 @@
       var main = document.querySelector(".dashboard-main");
       if (main) main.scrollTop = 0;
     }
-
     document.querySelectorAll(".nav-item[data-view]").forEach(function (btn) {
       btn.classList.toggle("active-nav", btn.getAttribute("data-view") === viewId);
     });
-
     document.querySelectorAll(".drawer-item[data-view]").forEach(function (btn) {
       btn.classList.toggle("active-drawer-item", btn.getAttribute("data-view") === viewId);
     });
-
     closeDrawer();
-
     if (viewId === "view-settings") updateStorageDisplay();
     if (viewId === "view-grades")   loadGrades();
     if (viewId === "view-faqs")     loadFaqs();
@@ -1298,9 +1205,7 @@
 
   function navigateTo(viewId) { switchView(viewId); }
 
-  /* ---------------------------------------------------------
-     DRAWER
-  --------------------------------------------------------- */
+  /* DRAWER */
   function openDrawer() {
     var overlay = document.getElementById("side-drawer-overlay");
     var drawer  = document.getElementById("side-drawer");
@@ -1325,30 +1230,24 @@
     else openDrawer();
   }
 
-  /* ---------------------------------------------------------
-     LOAD DASHBOARD
-  --------------------------------------------------------- */
+  /* LOAD DASHBOARD */
   function loadDashboard() {
     if (!isLoggedIn()) {
       showPage("login-page");
       showLoginForm();
       return;
     }
-
     var user  = getCurrentUser();
     var name  = user ? user.name  : "Student";
     var email = user ? user.email : "";
-
     var dashName   = document.getElementById("dash-user-name");
     var drawerName = document.getElementById("drawer-name");
     var drawerEmail= document.getElementById("drawer-email");
     if (dashName)    dashName.textContent    = name;
     if (drawerName)  drawerName.textContent  = name;
     if (drawerEmail) drawerEmail.textContent = email;
-
     var composerAvatar = document.getElementById("composer-avatar");
     if (composerAvatar) composerAvatar.textContent = initials(name);
-
     var drawerAvatar = document.getElementById("drawer-avatar");
     if (drawerAvatar) {
       var photo = getProfilePhoto();
@@ -1362,7 +1261,6 @@
         drawerAvatar.textContent           = initials(name);
       }
     }
-
     seedDemoPosts();
     loadProfileForm();
     loadPosts();
@@ -1373,17 +1271,13 @@
     loadClassmates();
     loadFaqs();
     loadSettings();
-
     switchView("view-home");
   }
 
-  /* ---------------------------------------------------------
-     PROFILE FORM
-  --------------------------------------------------------- */
+  /* PROFILE FORM */
   function loadProfileForm() {
     var profile = getProfile();
     var user    = getCurrentUser();
-
     var map = {
       "profile-fullname":        profile.name          || (user ? user.name  : ""),
       "profile-email":           profile.email         || (user ? user.email : ""),
@@ -1400,12 +1294,10 @@
       "profile-guardian-name":   profile.guardianName  || "",
       "profile-guardian-contact":profile.guardianContact || "",
     };
-
     for (var id in map) {
       var el = document.getElementById(id);
       if (el) el.value = map[id];
     }
-
     var avatar = document.getElementById("profile-avatar");
     var photo  = getProfilePhoto();
     if (avatar) {
@@ -1421,15 +1313,12 @@
     }
   }
 
-  /* ---------------------------------------------------------
-     POST TOOLBAR
-  --------------------------------------------------------- */
+  /* POST TOOLBAR */
   var currentPostImage = null;
 
   function setupPostToolbar() {
     var editor = document.getElementById("post-content-editable");
     if (!editor) return;
-
     document.querySelectorAll(".toolbar-btn[data-command]").forEach(function (btn) {
       btn.addEventListener("mousedown", function (e) {
         e.preventDefault();
@@ -1437,7 +1326,6 @@
         btn.classList.toggle("active-toolbar");
       });
     });
-
     var fontSelect = document.getElementById("post-font-select");
     if (fontSelect) {
       fontSelect.addEventListener("change", function () {
@@ -1445,7 +1333,6 @@
         editor.focus();
       });
     }
-
     var imageBtn   = document.getElementById("post-image-btn");
     var imageInput = document.getElementById("post-image-input");
     if (imageBtn && imageInput) {
@@ -1469,7 +1356,6 @@
         reader.readAsDataURL(file);
       });
     }
-
     var removeBtn = document.getElementById("post-remove-image-btn");
     if (removeBtn) {
       removeBtn.addEventListener("click", function () {
@@ -1508,9 +1394,7 @@
     return !tmp.textContent.trim() && !tmp.querySelector("img");
   }
 
-  /* ---------------------------------------------------------
-     SETTINGS COLLAPSIBLE
-  --------------------------------------------------------- */
+  /* SETTINGS COLLAPSIBLE */
   function toggleSettingsGroup(groupId) {
     var group   = document.getElementById(groupId);
     if (!group) return;
@@ -1521,9 +1405,7 @@
     if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "";
   }
 
-  /* ---------------------------------------------------------
-     EXPORT / IMPORT
-  --------------------------------------------------------- */
+  /* EXPORT / IMPORT */
   function exportData() {
     var user = getCurrentUser();
     var data = {
@@ -1576,9 +1458,7 @@
     reader.readAsText(file);
   }
 
-  /* ---------------------------------------------------------
-     CLEAR ALL DATA
-  --------------------------------------------------------- */
+  /* CLEAR ALL DATA */
   function clearAllData() {
     showConfirm("Delete all your data? This cannot be undone.", function () {
       showConfirm("This is permanent. Are you absolutely sure?", function () {
@@ -1600,9 +1480,7 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     CHANGE PASSWORD
-  --------------------------------------------------------- */
+  /* CHANGE PASSWORD */
   function changePassword(currentPwd, newPwd, confirmPwd) {
     if (!currentPwd || !newPwd || !confirmPwd) {
       return { success: false, message: "Please fill in all password fields." };
@@ -1628,17 +1506,13 @@
     return { success: true, message: "Password updated successfully." };
   }
 
-  /* ---------------------------------------------------------
-     OFFLINE BANNER
-  --------------------------------------------------------- */
+  /* OFFLINE BANNER */
   function handleOffline(isOffline) {
     var banner = document.getElementById("offline-banner");
     if (banner) banner.hidden = !isOffline;
   }
 
-  /* ---------------------------------------------------------
-     PWA
-  --------------------------------------------------------- */
+  /* PWA */
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(function (err) {
@@ -1647,12 +1521,36 @@
     }
   }
 
-  /* ---------------------------------------------------------
-     EVENT WIRING
-  --------------------------------------------------------- */
-  function initEventListeners() {
+  /* SHOW SPLASH (reusable) */
+  function showSplashAndRedirect(callback) {
+    var splash = document.getElementById("splash-page");
+    if (!splash) { if (callback) callback(); return; }
+    splash.style.display = "flex";
+    splash.style.opacity = "0";
+    splash.classList.add("active-page");
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width    = "100%";
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        splash.style.transition = "opacity 0.5s ease";
+        splash.style.opacity = "1";
+      });
+    });
+    setTimeout(function () {
+      splash.style.transition = "opacity 0.5s ease";
+      splash.style.opacity = "0";
+      setTimeout(function () {
+        splash.style.display = "none";
+        splash.classList.remove("active-page");
+        if (callback) callback();
+      }, 500);
+    }, 1200);
+  }
 
-    /* ---- AUTH FORM SWITCHING ---- */
+  /* EVENT LISTENERS */
+  function initEventListeners() {
+    // Auth form switching
     var showSignupLink = document.getElementById("show-signup");
     var showLoginLink  = document.getElementById("show-login");
     if (showSignupLink) {
@@ -1662,7 +1560,7 @@
       showLoginLink.addEventListener("click", function (e) { e.preventDefault(); showLoginForm(); });
     }
 
-    /* ---- PASSWORD VISIBILITY TOGGLES ---- */
+    // Password visibility
     document.querySelectorAll(".toggle-password").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var input = document.getElementById(btn.getAttribute("data-target"));
@@ -1678,7 +1576,7 @@
       });
     });
 
-    /* ---- LOGIN FORM ---- */
+    // Login form
     var loginForm = document.getElementById("login-form");
     if (loginForm) {
       loginForm.addEventListener("submit", function (e) {
@@ -1686,10 +1584,8 @@
         hideError("login-error");
         var email    = (document.getElementById("login-email").value    || "").trim();
         var password =  document.getElementById("login-password").value || "";
-
         if (!isValidEmail(email)) { showError("login-error", "Please enter a valid email address."); return; }
         if (!password)            { showError("login-error", "Please enter your password."); return; }
-
         var btn = document.getElementById("login-submit-btn");
         setButtonLoading(btn, true);
         setTimeout(function () {
@@ -1697,14 +1593,17 @@
           setButtonLoading(btn, false);
           if (!result.success) { showError("login-error", result.message); return; }
           loginForm.reset();
-          showPage("dashboard-page");
-          loadDashboard();
-          showToast("Welcome back, " + getCurrentUser().name + ".", "success");
+          // Show splash again then dashboard
+          showSplashAndRedirect(function () {
+            showPage("dashboard-page");
+            loadDashboard();
+            showToast("Welcome back, " + getCurrentUser().name + ".", "success");
+          });
         }, 600);
       });
     }
 
-    /* ---- SIGNUP FORM ---- */
+    // Signup form
     var signupForm = document.getElementById("signup-form");
     if (signupForm) {
       signupForm.addEventListener("submit", function (e) {
@@ -1714,12 +1613,10 @@
         var email    = (document.getElementById("signup-email").value    || "").trim();
         var password =  document.getElementById("signup-password").value || "";
         var confirm  =  document.getElementById("signup-confirm").value  || "";
-
         if (name.length < 2)      { showError("signup-error", "Please enter your full name."); return; }
         if (!isValidEmail(email)) { showError("signup-error", "Please enter a valid email address."); return; }
         if (password.length < 6)  { showError("signup-error", "Password must be at least 6 characters."); return; }
         if (password !== confirm)  { showError("signup-error", "Passwords do not match."); return; }
-
         var btn = document.getElementById("signup-submit-btn");
         setButtonLoading(btn, true);
         setTimeout(function () {
@@ -1727,20 +1624,23 @@
           setButtonLoading(btn, false);
           if (!result.success) { showError("signup-error", result.message); return; }
           signupForm.reset();
-          showPage("dashboard-page");
-          loadDashboard();
-          showToast("Account created. Welcome, " + name + ".", "success");
+          // Show success modal
+          showSuccessModal("Your account has been created successfully!", "Back to Login", function () {
+            showPage("login-page");
+            showLoginForm();
+            showToast("Please log in with your new account.", "info");
+          });
         }, 600);
       });
     }
 
-    /* ---- LOGOUT ---- */
+    // Logout
     ["logout-btn", "drawer-logout-btn", "settings-logout-btn"].forEach(function (id) {
       var btn = document.getElementById(id);
       if (btn) btn.addEventListener("click", logout);
     });
 
-    /* ---- HAMBURGER / DRAWER ---- */
+    // Hamburger / Drawer
     var hamburger     = document.getElementById("hamburger-btn");
     var drawerClose   = document.getElementById("drawer-close-btn");
     var drawerOverlay = document.getElementById("side-drawer-overlay");
@@ -1752,17 +1652,17 @@
       });
     }
 
-    /* ---- DRAWER NAVIGATION ---- */
+    // Drawer navigation
     document.querySelectorAll(".drawer-item[data-view]").forEach(function (btn) {
       btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
-    /* ---- BOTTOM NAV ---- */
+    // Bottom nav
     document.querySelectorAll(".nav-item[data-view]").forEach(function (btn) {
       btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
-    /* ---- CREATE POST MODAL ---- */
+    // Create post modal
     var composerBtn1  = document.getElementById("open-composer-btn");
     var composerBtn2  = document.getElementById("open-composer-btn-2");
     var closeModalBtn = document.getElementById("close-modal-btn");
@@ -1807,7 +1707,7 @@
       });
     }
 
-    /* ---- SUBJECT MODAL ---- */
+    // Subject modal
     var addSubjectBtn      = document.getElementById("add-subject-btn");
     var closeSubjectModal  = document.getElementById("close-subject-modal-btn");
     var subjectOverlay     = document.getElementById("subject-modal-overlay");
@@ -1845,7 +1745,7 @@
       });
     }
 
-    /* ---- SUBJECT TASK MODAL ---- */
+    // Subject task modal
     var closeSubjectTaskModal = document.getElementById("close-subject-task-modal-btn");
     var subjectTaskOverlay    = document.getElementById("subject-task-modal-overlay");
     var subjectTaskForm       = document.getElementById("subject-task-form");
@@ -1870,7 +1770,7 @@
       });
     }
 
-    /* ---- SCHEDULE MODAL ---- */
+    // Schedule modal
     var addScheduleBtn    = document.getElementById("add-schedule-btn");
     var closeScheduleMdl  = document.getElementById("close-schedule-modal-btn");
     var scheduleOverlay   = document.getElementById("schedule-modal-overlay");
@@ -1903,7 +1803,6 @@
         var startTime =  document.getElementById("schedule-start-time").value;
         var endTime   =  document.getElementById("schedule-end-time").value;
         var room      = (document.getElementById("schedule-room").value       || "").trim();
-
         if (!subject || !day || !startTime || !endTime) {
           showToast("Please fill in all required fields.", "warning"); return;
         }
@@ -1915,7 +1814,7 @@
       });
     }
 
-    /* ---- ASSIGNMENT MODAL ---- */
+    // Assignment modal
     var addAssignmentBtn    = document.getElementById("add-assignment-btn");
     var closeAssignmentMdl  = document.getElementById("close-assignment-modal-btn");
     var assignmentOverlay   = document.getElementById("assignment-modal-overlay");
@@ -1950,7 +1849,7 @@
       });
     }
 
-    /* ---- GRADE MODAL (inject Add Grade button) ---- */
+    // Grade modal - inject add button
     var gradesHeader = document.querySelector("#view-grades .view-header");
     if (gradesHeader && !document.getElementById("add-grade-btn")) {
       var addGradeBtn = document.createElement("button");
@@ -1989,7 +1888,6 @@
         var year     = document.getElementById("grade-year").value;
         var semester = document.getElementById("grade-semester").value;
         var exclude  = document.getElementById("grade-exclude").checked;
-
         if (!subject) { showToast("Please enter a subject name.", "warning"); return; }
         if (isNaN(gradeVal) || gradeVal < 0 || gradeVal > 100) {
           showToast("Please enter a valid grade between 0 and 100.", "warning"); return;
@@ -2002,13 +1900,13 @@
       });
     }
 
-    /* ---- GRADE FILTERS ---- */
+    // Grade filters
     var yearFilter = document.getElementById("grade-year-filter");
     var semFilter  = document.getElementById("grade-semester-filter");
     if (yearFilter) yearFilter.addEventListener("change", loadGrades);
     if (semFilter)  semFilter.addEventListener("change",  loadGrades);
 
-    /* ---- PROFILE FORM ---- */
+    // Profile form
     var profileForm = document.getElementById("profile-form");
     if (profileForm) {
       profileForm.addEventListener("submit", function (e) {
@@ -2035,7 +1933,7 @@
       });
     }
 
-    /* ---- PROFILE PHOTO ---- */
+    // Profile photo
     var photoUploadBtn = document.getElementById("upload-photo-btn");
     var photoInput     = document.getElementById("profile-photo-input");
     if (photoUploadBtn && photoInput) {
@@ -2059,7 +1957,7 @@
       });
     }
 
-    /* ---- SETTINGS: DARK MODE ---- */
+    // Settings: dark mode
     var darkToggle = document.getElementById("dark-mode-toggle");
     if (darkToggle) {
       darkToggle.addEventListener("change", function () {
@@ -2071,7 +1969,7 @@
       });
     }
 
-    /* ---- SETTINGS: FONT SIZE ---- */
+    // Settings: font size
     var fontSizeSelect = document.getElementById("font-size-select");
     if (fontSizeSelect) {
       fontSizeSelect.addEventListener("change", function () {
@@ -2083,7 +1981,7 @@
       });
     }
 
-    /* ---- SETTINGS: CHANGE PASSWORD ---- */
+    // Settings: change password
     var changePwdBtn = document.getElementById("settings-change-password-btn");
     if (changePwdBtn) {
       changePwdBtn.addEventListener("click", function () {
@@ -2103,15 +2001,15 @@
       });
     }
 
-    /* ---- SETTINGS: CLEAR DATA ---- */
+    // Settings: clear data
     var clearDataBtn = document.getElementById("settings-clear-data-btn");
     if (clearDataBtn) clearDataBtn.addEventListener("click", clearAllData);
 
-    /* ---- SETTINGS: EXPORT ---- */
+    // Settings: export
     var exportBtn = document.getElementById("settings-export-btn");
     if (exportBtn) exportBtn.addEventListener("click", exportData);
 
-    /* ---- SETTINGS: IMPORT ---- */
+    // Settings: import
     var importBtn   = document.getElementById("settings-import-btn");
     var importInput = document.getElementById("settings-import-input");
     if (importBtn && importInput) {
@@ -2122,7 +2020,7 @@
       });
     }
 
-    /* ---- SETTINGS: COLLAPSIBLE ---- */
+    // Settings: collapsible
     var pwdCollapsible = document.querySelector(".settings-collapsible");
     if (pwdCollapsible) {
       pwdCollapsible.addEventListener("click", function (e) {
@@ -2131,27 +2029,24 @@
       });
     }
 
-    /* ---- OFFLINE ---- */
+    // Offline
     window.addEventListener("offline", function () { handleOffline(true); });
     window.addEventListener("online",  function () {
       handleOffline(false);
       showToast("Connection restored.", "success");
     });
 
-    /* ---- ESCAPE KEY ---- */
+    // Escape key
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") { closeAllModals(); closeDrawer(); }
     });
   }
 
-  /* ---------------------------------------------------------
-     INIT
-  --------------------------------------------------------- */
+  /* INIT */
   function init() {
     seedDemoClassmates();
     applySettings(getSettings());
 
-    // Hide bottom nav until dashboard is shown
     var bottomNav = document.querySelector(".bottom-nav");
     if (bottomNav) bottomNav.style.display = "none";
 
@@ -2160,12 +2055,10 @@
     registerServiceWorker();
     handleOffline(!navigator.onLine);
 
-    // Lock scroll during splash
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.width    = "100%";
 
-    // Splash duration
     setTimeout(function () {
       var splash = document.getElementById("splash-page");
       if (splash) {
@@ -2175,7 +2068,6 @@
           splash.classList.remove("active-page");
           splash.style.display = "none";
           splash.style.opacity = "";
-
           if (isLoggedIn()) {
             showPage("dashboard-page");
             loadDashboard();
@@ -2188,12 +2080,8 @@
     }, 2400);
   }
 
-  /* ---------------------------------------------------------
-     EXPOSE GLOBALS
-  --------------------------------------------------------- */
   window.navigateTo          = navigateTo;
   window.toggleSettingsGroup = toggleSettingsGroup;
 
   document.addEventListener("DOMContentLoaded", init);
-
 })();
