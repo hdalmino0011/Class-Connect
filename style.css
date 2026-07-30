@@ -44,6 +44,14 @@ html, body {
   overflow-x: hidden;
 }
 
+/* ============ FIXED: Body scroll lock for login page ============ */
+body.body-scroll-lock {
+  overflow: hidden !important;
+  height: 100% !important;
+  position: fixed !important;
+  width: 100% !important;
+}
+
 button, input, textarea, select {
   font-family: inherit;
 }
@@ -172,11 +180,14 @@ body.splash-active {
    ========================================================= */
 #login-page {
   min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(160deg, var(--sky-blue) 0%, var(--very-light-blue) 60%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  overflow: hidden;
+  position: relative;
 }
 
 .auth-wrapper {
@@ -251,6 +262,7 @@ body.splash-active {
   color: var(--bright-blue);
   font-size: 15px;
   pointer-events: none;
+  z-index: 2;
 }
 
 .input-group input {
@@ -271,6 +283,33 @@ body.splash-active {
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
 }
 
+/* ============ FIXED: Hide browser native password reveal icon ============ */
+.input-group input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.input-group input[type="password"]::-webkit-contacts-auto-fill-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.input-group input[type="password"]::-ms-reveal {
+  display: none !important;
+}
+
+.input-group input[type="password"]::-moz-reveal {
+  display: none !important;
+}
+
+/* For Edge/IE */
+.input-group input[type="password"]::-webkit-textfield-decoration-container {
+  display: none !important;
+}
+
+/* Keep our custom toggle button visible and working */
 .toggle-password {
   position: absolute;
   right: 14px;
@@ -280,7 +319,12 @@ body.splash-active {
   cursor: pointer;
   font-size: 15px;
   padding: 6px;
-  z-index: 2;
+  z-index: 3;
+  transition: color var(--transition);
+}
+
+.toggle-password:hover {
+  color: var(--primary-blue);
 }
 
 .forgot-link {
