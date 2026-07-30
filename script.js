@@ -1093,7 +1093,7 @@
     updateStorageDisplay();
   }
 
-  /* UI HELPERS — FIXED SCROLL LOCK */
+  /* UI HELPERS */
   function showPage(pageId) {
     document.querySelectorAll(".page").forEach(function (p) {
       p.classList.remove("active-page");
@@ -1106,7 +1106,6 @@
       bottomNav.style.display = pageId === "dashboard-page" ? "" : "none";
     }
 
-    // SCROLL LOCK: when not on dashboard, lock body; when on dashboard, unlock.
     if (pageId === "dashboard-page") {
       document.body.classList.remove("body-scroll-lock");
       document.body.style.overflow = "";
@@ -1152,7 +1151,6 @@
     if (el) el.hidden = true;
   }
 
-  // Button loading state (spinner removed, just disables button)
   function setButtonLoading(btn, loading) {
     if (!btn) return;
     btn.disabled = loading;
@@ -1521,28 +1519,44 @@
     }
   }
 
-  /* SHOW SPLASH (reusable) */
+  /* ===== FIXED: SHOW SPLASH AND REDIRECT ===== */
   function showSplashAndRedirect(callback) {
     var splash = document.getElementById("splash-page");
     if (!splash) { if (callback) callback(); return; }
-    splash.style.display = "flex";
-    splash.style.opacity = "0";
+
+    // 1. HIDE LOGIN PAGE COMPLETELY
+    var loginPage = document.getElementById("login-page");
+    if (loginPage) {
+      loginPage.classList.remove("active-page");
+      loginPage.style.display = "none";
+    }
+
+    // 2. SHOW SPLASH WITH !important override
     splash.classList.add("active-page");
+    splash.style.setProperty("display", "flex", "important");
+    splash.style.opacity = "0";
+    splash.style.transition = "none";
+
+    // Force reflow to ensure the display change takes effect
+    void splash.offsetHeight;
+
+    // 3. Fade in splash
+    splash.style.transition = "opacity 0.5s ease";
+    splash.style.opacity = "1";
+
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
-    document.body.style.width    = "100%";
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        splash.style.transition = "opacity 0.5s ease";
-        splash.style.opacity = "1";
-      });
-    });
+    document.body.style.width = "100%";
+
+    // 4. Fade out splash after 1.2s
     setTimeout(function () {
-      splash.style.transition = "opacity 0.5s ease";
       splash.style.opacity = "0";
       setTimeout(function () {
         splash.style.display = "none";
         splash.classList.remove("active-page");
+        document.body.style.overflow = "";
+        document.body.style.position = "";
+        document.body.style.width = "";
         if (callback) callback();
       }, 500);
     }, 1200);
@@ -1593,7 +1607,7 @@
           setButtonLoading(btn, false);
           if (!result.success) { showError("login-error", result.message); return; }
           loginForm.reset();
-          // Show splash again then dashboard
+          // Show splash then dashboard
           showSplashAndRedirect(function () {
             showPage("dashboard-page");
             loadDashboard();
@@ -2084,4 +2098,5 @@
   window.toggleSettingsGroup = toggleSettingsGroup;
 
   document.addEventListener("DOMContentLoaded", init);
+
 })();
