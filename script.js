@@ -243,14 +243,9 @@
   }
 
   function showPage(pageId) {
-    // Remove active class from all pages
     document.querySelectorAll(".page").forEach((p) => p.classList.remove("active-page"));
-
-    // Add active class to target page
     const targetPage = document.getElementById(pageId);
     targetPage.classList.add("active-page");
-
-    // If showing login page or dashboard, remove splash-active class from body to allow scrolling
     if (pageId === "login-page" || pageId === "dashboard-page") {
       document.body.classList.remove("splash-active");
     }
@@ -322,6 +317,19 @@
   function closeModal() {
     document.getElementById("post-modal-overlay").classList.remove("active-modal");
     document.getElementById("post-content-input").value = "";
+  }
+
+  /* ---------------------------------------------------------
+     OFFLINE BANNER HANDLING (FIXED)
+  --------------------------------------------------------- */
+  function handleOffline(isOffline) {
+    const banner = document.getElementById("offline-banner");
+    // Only react if a boolean is passed; otherwise use navigator.onLine
+    if (typeof isOffline === "boolean") {
+      banner.hidden = !isOffline;
+    } else {
+      banner.hidden = navigator.onLine;
+    }
   }
 
   /* ---------------------------------------------------------
@@ -462,20 +470,13 @@
       switchView("view-home");
     });
 
-    // Offline / online detection — ONLY react to real browser events.
-    // Do NOT check navigator.onLine on page load; it is unreliable
-    // (especially over file:// or in some WebViews) and causes false positives.
+    // Offline / online detection — now with proper initial state
     window.addEventListener("offline", () => handleOffline(true));
     window.addEventListener("online", () => handleOffline(false));
   }
 
   function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  }
-
-  function handleOffline(isOffline) {
-    const banner = document.getElementById("offline-banner");
-    banner.hidden = !isOffline;
   }
 
   /* ---------------------------------------------------------
@@ -493,7 +494,6 @@
 
   function checkInstallStatus() {
     window.addEventListener("beforeinstallprompt", (e) => {
-      // Available for future custom "Install App" button.
       window.deferredInstallPrompt = e;
     });
   }
@@ -507,11 +507,10 @@
     registerServiceWorker();
     checkInstallStatus();
 
-    // Offline banner starts hidden and only reacts to real
-    // "online"/"offline" browser events from here on — no
-    // navigator.onLine check on load (see note above).
+    // Set initial offline banner state based on actual connectivity
+    // This corrects the false-positive issue when testing locally.
+    handleOffline(!navigator.onLine);
 
-    // Add splash-active class to body to prevent scrolling
     document.body.classList.add("splash-active");
 
     setTimeout(() => {
@@ -522,7 +521,6 @@
         showPage("login-page");
         showLoginForm();
       }
-      // Remove splash-active class after transition
       document.body.classList.remove("splash-active");
     }, 2200);
   }
