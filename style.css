@@ -701,7 +701,7 @@ body.splash-active {
 }
 
 /* =========================================================
-   OFFLINE BANNER
+   OFFLINE BANNER (FIXED)
    ========================================================= */
 .offline-banner {
   position: fixed;
@@ -719,6 +719,11 @@ body.splash-active {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+/* CRITICAL FIX: Ensures the banner stays hidden when the [hidden] attribute is applied */
+.offline-banner[hidden] {
+  display: none !important;
 }
 
 /* =========================================================
