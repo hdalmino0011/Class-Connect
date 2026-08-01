@@ -1,4 +1,4 @@
-/* file: script.js */
+/* file: script.js - ClassConnect Complete Application Script */
 
 (function () {
   "use strict";
@@ -35,11 +35,13 @@
     { question: "Can I access ClassConnect on multiple devices?", answer: "Yes. ClassConnect is a Progressive Web App that works on both mobile phones and desktop computers. You can install it as an app for the best experience." },
     { question: "How do I add a subject?", answer: "Go to the Subjects page from the menu, click the Add Subject button, fill in the subject name, professor, and schedule, then click Save." },
     { question: "How do I track my assignments?", answer: "Navigate to the Assignments page, click Add Task to create new tasks, and check them off as you complete them using the checkbox." },
-    { question: "How does the Grades page work?", answer: "Enter your grade for each subject, select your year level and semester, and the app will automatically calculate your general weighted average. You can also exclude subjects from the calculation." },
+    { question: "How does the Grades page work?", answer: "Enter your grade for each subject along with its units/credits. Select your year level and semester, and the app will automatically calculate your General Weighted Average (GWA). You can also exclude specific subjects (like PE or NSTP) from the computation." },
+    { question: "How does the Curriculum section work?", answer: "You can add your college subjects by Year Level, or upload your official curriculum PDF so you can reference it anytime." },
     { question: "Is my data safe?", answer: "Your data is stored locally in your browser and is not shared with anyone. We prioritize your privacy and security. For more details, please read our Privacy Policy." },
     { question: "Can I edit my profile information?", answer: "Yes. Go to the Profile page from the menu, update any of your personal information, and click Save Profile to apply your changes." },
   ];
 
+  /* UTILITY FUNCTIONS */
   function cryptoId() {
     return "id-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
   }
@@ -339,16 +341,9 @@
   function getPosts() { return getData(userKey(KEYS.POSTS), []); }
   function savePosts(posts) { setData(userKey(KEYS.POSTS), posts); }
 
-  function getPostAuthor(postId) {
-    var posts = getPosts();
-    var found = posts.find(function (p) { return p.id === postId; });
-    return found ? found.author : null;
-  }
-
   function seedDemoPosts() {
     if (getPosts().length > 0) return;
     var user = getCurrentUser();
-    var authorName = user ? user.name : "Student";
     savePosts([
       {
         id: cryptoId(),
@@ -468,8 +463,6 @@
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
     const posts = getPosts();
-    const user = getCurrentUser();
-    const admin = isAdmin();
     feed.innerHTML = "";
     if (posts.length === 0) {
       feed.innerHTML =
@@ -1019,18 +1012,61 @@
     });
   }
 
-  /* ===== GRADES ===== */
+  /* ===== GRADES (COLLEGE LEVEL ENHANCED) ===== */
   function getGrades() { return getData(userKey(KEYS.GRADES), []); }
   function saveGrades(grades) { setData(userKey(KEYS.GRADES), grades); }
 
-  function addGrade(subject, gradeValue, year, semester, exclude) {
+  function seedDemoGrades() {
+    if (getGrades().length > 0) return;
+    saveGrades([
+      {
+        id: cryptoId(),
+        subject: "Web Systems and Technologies",
+        grade: 1.25,
+        units: 3,
+        year: "3rd Year",
+        semester: "1st Semester",
+        exclude: false,
+      },
+      {
+        id: cryptoId(),
+        subject: "Data Structures & Algorithms",
+        grade: 1.50,
+        units: 3,
+        year: "3rd Year",
+        semester: "1st Semester",
+        exclude: false,
+      },
+      {
+        id: cryptoId(),
+        subject: "PE 3 - Physical Fitness",
+        grade: 1.00,
+        units: 2,
+        year: "3rd Year",
+        semester: "1st Semester",
+        exclude: true,
+      },
+      {
+        id: cryptoId(),
+        subject: "Database Management Systems",
+        grade: 1.75,
+        units: 3,
+        year: "3rd Year",
+        semester: "1st Semester",
+        exclude: false,
+      },
+    ]);
+  }
+
+  function addGrade(subject, gradeValue, units, year, semester, exclude) {
     const grades = getGrades();
     const item = {
       id: cryptoId(),
       subject: subject.trim(),
       grade: parseFloat(gradeValue),
-      year: year || "1st",
-      semester: semester || "1st",
+      units: parseFloat(units) || 3,
+      year: year || "1st Year",
+      semester: semester || "1st Semester",
       exclude: !!exclude,
     };
     grades.push(item);
@@ -1060,64 +1096,100 @@
   }
 
   function gradeColor(g) {
-    if (g >= 90) return "#10B981";
-    if (g >= 80) return "#2563EB";
-    if (g >= 75) return "#F59E0B";
-    if (g >= 70) return "#EF4444";
-    return "#94A3B8";
+    if (g <= 1.50 && g > 0) return "#10B981";
+    if (g <= 2.00 && g > 0) return "#2563EB";
+    if (g <= 2.50 && g > 0) return "#F59E0B";
+    if (g <= 3.00 && g > 0) return "#8B5CF6";
+    if (g > 5.00) {
+      if (g >= 90) return "#10B981";
+      if (g >= 80) return "#2563EB";
+      if (g >= 75) return "#F59E0B";
+      return "#EF4444";
+    }
+    return "#EF4444";
   }
 
   function gradeLabel(g) {
+    if (g <= 1.25 && g > 0) return "Excellent";
+    if (g <= 1.75 && g > 0) return "Very Good";
+    if (g <= 2.25 && g > 0) return "Good";
+    if (g <= 2.75 && g > 0) return "Satisfactory";
+    if (g <= 3.00 && g > 0) return "Passing";
+    if (g > 3.00 && g <= 5.00) return "Failed";
     if (g >= 90) return "Excellent";
     if (g >= 80) return "Good";
     if (g >= 75) return "Satisfactory";
-    if (g >= 70) return "Passing";
     return "Below Average";
   }
 
   function calculateGWA(grades, year, semester) {
     const eligible = grades.filter(function (g) {
-      return g.year === year && g.semester === semester && !g.exclude;
+      var yearMatch = (year === "all" || !year || g.year === year);
+      var semMatch = (semester === "all" || !semester || g.semester === semester);
+      return yearMatch && semMatch && !g.exclude && !isNaN(g.grade);
     });
     if (!eligible.length) return 0;
-    return eligible.reduce(function (sum, g) { return sum + g.grade; }, 0) / eligible.length;
+    var totalWeighted = 0;
+    var totalUnits = 0;
+    eligible.forEach(function (g) {
+      var u = parseFloat(g.units) || 3;
+      totalWeighted += (parseFloat(g.grade) * u);
+      totalUnits += u;
+    });
+    if (totalUnits === 0) return 0;
+    return totalWeighted / totalUnits;
   }
 
   function loadGrades() {
     const list = document.getElementById("grades-list");
     const gwaDisplay = document.getElementById("gwa-value");
     if (!list) return;
-    const year = (document.getElementById("grade-year-filter") || {}).value || "1st";
-    const semester = (document.getElementById("grade-semester-filter") || {}).value || "1st";
+    const yearEl = document.getElementById("grade-year-filter");
+    const semEl = document.getElementById("grade-semester-filter");
+    const year = yearEl ? yearEl.value : "all";
+    const semester = semEl ? semEl.value : "all";
     const grades = getGrades();
-    const filtered = grades.filter(function (g) { return g.year === year && g.semester === semester; });
+
+    const filtered = grades.filter(function (g) {
+      var yMatch = (year === "all" || !year || g.year === year);
+      var sMatch = (semester === "all" || !semester || g.semester === semester);
+      return yMatch && sMatch;
+    });
+
     list.innerHTML = "";
     if (filtered.length === 0) {
       list.innerHTML =
         '<div class="empty-state">' +
           '<div class="empty-icon"><i class="fas fa-chart-simple"></i></div>' +
-          '<p class="empty-title">No grades yet</p>' +
-          '<p class="empty-sub">Add your grades for this semester.</p>' +
+          '<p class="empty-title">No grades found</p>' +
+          '<p class="empty-sub">Click "Add Grade" to record your subjects and compute your GWA.</p>' +
         '</div>';
       if (gwaDisplay) { gwaDisplay.textContent = "0.00"; gwaDisplay.style.color = ""; }
       return;
     }
+
     filtered.forEach(function (item) {
       const div = document.createElement("div");
       div.className = "grade-item" + (item.exclude ? " grade-excluded" : "");
       var gc = item.exclude ? "#94A3B8" : gradeColor(item.grade);
-      var gl = item.exclude ? "Excluded" : gradeLabel(item.grade);
+      var gl = item.exclude ? "Excluded from GWA" : gradeLabel(item.grade);
+      var uLabel = (item.units || 3) + " Units";
+
       div.innerHTML =
         '<div class="grade-info">' +
           '<h4>' + escapeHtml(item.subject) + '</h4>' +
-          '<span class="grade-badge" style="background:' + gc + '20;color:' + gc + '">' + gl + '</span>' +
+          '<div class="grade-meta-tags">' +
+            '<span class="grade-badge" style="background:' + gc + '20;color:' + gc + '">' + gl + '</span>' +
+            '<span class="grade-unit-badge"><i class="fas fa-layer-group"></i> ' + uLabel + '</span>' +
+            '<span class="grade-term-badge"><i class="fas fa-calendar"></i> ' + escapeHtml(item.year || "1st Year") + ' &bull; ' + escapeHtml(item.semester || "1st Semester") + '</span>' +
+          '</div>' +
         '</div>' +
         '<div class="grade-actions">' +
           '<span class="grade-value" style="color:' + gc + '">' +
             (item.exclude ? '<s>' + item.grade.toFixed(2) + '</s>' : item.grade.toFixed(2)) +
           '</span>' +
           '<button class="btn-icon btn-toggle-exclude" data-id="' + item.id + '" ' +
-            'title="' + (item.exclude ? 'Include in average' : 'Exclude from average') + '">' +
+            'title="' + (item.exclude ? 'Include in GWA calculation' : 'Exclude from GWA calculation (e.g. PE/NSTP)') + '">' +
             '<i class="fas ' + (item.exclude ? 'fa-eye' : 'fa-eye-slash') + '"></i>' +
           '</button>' +
           '<button class="btn-icon btn-edit-grade" data-id="' + item.id + '" title="Edit grade">' +
@@ -1129,11 +1201,17 @@
         '</div>';
       list.appendChild(div);
     });
+
     list.querySelectorAll(".btn-toggle-exclude").forEach(function (btn) {
-      btn.addEventListener("click", function () { toggleGradeExclude(btn.getAttribute("data-id")); loadGrades(); });
+      btn.addEventListener("click", function () {
+        toggleGradeExclude(btn.getAttribute("data-id"));
+        loadGrades();
+      });
     });
     list.querySelectorAll(".btn-edit-grade").forEach(function (btn) {
-      btn.addEventListener("click", function () { editGradeItem(btn.getAttribute("data-id")); });
+      btn.addEventListener("click", function () {
+        editGradeItem(btn.getAttribute("data-id"));
+      });
     });
     list.querySelectorAll(".btn-delete-grade").forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -1144,9 +1222,10 @@
         });
       });
     });
+
     const gwa = calculateGWA(grades, year, semester);
     if (gwaDisplay) {
-      gwaDisplay.textContent = gwa.toFixed(2);
+      gwaDisplay.textContent = gwa > 0 ? gwa.toFixed(4).replace(/00$/, '') : "0.00";
       gwaDisplay.style.color = gwa > 0 ? gradeColor(gwa) : "";
     }
   }
@@ -1157,9 +1236,10 @@
     document.getElementById("grade-edit-id").value = id;
     document.getElementById("grade-subject").value = item.subject;
     document.getElementById("grade-value").value = item.grade;
-    document.getElementById("grade-year").value = item.year;
-    document.getElementById("grade-semester").value = item.semester;
-    document.getElementById("grade-exclude").checked = item.exclude;
+    document.getElementById("grade-units").value = item.units || 3;
+    document.getElementById("grade-year").value = item.year || "1st Year";
+    document.getElementById("grade-semester").value = item.semester || "1st Semester";
+    document.getElementById("grade-exclude").checked = !!item.exclude;
     document.getElementById("grade-modal-title").textContent = "Edit Grade";
     openModal("grade-modal-overlay");
   }
@@ -1234,7 +1314,7 @@
     });
   }
 
-  /* ===== CURRICULUM ===== */
+  /* ===== CURRICULUM (COLLEGE LEVEL ENHANCED) ===== */
   function getCurriculumSubjects() {
     return getData(userKey(KEYS.CURRICULUM_SUBJECTS), []);
   }
@@ -1250,6 +1330,40 @@
   }
   function removeCurriculumPDF() {
     localStorage.removeItem(userKey(KEYS.CURRICULUM_PDF));
+  }
+
+  function seedDemoCurriculum() {
+    if (getCurriculumSubjects().length > 0) return;
+    saveCurriculumSubjects([
+      {
+        id: cryptoId(),
+        code: "IT 301",
+        name: "Web Systems and Technologies",
+        schedule: "MWF 10:00-11:30 AM",
+        year: "3rd Year",
+      },
+      {
+        id: cryptoId(),
+        code: "IT 302",
+        name: "Database Management Systems II",
+        schedule: "TTH 1:00-2:30 PM",
+        year: "3rd Year",
+      },
+      {
+        id: cryptoId(),
+        code: "IT 201",
+        name: "Data Structures & Algorithms",
+        schedule: "MWF 1:00-2:30 PM",
+        year: "2nd Year",
+      },
+      {
+        id: cryptoId(),
+        code: "IT 101",
+        name: "Introduction to Computing",
+        schedule: "MWF 8:30-10:00 AM",
+        year: "1st Year",
+      },
+    ]);
   }
 
   function addCurriculumSubject(name, code, schedule, year) {
@@ -1289,13 +1403,16 @@
       var pdfData = getCurriculumPDF();
       if (pdfData) {
         pdfSection.innerHTML =
-          '<div class="pdf-upload-area">' +
+          '<div class="pdf-upload-area pdf-active-card">' +
             '<div class="pdf-info">' +
-              '<i class="fas fa-file-pdf"></i>' +
-              '<span>' + escapeHtml(pdfData.name || "Curriculum PDF") + '</span>' +
+              '<i class="fas fa-file-pdf pdf-icon"></i>' +
+              '<div>' +
+                '<h4 class="pdf-filename">' + escapeHtml(pdfData.name || "Curriculum PDF") + '</h4>' +
+                '<span class="pdf-subtitle">Uploaded curriculum syllabus</span>' +
+              '</div>' +
             '</div>' +
             '<div class="pdf-actions">' +
-              '<button class="btn-pdf-view" onclick="window.open(\'' + pdfData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View</button>' +
+              '<button class="btn-pdf-view" onclick="window.open(\'' + pdfData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View PDF</button>' +
               '<button class="btn-pdf-remove" id="remove-pdf-btn"><i class="fas fa-trash"></i> Remove</button>' +
             '</div>' +
           '</div>';
@@ -1312,9 +1429,12 @@
       } else {
         pdfSection.innerHTML =
           '<div class="pdf-upload-area">' +
-            '<div class="no-pdf"><i class="fas fa-file-pdf"></i> No PDF uploaded yet</div>' +
+            '<div class="no-pdf">' +
+              '<i class="fas fa-file-pdf"></i>' +
+              '<span>No curriculum PDF uploaded yet</span>' +
+            '</div>' +
             '<div class="pdf-actions">' +
-              '<button class="btn-pdf-upload" id="upload-pdf-btn"><i class="fas fa-upload"></i> Upload PDF</button>' +
+              '<button class="btn-pdf-upload" id="upload-pdf-btn"><i class="fas fa-upload"></i> Upload PDF Syllabus</button>' +
               '<input type="file" id="pdf-file-input" accept=".pdf" hidden>' +
             '</div>' +
           '</div>';
@@ -1335,7 +1455,7 @@
               var base64 = e.target.result;
               saveCurriculumPDF({ name: file.name, data: base64 });
               loadCurriculum();
-              showToast("PDF uploaded successfully.", "success");
+              showToast("Curriculum PDF uploaded successfully.", "success");
               fileInput.value = "";
             };
             reader.readAsDataURL(file);
@@ -1360,7 +1480,7 @@
         '<div class="empty-state">' +
           '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
           '<p class="empty-title">No subjects found</p>' +
-          '<p class="empty-sub">Add subjects to your curriculum.</p>' +
+          '<p class="empty-sub">Add subjects to your curriculum or select another Year Level.</p>' +
         '</div>';
       return;
     }
@@ -1642,6 +1762,8 @@
       }
     }
     seedDemoPosts();
+    seedDemoGrades();
+    seedDemoCurriculum();
     loadProfileForm();
     loadPosts();
     loadSubjects();
@@ -2304,11 +2426,32 @@
       });
     }
 
+    /* GRADES EVENT LISTENERS (COLLEGE LEVEL ENHANCED) */
+    var addGradeBtn = document.getElementById("add-grade-btn");
     var closeGradeMdl = document.getElementById("close-grade-modal-btn");
     var gradeOverlay = document.getElementById("grade-modal-overlay");
     var gradeForm = document.getElementById("grade-form");
 
-    if (closeGradeMdl) closeGradeMdl.addEventListener("click", function () { closeModal("grade-modal-overlay"); });
+    if (addGradeBtn) {
+      addGradeBtn.addEventListener("click", function () {
+        document.getElementById("grade-edit-id").value = "";
+        document.getElementById("grade-subject").value = "";
+        document.getElementById("grade-value").value = "";
+        document.getElementById("grade-units").value = "3";
+        var curYear = (document.getElementById("grade-year-filter") || {}).value || "3rd Year";
+        var curSem = (document.getElementById("grade-semester-filter") || {}).value || "1st Semester";
+        document.getElementById("grade-year").value = curYear === "all" ? "1st Year" : curYear;
+        document.getElementById("grade-semester").value = curSem === "all" ? "1st Semester" : curSem;
+        document.getElementById("grade-exclude").checked = false;
+        document.getElementById("grade-modal-title").textContent = "Add College Grade";
+        openModal("grade-modal-overlay");
+      });
+    }
+    if (closeGradeMdl) {
+      closeGradeMdl.addEventListener("click", function () {
+        closeModal("grade-modal-overlay");
+      });
+    }
     if (gradeOverlay) {
       gradeOverlay.addEventListener("click", function (e) {
         if (e.target === gradeOverlay) closeModal("grade-modal-overlay");
@@ -2320,15 +2463,21 @@
         var id = document.getElementById("grade-edit-id").value;
         var subject = (document.getElementById("grade-subject").value || "").trim();
         var gradeVal = parseFloat(document.getElementById("grade-value").value);
-        var year = document.getElementById("grade-year").value;
-        var semester = document.getElementById("grade-semester").value;
+        var unitsVal = parseFloat(document.getElementById("grade-units").value) || 3;
+        var year = document.getElementById("grade-year").value || "1st Year";
+        var semester = document.getElementById("grade-semester").value || "1st Semester";
         var exclude = document.getElementById("grade-exclude").checked;
         if (!subject) { showToast("Please enter a subject name.", "warning"); return; }
-        if (isNaN(gradeVal) || gradeVal < 0 || gradeVal > 100) {
-          showToast("Please enter a valid grade between 0 and 100.", "warning"); return;
+        if (isNaN(gradeVal) || gradeVal < 0) {
+          showToast("Please enter a valid numeric grade.", "warning"); return;
         }
-        if (id) { updateGrade(id, { subject: subject, grade: gradeVal, year: year, semester: semester, exclude: exclude }); showToast("Grade updated.", "success"); }
-        else { addGrade(subject, gradeVal, year, semester, exclude); showToast("Grade added.", "success"); }
+        if (id) {
+          updateGrade(id, { subject: subject, grade: gradeVal, units: unitsVal, year: year, semester: semester, exclude: exclude });
+          showToast("Grade updated.", "success");
+        } else {
+          addGrade(subject, gradeVal, unitsVal, year, semester, exclude);
+          showToast("Grade added to " + year + ", " + semester + ".", "success");
+        }
         closeModal("grade-modal-overlay");
         gradeForm.reset();
         loadGrades();
@@ -2453,20 +2602,6 @@
       if (e.key === "Escape") { closeAllModals(); closeDrawer(); }
     });
 
-    var addGradeBtn = document.getElementById("add-grade-btn");
-    if (addGradeBtn) {
-      addGradeBtn.addEventListener("click", function () {
-        document.getElementById("grade-edit-id").value = "";
-        document.getElementById("grade-subject").value = "";
-        document.getElementById("grade-value").value = "";
-        document.getElementById("grade-year").value = (document.getElementById("grade-year-filter") || {}).value || "1st";
-        document.getElementById("grade-semester").value = (document.getElementById("grade-semester-filter") || {}).value || "1st";
-        document.getElementById("grade-exclude").checked = false;
-        document.getElementById("grade-modal-title").textContent = "Add Grade";
-        openModal("grade-modal-overlay");
-      });
-    }
-
     var addCurriculumBtn = document.getElementById("add-curriculum-subject-btn");
     if (addCurriculumBtn) {
       addCurriculumBtn.addEventListener("click", function () {
@@ -2474,7 +2609,7 @@
         document.getElementById("curriculum-subject-name").value = "";
         document.getElementById("curriculum-subject-code").value = "";
         document.getElementById("curriculum-subject-schedule").value = "";
-        document.getElementById("curriculum-subject-year").value = "";
+        document.getElementById("curriculum-subject-year").value = "1st Year";
         document.getElementById("curriculum-subject-modal-title").textContent = "Add Subject";
         openModal("curriculum-subject-modal-overlay");
       });
@@ -2511,7 +2646,7 @@
           showToast("Subject updated.", "success");
         } else {
           addCurriculumSubject(name, code, schedule, year);
-          showToast("Subject added.", "success");
+          showToast("Subject added to " + year + ".", "success");
         }
         closeModal("curriculum-subject-modal-overlay");
         curriculumForm.reset();
