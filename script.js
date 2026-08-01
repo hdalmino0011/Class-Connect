@@ -14,7 +14,12 @@
     PROFILE: "cc_profile",
     SETTINGS: "cc_settings",
     CLASSMATES: "cc_classmates",
+    CURRICULUM_SUBJECTS: "cc_curriculum_subjects",
+    CURRICULUM_PDF: "cc_curriculum_pdf",
+    POST_ACKNOWLEDGMENTS: "cc_post_acknowledgments",
   };
+
+  const ADMIN_EMAILS = ["admin@classconnect.com", "admin@hddev.com"];
 
   const DEMO_CLASSMATES = [
     { name: "Maria Delacruz", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
@@ -103,6 +108,14 @@
     var ampm = h >= 12 ? "PM" : "AM";
     h = h % 12 || 12;
     return h + ":" + m + " " + ampm;
+  }
+
+  function isAdmin() {
+    var user = getCurrentUser();
+    if (!user) return false;
+    return ADMIN_EMAILS.some(function (email) {
+      return user.email.toLowerCase() === email.toLowerCase();
+    });
   }
 
   function showToast(message, type) {
@@ -322,11 +335,20 @@
     return base + "_" + user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
   }
 
+  /* ===== POSTS ===== */
   function getPosts() { return getData(userKey(KEYS.POSTS), []); }
   function savePosts(posts) { setData(userKey(KEYS.POSTS), posts); }
 
+  function getPostAuthor(postId) {
+    var posts = getPosts();
+    var found = posts.find(function (p) { return p.id === postId; });
+    return found ? found.author : null;
+  }
+
   function seedDemoPosts() {
     if (getPosts().length > 0) return;
+    var user = getCurrentUser();
+    var authorName = user ? user.name : "Student";
     savePosts([
       {
         id: cryptoId(),
@@ -371,14 +393,83 @@
     return post;
   }
 
+  function updatePost(id, content) {
+    const posts = getPosts();
+    const idx = posts.findIndex(function (p) { return p.id === id; });
+    if (idx === -1) return null;
+    posts[idx].content = content.trim();
+    savePosts(posts);
+    return posts[idx];
+  }
+
   function deletePost(id) {
     savePosts(getPosts().filter(function (p) { return p.id !== id; }));
+  }
+
+  function canDeletePost(postId) {
+    var user = getCurrentUser();
+    if (!user) return false;
+    if (isAdmin()) return true;
+    var posts = getPosts();
+    var found = posts.find(function (p) { return p.id === postId; });
+    if (!found) return false;
+    return found.author === user.name;
+  }
+
+  function canEditPost(postId) {
+    var user = getCurrentUser();
+    if (!user) return false;
+    var posts = getPosts();
+    var found = posts.find(function (p) { return p.id === postId; });
+    if (!found) return false;
+    return found.author === user.name;
+  }
+
+  function getPostAcknowledgmentKey(postId) {
+    return userKey(KEYS.POST_ACKNOWLEDGMENTS) + "_" + postId;
+  }
+
+  function getPostAcknowledgments(postId) {
+    return getData(getPostAcknowledgmentKey(postId), []);
+  }
+
+  function savePostAcknowledgments(postId, data) {
+    setData(getPostAcknowledgmentKey(postId), data);
+  }
+
+  function toggleAcknowledgePost(postId) {
+    var user = getCurrentUser();
+    if (!user) return false;
+    var acks = getPostAcknowledgments(postId);
+    var idx = acks.findIndex(function (a) {
+      return a.email.toLowerCase() === user.email.toLowerCase();
+    });
+    if (idx === -1) {
+      acks.push({ name: user.name, email: user.email, timestamp: Date.now() });
+      savePostAcknowledgments(postId, acks);
+      return true;
+    } else {
+      acks.splice(idx, 1);
+      savePostAcknowledgments(postId, acks);
+      return false;
+    }
+  }
+
+  function hasAcknowledgedPost(postId) {
+    var user = getCurrentUser();
+    if (!user) return false;
+    var acks = getPostAcknowledgments(postId);
+    return acks.some(function (a) {
+      return a.email.toLowerCase() === user.email.toLowerCase();
+    });
   }
 
   function loadPosts() {
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
     const posts = getPosts();
+    const user = getCurrentUser();
+    const admin = isAdmin();
     feed.innerHTML = "";
     if (posts.length === 0) {
       feed.innerHTML =
@@ -394,6 +485,42 @@
       card.className = "post-card";
       var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy"></div>' : "";
       var tagHtml = post.tag ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>' : "";
+
+      var canDel = canDeletePost(post.id);
+      var canEdt = canEditPost(post.id);
+      var hasAck = hasAcknowledgedPost(post.id);
+      var acks = getPostAcknowledgments(post.id);
+      var ackCount = acks.length;
+
+      var actionsHtml = '<div class="post-footer">';
+      actionsHtml += '<div class="post-footer-left">';
+      actionsHtml +=
+        '<button class="btn-acknowledge ' + (hasAck ? "acknowledged" : "") + '" data-id="' + post.id + '">' +
+          '<i class="fas ' + (hasAck ? "fa-check-circle" : "fa-circle") + '"></i> ' +
+          (hasAck ? "Acknowledged" : "Acknowledge") +
+        '</button>';
+      if (ackCount > 0) {
+        actionsHtml +=
+          '<span class="acknowledge-count" data-id="' + post.id + '" title="View who acknowledged">' +
+            ackCount + ' ' + (ackCount === 1 ? "person" : "people") +
+          '</span>';
+      }
+      actionsHtml += '</div>';
+      actionsHtml += '<div class="post-footer-right">';
+      if (canEdt) {
+        actionsHtml +=
+          '<button class="btn-edit-post" data-id="' + post.id + '">' +
+            '<i class="fas fa-pen"></i> Edit' +
+          '</button>';
+      }
+      if (canDel) {
+        actionsHtml +=
+          '<button class="btn-delete-post" data-id="' + post.id + '">' +
+            '<i class="fas fa-trash"></i> Delete' +
+          '</button>';
+      }
+      actionsHtml += '</div></div>';
+
       card.innerHTML =
         tagHtml +
         '<div class="post-header">' +
@@ -406,13 +533,10 @@
           '</div>' +
         '</div>' +
         '<div class="post-content">' + post.content + imgHtml + '</div>' +
-        '<div class="post-footer">' +
-          '<button class="btn-delete-post" data-id="' + post.id + '">' +
-            '<i class="fas fa-trash"></i> Delete' +
-          '</button>' +
-        '</div>';
+        actionsHtml;
       feed.appendChild(card);
     });
+
     feed.querySelectorAll(".btn-delete-post").forEach(function (btn) {
       btn.addEventListener("click", function () {
         showConfirm("Delete this post?", function () {
@@ -422,8 +546,80 @@
         });
       });
     });
+
+    feed.querySelectorAll(".btn-edit-post").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var postId = btn.getAttribute("data-id");
+        openEditPostModal(postId);
+      });
+    });
+
+    feed.querySelectorAll(".btn-acknowledge").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var postId = btn.getAttribute("data-id");
+        toggleAcknowledgePost(postId);
+        loadPosts();
+      });
+    });
+
+    feed.querySelectorAll(".acknowledge-count").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var postId = btn.getAttribute("data-id");
+        showAcknowledgmentsPopup(postId);
+      });
+    });
   }
 
+  function showAcknowledgmentsPopup(postId) {
+    var acks = getPostAcknowledgments(postId);
+    var overlay = document.createElement("div");
+    overlay.className = "acknowledgments-popup-overlay active";
+    var popup = document.createElement("div");
+    popup.className = "acknowledgments-popup active";
+    var listHtml = "";
+    if (acks.length === 0) {
+      listHtml = '<p style="text-align:center;color:var(--gray-400);padding:16px 0;">No one has acknowledged this post yet.</p>';
+    } else {
+      listHtml = '<div class="acknowledgments-list">';
+      acks.forEach(function (a) {
+        var color = stringToColor(a.name);
+        listHtml +=
+          '<div class="ack-item">' +
+            '<div class="ack-avatar" style="background:' + color + '">' + escapeHtml(initials(a.name)) + '</div>' +
+            '<span>' + escapeHtml(a.name) + '</span>' +
+          '</div>';
+      });
+      listHtml += '</div>';
+    }
+    popup.innerHTML =
+      '<h4>People who acknowledged</h4>' +
+      listHtml +
+      '<button class="acknowledgments-close">Close</button>';
+    document.body.appendChild(overlay);
+    document.body.appendChild(popup);
+    popup.querySelector(".acknowledgments-close").addEventListener("click", function () {
+      overlay.remove();
+      popup.remove();
+    });
+    overlay.addEventListener("click", function () {
+      overlay.remove();
+      popup.remove();
+    });
+  }
+
+  function openEditPostModal(postId) {
+    var posts = getPosts();
+    var found = posts.find(function (p) { return p.id === postId; });
+    if (!found) { showToast("Post not found.", "error"); return; }
+    var editor = document.getElementById("edit-post-content-editable");
+    var idField = document.getElementById("edit-post-id");
+    if (editor) editor.innerHTML = found.content;
+    if (idField) idField.value = postId;
+    openModal("edit-post-modal-overlay");
+    setTimeout(function () { if (editor) editor.focus(); }, 300);
+  }
+
+  /* ===== SUBJECTS ===== */
   function getSubjects() { return getData(userKey(KEYS.SUBJECTS), []); }
   function saveSubjects(subjects) { setData(userKey(KEYS.SUBJECTS), subjects); }
 
@@ -613,6 +809,7 @@
     openModal("subject-modal-overlay");
   }
 
+  /* ===== SCHEDULE ===== */
   function getSchedule() { return getData(userKey(KEYS.SCHEDULE), []); }
   function saveSchedule(schedule) { setData(userKey(KEYS.SCHEDULE), schedule); }
 
@@ -716,6 +913,7 @@
     openModal("schedule-modal-overlay");
   }
 
+  /* ===== ASSIGNMENTS ===== */
   function getAssignments() { return getData(userKey(KEYS.ASSIGNMENTS), []); }
   function saveAssignments(assignments) { setData(userKey(KEYS.ASSIGNMENTS), assignments); }
 
@@ -821,6 +1019,7 @@
     });
   }
 
+  /* ===== GRADES ===== */
   function getGrades() { return getData(userKey(KEYS.GRADES), []); }
   function saveGrades(grades) { setData(userKey(KEYS.GRADES), grades); }
 
@@ -965,6 +1164,7 @@
     openModal("grade-modal-overlay");
   }
 
+  /* ===== CLASSMATES ===== */
   function getClassmates() { return getData(KEYS.CLASSMATES, []); }
   function saveClassmates(classmates) { setData(KEYS.CLASSMATES, classmates); }
 
@@ -1006,6 +1206,7 @@
     });
   }
 
+  /* ===== FAQS ===== */
   function loadFaqs() {
     const list = document.getElementById("faqs-list");
     if (!list) return;
@@ -1033,6 +1234,196 @@
     });
   }
 
+  /* ===== CURRICULUM ===== */
+  function getCurriculumSubjects() {
+    return getData(userKey(KEYS.CURRICULUM_SUBJECTS), []);
+  }
+  function saveCurriculumSubjects(subjects) {
+    setData(userKey(KEYS.CURRICULUM_SUBJECTS), subjects);
+  }
+
+  function getCurriculumPDF() {
+    return getData(userKey(KEYS.CURRICULUM_PDF), null);
+  }
+  function saveCurriculumPDF(data) {
+    setData(userKey(KEYS.CURRICULUM_PDF), data);
+  }
+  function removeCurriculumPDF() {
+    localStorage.removeItem(userKey(KEYS.CURRICULUM_PDF));
+  }
+
+  function addCurriculumSubject(name, code, schedule, year) {
+    const subjects = getCurriculumSubjects();
+    const item = {
+      id: cryptoId(),
+      name: name.trim(),
+      code: code.trim(),
+      schedule: schedule.trim(),
+      year: year.trim(),
+    };
+    subjects.push(item);
+    saveCurriculumSubjects(subjects);
+    return item;
+  }
+
+  function updateCurriculumSubject(id, data) {
+    const subjects = getCurriculumSubjects();
+    const idx = subjects.findIndex(function (s) { return s.id === id; });
+    if (idx === -1) return null;
+    subjects[idx] = Object.assign({}, subjects[idx], data);
+    saveCurriculumSubjects(subjects);
+    return subjects[idx];
+  }
+
+  function deleteCurriculumSubject(id) {
+    saveCurriculumSubjects(getCurriculumSubjects().filter(function (s) { return s.id !== id; }));
+  }
+
+  function loadCurriculum() {
+    var list = document.getElementById("curriculum-subjects-list");
+    var pdfSection = document.getElementById("curriculum-pdf-section");
+    if (!list) return;
+
+    // Load PDF section
+    if (pdfSection) {
+      var pdfData = getCurriculumPDF();
+      if (pdfData) {
+        pdfSection.innerHTML =
+          '<div class="pdf-upload-area">' +
+            '<div class="pdf-info">' +
+              '<i class="fas fa-file-pdf"></i>' +
+              '<span>' + escapeHtml(pdfData.name || "Curriculum PDF") + '</span>' +
+            '</div>' +
+            '<div class="pdf-actions">' +
+              '<button class="btn-pdf-view" onclick="window.open(\'' + pdfData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View</button>' +
+              '<button class="btn-pdf-remove" id="remove-pdf-btn"><i class="fas fa-trash"></i> Remove</button>' +
+            '</div>' +
+          '</div>';
+        var removeBtn = document.getElementById("remove-pdf-btn");
+        if (removeBtn) {
+          removeBtn.addEventListener("click", function () {
+            showConfirm("Remove the uploaded PDF?", function () {
+              removeCurriculumPDF();
+              loadCurriculum();
+              showToast("PDF removed.", "info");
+            });
+          });
+        }
+      } else {
+        pdfSection.innerHTML =
+          '<div class="pdf-upload-area">' +
+            '<div class="no-pdf"><i class="fas fa-file-pdf"></i> No PDF uploaded yet</div>' +
+            '<div class="pdf-actions">' +
+              '<button class="btn-pdf-upload" id="upload-pdf-btn"><i class="fas fa-upload"></i> Upload PDF</button>' +
+              '<input type="file" id="pdf-file-input" accept=".pdf" hidden>' +
+            '</div>' +
+          '</div>';
+        var uploadBtn = document.getElementById("upload-pdf-btn");
+        var fileInput = document.getElementById("pdf-file-input");
+        if (uploadBtn && fileInput) {
+          uploadBtn.addEventListener("click", function () { fileInput.click(); });
+          fileInput.addEventListener("change", function () {
+            var file = fileInput.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) {
+              showToast("PDF must be smaller than 10 MB.", "error");
+              fileInput.value = "";
+              return;
+            }
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              var base64 = e.target.result;
+              saveCurriculumPDF({ name: file.name, data: base64 });
+              loadCurriculum();
+              showToast("PDF uploaded successfully.", "success");
+              fileInput.value = "";
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+      }
+    }
+
+    // Load subjects
+    var subjects = getCurriculumSubjects();
+    var filter = document.querySelector(".curriculum-year-filter.active");
+    var filterYear = filter ? filter.getAttribute("data-year") : "all";
+
+    var filtered = subjects;
+    if (filterYear !== "all") {
+      filtered = subjects.filter(function (s) { return s.year === filterYear; });
+    }
+
+    list.innerHTML = "";
+    if (filtered.length === 0) {
+      list.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
+          '<p class="empty-title">No subjects found</p>' +
+          '<p class="empty-sub">Add subjects to your curriculum.</p>' +
+        '</div>';
+      return;
+    }
+    filtered.forEach(function (item) {
+      var card = document.createElement("div");
+      card.className = "curriculum-subject-card";
+      card.style.borderLeftColor = stringToColor(item.name);
+      card.innerHTML =
+        '<div class="cs-info">' +
+          '<h4>' + escapeHtml(item.name) + '</h4>' +
+          '<div class="cs-meta">' +
+            '<span><i class="fas fa-hashtag"></i> ' + escapeHtml(item.code) + '</span>' +
+            '<span><i class="fas fa-clock"></i> ' + escapeHtml(item.schedule || "No schedule") + '</span>' +
+            '<span class="cs-year">' + escapeHtml(item.year) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="cs-actions">' +
+          '<button class="btn-icon btn-edit-curriculum" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
+          '<button class="btn-icon btn-delete-curriculum" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
+        '</div>';
+      list.appendChild(card);
+    });
+    list.querySelectorAll(".btn-edit-curriculum").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        editCurriculumSubject(btn.getAttribute("data-id"));
+      });
+    });
+    list.querySelectorAll(".btn-delete-curriculum").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        showConfirm("Delete this curriculum subject?", function () {
+          deleteCurriculumSubject(btn.getAttribute("data-id"));
+          loadCurriculum();
+          showToast("Subject deleted.", "info");
+        });
+      });
+    });
+  }
+
+  function editCurriculumSubject(id) {
+    var subjects = getCurriculumSubjects();
+    var found = subjects.find(function (s) { return s.id === id; });
+    if (!found) return;
+    document.getElementById("curriculum-subject-edit-id").value = id;
+    document.getElementById("curriculum-subject-name").value = found.name;
+    document.getElementById("curriculum-subject-code").value = found.code;
+    document.getElementById("curriculum-subject-schedule").value = found.schedule || "";
+    document.getElementById("curriculum-subject-year").value = found.year;
+    document.getElementById("curriculum-subject-modal-title").textContent = "Edit Subject";
+    openModal("curriculum-subject-modal-overlay");
+  }
+
+  function setupCurriculumFilters() {
+    var filters = document.querySelectorAll(".curriculum-year-filter");
+    filters.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        filters.forEach(function (b) { b.classList.remove("active"); });
+        btn.classList.add("active");
+        loadCurriculum();
+      });
+    });
+  }
+
+  /* ===== SETTINGS ===== */
   function getSettings() { return getData(KEYS.SETTINGS, { fontSize: "medium" }); }
   function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
 
@@ -1063,6 +1454,7 @@
     updateStorageDisplay();
   }
 
+  /* ===== UI HELPERS ===== */
   function showPage(pageId) {
     document.querySelectorAll(".page").forEach(function (p) {
       p.classList.remove("active-page");
@@ -1186,6 +1578,10 @@
     if (viewId === "view-settings") updateStorageDisplay();
     if (viewId === "view-grades") loadGrades();
     if (viewId === "view-faqs") loadFaqs();
+    if (viewId === "view-curriculum") {
+      setupCurriculumFilters();
+      loadCurriculum();
+    }
   }
 
   function navigateTo(viewId) { switchView(viewId); }
@@ -1214,6 +1610,7 @@
     else openDrawer();
   }
 
+  /* ===== LOAD DASHBOARD ===== */
   function loadDashboard() {
     if (!isLoggedIn()) {
       showPage("login-page");
@@ -1257,6 +1654,7 @@
     switchView("view-home");
   }
 
+  /* ===== PROFILE FORM ===== */
   function loadProfileForm() {
     var profile = getProfile();
     var user = getCurrentUser();
@@ -1295,6 +1693,7 @@
     }
   }
 
+  /* ===== POST TOOLBAR ===== */
   var currentPostImage = null;
 
   function setupPostToolbar() {
@@ -1349,6 +1748,25 @@
     }
   }
 
+  function setupEditPostToolbar() {
+    var editor = document.getElementById("edit-post-content-editable");
+    if (!editor) return;
+    document.querySelectorAll("#edit-post-modal-overlay .toolbar-btn[data-command]").forEach(function (btn) {
+      btn.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        document.execCommand(btn.getAttribute("data-command"), false, null);
+        btn.classList.toggle("active-toolbar");
+      });
+    });
+    var fontSelect = document.getElementById("edit-post-font-select");
+    if (fontSelect) {
+      fontSelect.addEventListener("change", function () {
+        document.execCommand("fontName", false, fontSelect.value);
+        editor.focus();
+      });
+    }
+  }
+
   function getPostContent() {
     var editor = document.getElementById("post-content-editable");
     return editor ? editor.innerHTML.trim() : "";
@@ -1399,6 +1817,8 @@
       profile: getProfile(),
       settings: getSettings(),
       classmates: getClassmates(),
+      curriculumSubjects: getCurriculumSubjects(),
+      curriculumPDF: getCurriculumPDF(),
     };
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
@@ -1427,6 +1847,8 @@
           if (data.profile) saveProfile(data.profile);
           if (data.settings) saveSettings(data.settings);
           if (data.classmates) saveClassmates(data.classmates);
+          if (data.curriculumSubjects) saveCurriculumSubjects(data.curriculumSubjects);
+          if (data.curriculumPDF) saveCurriculumPDF(data.curriculumPDF);
           showToast("Data imported. Reloading...", "success");
           setTimeout(function () { location.reload(); }, 1500);
         });
@@ -1496,6 +1918,7 @@
     }
   }
 
+  /* ===== EVENT LISTENERS ===== */
   function initEventListeners() {
     var showSignupLink = document.getElementById("show-signup");
     var showLoginLink = document.getElementById("show-login");
@@ -1631,21 +2054,17 @@
         hideError("forgot-error");
         var successEl = document.getElementById("forgot-success");
         if (successEl) successEl.hidden = true;
-        
         var email = (document.getElementById("forgot-email").value || "").trim();
         if (!isValidEmail(email)) {
           showError("forgot-error", "Please enter a valid email address.");
           return;
         }
-        
         var users = getUsers();
         var exists = users.some(function (u) {
           return u.email.toLowerCase() === email.toLowerCase();
         });
-        
         var btn = forgotForm.querySelector(".btn-primary");
         setButtonLoading(btn, true);
-        
         setTimeout(function () {
           setButtonLoading(btn, false);
           if (!exists) {
@@ -1710,6 +2129,40 @@
         loadPosts();
         switchView("view-home");
         showToast("Post shared successfully.", "success");
+      });
+    }
+
+    var closeEditModal = document.getElementById("close-edit-modal-btn");
+    var editOverlay = document.getElementById("edit-post-modal-overlay");
+    var saveEditBtn = document.getElementById("save-edit-post-btn");
+
+    if (closeEditModal) {
+      closeEditModal.addEventListener("click", function () {
+        closeModal("edit-post-modal-overlay");
+      });
+    }
+    if (editOverlay) {
+      editOverlay.addEventListener("click", function (e) {
+        if (e.target === editOverlay) closeModal("edit-post-modal-overlay");
+      });
+    }
+    if (saveEditBtn) {
+      saveEditBtn.addEventListener("click", function () {
+        var id = document.getElementById("edit-post-id").value;
+        var editor = document.getElementById("edit-post-content-editable");
+        var content = editor ? editor.innerHTML.trim() : "";
+        if (!content) {
+          showToast("Please write something.", "warning");
+          return;
+        }
+        var result = updatePost(id, content);
+        if (result) {
+          closeModal("edit-post-modal-overlay");
+          loadPosts();
+          showToast("Post updated successfully.", "success");
+        } else {
+          showToast("Failed to update post.", "error");
+        }
       });
     }
 
@@ -2013,8 +2466,69 @@
         openModal("grade-modal-overlay");
       });
     }
+
+    var addCurriculumBtn = document.getElementById("add-curriculum-subject-btn");
+    if (addCurriculumBtn) {
+      addCurriculumBtn.addEventListener("click", function () {
+        document.getElementById("curriculum-subject-edit-id").value = "";
+        document.getElementById("curriculum-subject-name").value = "";
+        document.getElementById("curriculum-subject-code").value = "";
+        document.getElementById("curriculum-subject-schedule").value = "";
+        document.getElementById("curriculum-subject-year").value = "";
+        document.getElementById("curriculum-subject-modal-title").textContent = "Add Subject";
+        openModal("curriculum-subject-modal-overlay");
+      });
+    }
+
+    var closeCurriculumModal = document.getElementById("close-curriculum-subject-modal-btn");
+    if (closeCurriculumModal) {
+      closeCurriculumModal.addEventListener("click", function () {
+        closeModal("curriculum-subject-modal-overlay");
+      });
+    }
+    var curriculumOverlay = document.getElementById("curriculum-subject-modal-overlay");
+    if (curriculumOverlay) {
+      curriculumOverlay.addEventListener("click", function (e) {
+        if (e.target === curriculumOverlay) closeModal("curriculum-subject-modal-overlay");
+      });
+    }
+
+    var curriculumForm = document.getElementById("curriculum-subject-form");
+    if (curriculumForm) {
+      curriculumForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var id = document.getElementById("curriculum-subject-edit-id").value;
+        var name = (document.getElementById("curriculum-subject-name").value || "").trim();
+        var code = (document.getElementById("curriculum-subject-code").value || "").trim();
+        var schedule = (document.getElementById("curriculum-subject-schedule").value || "").trim();
+        var year = document.getElementById("curriculum-subject-year").value;
+        if (!name || !code || !year) {
+          showToast("Please fill in all required fields.", "warning");
+          return;
+        }
+        if (id) {
+          updateCurriculumSubject(id, { name: name, code: code, schedule: schedule, year: year });
+          showToast("Subject updated.", "success");
+        } else {
+          addCurriculumSubject(name, code, schedule, year);
+          showToast("Subject added.", "success");
+        }
+        closeModal("curriculum-subject-modal-overlay");
+        curriculumForm.reset();
+        loadCurriculum();
+      });
+    }
+
+    var uploadPdfBtn = document.getElementById("upload-curriculum-pdf-btn");
+    if (uploadPdfBtn) {
+      uploadPdfBtn.addEventListener("click", function () {
+        var fileInput = document.getElementById("pdf-file-input");
+        if (fileInput) fileInput.click();
+      });
+    }
   }
 
+  /* ===== INIT ===== */
   function init() {
     seedDemoClassmates();
     applySettings(getSettings());
@@ -2024,6 +2538,7 @@
 
     initEventListeners();
     setupPostToolbar();
+    setupEditPostToolbar();
     registerServiceWorker();
     handleOffline(!navigator.onLine);
 
