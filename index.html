@@ -1,12 +1,10 @@
-<!-- file: index.html -->
-
 <!DOCTYPE html>
 <html lang="en" data-font-size="medium">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>ClassConnect</title>
-  <meta name="description" content="Connect with your classmates — manage subjects, assignments, grades, and more.">
+  <meta name="description" content="Connect with your classmates — manage college subjects, assignments, grades, and curriculum.">
   <meta name="theme-color" content="#0F172A">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -30,7 +28,7 @@
 <section id="splash-page" class="page active-page" aria-label="Loading">
   <div class="splash-content">
     <div class="splash-logo">
-      <img src="logo.png" alt="ClassConnect Logo">
+      <img src="logo.png" alt="ClassConnect Logo" onerror="this.style.display='none'">
     </div>
     <h1 class="splash-title">ClassConnect</h1>
     <div class="loading-dots" aria-label="Loading">
@@ -319,27 +317,34 @@
       </div>
     </div>
 
-    <!-- ===== VIEW: GRADES ===== -->
+    <!-- ===== VIEW: GRADES (COLLEGE LEVEL ENHANCED) ===== -->
     <div id="view-grades" class="dashboard-view">
       <div class="view-header">
-        <h2 class="view-heading"><i class="fas fa-chart-simple"></i> Grades</h2>
-        <!-- Add Grade button is injected by script.js -->
+        <h2 class="view-heading"><i class="fas fa-chart-simple"></i> College Grades</h2>
+        <!-- FIXED: Add Grade button option is now explicitly added -->
+        <button id="add-grade-btn" class="btn-add" type="button">
+          <i class="fas fa-plus"></i> Add Grade
+        </button>
       </div>
       <div class="grades-controls">
         <div class="grade-filter">
           <label for="grade-year-filter">Year Level</label>
           <select id="grade-year-filter">
-            <option value="1st">1st Year</option>
-            <option value="2nd">2nd Year</option>
-            <option value="3rd">3rd Year</option>
-            <option value="4th">4th Year</option>
+            <option value="all">All Years</option>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year" selected>3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
           </select>
         </div>
         <div class="grade-filter">
-          <label for="grade-semester-filter">Semester</label>
+          <label for="grade-semester-filter">Semester / Term</label>
           <select id="grade-semester-filter">
-            <option value="1st">1st Semester</option>
-            <option value="2nd">2nd Semester</option>
+            <option value="all">All Semesters</option>
+            <option value="1st Semester" selected>1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer / Midyear">Summer / Midyear</option>
           </select>
         </div>
       </div>
@@ -347,7 +352,10 @@
         <!-- grades rendered by script.js -->
       </div>
       <div class="gwa-display" id="gwa-display">
-        <span>General Weighted Average</span>
+        <div class="gwa-label-wrap">
+          <span>General Weighted Average (GWA)</span>
+          <small>Weighted by course units/credits</small>
+        </div>
         <strong id="gwa-value">0.00</strong>
       </div>
     </div>
@@ -364,30 +372,31 @@
 
     <!-- ===== VIEW: CURRICULUM ===== -->
     <div id="view-curriculum" class="dashboard-view">
-      <div class="view-header">
-        <h2 class="view-heading"><i class="fas fa-file-pdf"></i> Curriculum</h2>
-        <div style="display:flex;gap:10px;">
+      <div class="view-header curriculum-header">
+        <h2 class="view-heading"><i class="fas fa-file-pdf"></i> College Curriculum</h2>
+        <div class="view-header-actions">
           <button id="add-curriculum-subject-btn" class="btn-add" type="button">
             <i class="fas fa-plus"></i> Add Subject
           </button>
-          <button id="upload-curriculum-pdf-btn" class="btn-add" type="button" style="background:var(--coral-pink);">
+          <button id="upload-curriculum-pdf-btn" class="btn-add btn-upload-curriculum" type="button">
             <i class="fas fa-upload"></i> Upload PDF
           </button>
         </div>
       </div>
 
       <!-- PDF Upload Section -->
-      <div id="curriculum-pdf-section" class="curriculum-pdf-section" style="margin-bottom:20px;">
+      <div id="curriculum-pdf-section" class="curriculum-pdf-section">
         <!-- rendered by script.js -->
       </div>
 
       <!-- Year Level Filters -->
-      <div class="curriculum-filters" style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
-        <button class="curriculum-year-filter active" data-year="all">All</button>
+      <div class="curriculum-filters">
+        <button class="curriculum-year-filter active" data-year="all">All Years</button>
         <button class="curriculum-year-filter" data-year="1st Year">1st Year</button>
         <button class="curriculum-year-filter" data-year="2nd Year">2nd Year</button>
         <button class="curriculum-year-filter" data-year="3rd Year">3rd Year</button>
         <button class="curriculum-year-filter" data-year="4th Year">4th Year</button>
+        <button class="curriculum-year-filter" data-year="5th Year">5th Year</button>
       </div>
 
       <div id="curriculum-subjects-list" class="curriculum-subjects-list">
@@ -441,6 +450,7 @@
                 <option value="2nd Year">2nd Year</option>
                 <option value="3rd Year">3rd Year</option>
                 <option value="4th Year">4th Year</option>
+                <option value="5th Year">5th Year</option>
               </select>
             </div>
             <div class="form-group">
@@ -506,12 +516,12 @@
           <i class="fas fa-graduation-cap"></i>
         </div>
         <h3>ClassConnect</h3>
-        <p class="about-tagline">Connecting students, one class at a time.</p>
+        <p class="about-tagline">Connecting college students, one class at a time.</p>
         <div class="about-divider"></div>
         <p class="about-description">
           ClassConnect is a comprehensive student management platform designed to help college students stay organized,
           collaborate with classmates, and track their academic progress. From subject management and assignment tracking
-          to grade calculation and classmate profiles, ClassConnect brings everything you need into one seamless app.
+          to General Weighted Average (GWA) calculation and syllabus PDF storage, ClassConnect brings everything you need into one seamless app.
         </p>
         <div class="about-divider"></div>
         <div class="about-info-grid">
@@ -1054,11 +1064,11 @@
   </div>
 </div>
 
-<!-- GRADE MODAL -->
+<!-- GRADE MODAL (COLLEGE LEVEL ENHANCED) -->
 <div id="grade-modal-overlay" class="modal-overlay" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="grade-modal-title">
     <div class="modal-header">
-      <h3 id="grade-modal-title">Add Grade</h3>
+      <h3 id="grade-modal-title">Add College Grade</h3>
       <button id="close-grade-modal-btn" class="modal-close" aria-label="Close">
         <i class="fas fa-xmark"></i>
       </button>
@@ -1066,34 +1076,43 @@
     <form id="grade-form" novalidate>
       <input type="hidden" id="grade-edit-id">
       <div class="form-group">
-        <label for="grade-subject">Subject</label>
-        <input type="text" id="grade-subject" placeholder="e.g. Networking II" required>
+        <label for="grade-subject">Subject Name</label>
+        <input type="text" id="grade-subject" placeholder="e.g. Web Systems and Technologies" required>
       </div>
-      <div class="form-group">
-        <label for="grade-value">Grade</label>
-        <input type="number" id="grade-value" placeholder="e.g. 92.5" step="0.01" min="0" max="100" required inputmode="decimal">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="grade-value">Grade (e.g. 1.25 or 92.5)</label>
+          <input type="number" id="grade-value" placeholder="1.00 - 5.00 or 100" step="0.01" min="0" max="100" required inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label for="grade-units">Units / Credit Hours</label>
+          <input type="number" id="grade-units" placeholder="3" step="1" min="1" max="12" value="3" required inputmode="numeric">
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="grade-year">Year Level</label>
           <select id="grade-year">
-            <option value="1st">1st Year</option>
-            <option value="2nd">2nd Year</option>
-            <option value="3rd">3rd Year</option>
-            <option value="4th">4th Year</option>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="grade-semester">Semester</label>
+          <label for="grade-semester">Semester / Term</label>
           <select id="grade-semester">
-            <option value="1st">1st Semester</option>
-            <option value="2nd">2nd Semester</option>
+            <option value="1st Semester">1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer / Midyear">Summer / Midyear</option>
           </select>
         </div>
       </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="grade-exclude"> Exclude from General Average
+      <div class="form-group grade-checkbox-group">
+        <label class="custom-checkbox-label">
+          <input type="checkbox" id="grade-exclude">
+          <span>Exclude from General Weighted Average (e.g., PE, NSTP, Audit)</span>
         </label>
       </div>
       <button type="submit" class="btn-primary">
@@ -1116,7 +1135,7 @@
       <input type="hidden" id="curriculum-subject-edit-id">
       <div class="form-group">
         <label for="curriculum-subject-name">Subject Name</label>
-        <input type="text" id="curriculum-subject-name" placeholder="e.g. Data Structures" required>
+        <input type="text" id="curriculum-subject-name" placeholder="e.g. Data Structures &amp; Algorithms" required>
       </div>
       <div class="form-group">
         <label for="curriculum-subject-code">Subject Code</label>
@@ -1129,11 +1148,12 @@
       <div class="form-group">
         <label for="curriculum-subject-year">Year Level</label>
         <select id="curriculum-subject-year" required>
-          <option value="">Select</option>
+          <option value="">Select Year Level</option>
           <option value="1st Year">1st Year</option>
           <option value="2nd Year">2nd Year</option>
           <option value="3rd Year">3rd Year</option>
           <option value="4th Year">4th Year</option>
+          <option value="5th Year">5th Year</option>
         </select>
       </div>
       <button type="submit" class="btn-primary">
