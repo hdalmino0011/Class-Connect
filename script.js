@@ -1033,12 +1033,11 @@
     });
   }
 
-  function getSettings() { return getData(KEYS.SETTINGS, { darkMode: false, fontSize: "medium" }); }
+  function getSettings() { return getData(KEYS.SETTINGS, { fontSize: "medium" }); }
   function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
 
   function applySettings(settings) {
     if (!settings) settings = getSettings();
-    document.body.classList.toggle("dark-mode", !!settings.darkMode);
     document.documentElement.setAttribute("data-font-size", settings.fontSize || "medium");
   }
 
@@ -1058,9 +1057,7 @@
 
   function loadSettings() {
     const settings = getSettings();
-    const darkToggle = document.getElementById("dark-mode-toggle");
     const fontSelect = document.getElementById("font-size-select");
-    if (darkToggle) darkToggle.checked = !!settings.darkMode;
     if (fontSelect) fontSelect.value = settings.fontSize || "medium";
     applySettings(settings);
     updateStorageDisplay();
@@ -1936,17 +1933,6 @@
         };
         reader.readAsDataURL(file);
         photoInput.value = "";
-      });
-    }
-
-    var darkToggle = document.getElementById("dark-mode-toggle");
-    if (darkToggle) {
-      darkToggle.addEventListener("change", function () {
-        var settings = getSettings();
-        settings.darkMode = darkToggle.checked;
-        saveSettings(settings);
-        applySettings(settings);
-        showToast(settings.darkMode ? "Dark mode enabled." : "Light mode enabled.", "info");
       });
     }
 
