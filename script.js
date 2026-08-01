@@ -1600,7 +1600,6 @@
       btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
-    // Forgot Password
     var forgotLink = document.querySelector(".forgot-link");
     if (forgotLink) {
       forgotLink.addEventListener("click", function (e) {
@@ -1657,7 +1656,7 @@
             return;
           }
           if (successEl) {
-            successEl.textContent = "✅ Password reset instructions have been sent to " + email + ".";
+            successEl.textContent = "Password reset instructions have been sent to " + email + ".";
             successEl.hidden = false;
           }
           document.getElementById("forgot-email").value = "";
