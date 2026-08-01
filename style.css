@@ -823,6 +823,7 @@ body.body-scroll-lock {
   display:     flex;
   align-items: center;
   gap:         10px;
+  margin-bottom: 18px;
 }
 
 .view-heading i {
@@ -2943,6 +2944,123 @@ body.dark-mode .empty-icon { background: #21262D; }
 body.dark-mode .cc-success-box { background: #161B22; }
 body.dark-mode .cc-success-title { color: #E6EDF3; }
 body.dark-mode .cc-success-msg { color: var(--gray-600); }
+
+/* Dark mode: secondary/danger buttons must not keep their light-mode
+   colors — a near-black chip with a barely-visible border reads as
+   invisible against a dark page, so give them a tinted, higher-contrast
+   treatment instead. */
+body.dark-mode .btn-secondary {
+  background:   rgba(59, 130, 246, 0.16);
+  border-color: rgba(96, 165, 250, 0.45);
+  color:        var(--electric-blue);
+}
+body.dark-mode .btn-secondary:hover {
+  background:   rgba(59, 130, 246, 0.26);
+  border-color: var(--electric-blue);
+}
+
+body.dark-mode .btn-danger {
+  background:   rgba(239, 68, 68, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+  color:        #FCA5A5;
+}
+body.dark-mode .btn-danger:hover {
+  background:   rgba(239, 68, 68, 0.26);
+  border-color: #F87171;
+}
+
+/* Dark mode: settings/grade/toolbar dropdowns get a lighter fill so
+   they read as controls, not as a hole in the page. */
+body.dark-mode .settings-select,
+body.dark-mode .grade-filter select,
+body.dark-mode .toolbar-font-select {
+  background-color: #1C2333;
+  border-color:     #30363D;
+  color:            #E6EDF3;
+}
+body.dark-mode .settings-select:focus,
+body.dark-mode .grade-filter select:focus,
+body.dark-mode .toolbar-font-select:focus {
+  border-color: var(--primary-blue);
+}
+
+/* Dark mode: icon-only buttons (edit/delete/toggle-password/toolbar)
+   were inheriting a muted light-mode gray that has very low contrast
+   on dark cards. */
+body.dark-mode .btn-icon,
+body.dark-mode .toggle-password,
+body.dark-mode .btn-task-delete,
+body.dark-mode .btn-assignment-delete,
+body.dark-mode .btn-delete-post,
+body.dark-mode .toolbar-btn {
+  color: var(--gray-500);
+}
+body.dark-mode .btn-icon:hover,
+body.dark-mode .toggle-password:hover,
+body.dark-mode .toolbar-btn:hover {
+  color:      var(--electric-blue);
+  background: rgba(96, 165, 250, 0.14);
+}
+body.dark-mode .btn-task-delete:hover,
+body.dark-mode .btn-assignment-delete:hover,
+body.dark-mode .btn-delete-post:hover {
+  color:      #FCA5A5;
+  background: rgba(239, 68, 68, 0.14);
+}
+body.dark-mode .btn-icon.btn-delete:hover {
+  color:      #FCA5A5;
+  background: rgba(239, 68, 68, 0.14);
+}
+
+body.dark-mode .modal-close {
+  background: #21262D;
+  color:      var(--gray-500);
+}
+body.dark-mode .modal-close:hover {
+  background: #30363D;
+  color:      #E6EDF3;
+}
+
+body.dark-mode .subject-add-task-btn {
+  color:        var(--gray-500);
+  border-color: #30363D;
+}
+body.dark-mode .subject-add-task-btn:hover {
+  color:        var(--electric-blue);
+  border-color: var(--primary-blue);
+  background:   rgba(59, 130, 246, 0.1);
+}
+
+/* Dark mode: secondary/descriptive text was using the darkest gray
+   step, which is hard to read on dark cards — lift it one step. */
+body.dark-mode .settings-desc,
+body.dark-mode .faq-answer,
+body.dark-mode .about-description,
+body.dark-mode .policy-section p,
+body.dark-mode .policy-section ul li,
+body.dark-mode .drawer-email,
+body.dark-mode .schedule-time,
+body.dark-mode .schedule-room,
+body.dark-mode .subject-professor,
+body.dark-mode .subject-schedule,
+body.dark-mode .subject-meta span,
+body.dark-mode .classmate-info p,
+body.dark-mode .about-label,
+body.dark-mode .grade-info p {
+  color: var(--gray-500);
+}
+
+body.dark-mode .settings-item:hover,
+body.dark-mode .settings-link:hover,
+body.dark-mode .settings-collapsible:hover,
+body.dark-mode .faq-question:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+body.dark-mode .composer-fake-input:hover {
+  background:   #21262D;
+  border-color: var(--electric-blue);
+}
 
 /* Dark mode dropdown arrows need a lighter stroke to stay visible */
 body.dark-mode .grade-filter select,
