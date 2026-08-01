@@ -271,6 +271,7 @@
       localStorage.removeItem(KEYS.SESSION);
       closeDrawer();
       closeAllModals();
+      switchView("view-home");
       showPage("login-page");
       showLoginForm();
       showToast("You have been logged out.", "info");
@@ -817,7 +818,7 @@
         '<label class="assignment-check-wrap" title="Mark complete">' +
           '<input type="checkbox" class="assignment-checkbox" data-id="' + item.id + '" ' + (item.completed ? "checked" : "") + '>' +
           '<span class="assignment-checkmark"></span>' +
-        '</label>' +
+        </label>' +
         '<div class="assignment-info">' +
           '<span class="assignment-text ' + (item.completed ? "completed" : "") + '">' + escapeHtml(item.text) + '</span>' +
           '<div class="assignment-meta">' + subjectHtml + dueHtml + '</div>' +
@@ -1097,9 +1098,18 @@
   function showPage(pageId) {
     document.querySelectorAll(".page").forEach(function (p) {
       p.classList.remove("active-page");
+      p.style.display = "none";
+      p.style.opacity = "";
+      p.style.transition = "";
     });
     var target = document.getElementById(pageId);
-    if (target) target.classList.add("active-page");
+    if (target) {
+      target.classList.add("active-page");
+      target.style.display = "";
+      if (window.getComputedStyle(target).display === "none") {
+        target.style.display = pageId === "splash-page" ? "flex" : "block";
+      }
+    }
 
     var bottomNav = document.querySelector(".bottom-nav");
     if (bottomNav) {
@@ -1122,8 +1132,17 @@
   function showLoginForm() {
     var lf = document.getElementById("login-form");
     var sf = document.getElementById("signup-form");
-    if (sf) sf.classList.remove("active-form");
-    if (lf) lf.classList.add("active-form");
+    if (sf) {
+      sf.classList.remove("active-form");
+      sf.style.display = "none";
+    }
+    if (lf) {
+      lf.classList.add("active-form");
+      lf.style.display = "";
+      if (window.getComputedStyle(lf).display === "none") {
+        lf.style.display = "block";
+      }
+    }
     hideError("login-error");
     hideError("signup-error");
   }
@@ -1131,8 +1150,17 @@
   function showSignupForm() {
     var lf = document.getElementById("login-form");
     var sf = document.getElementById("signup-form");
-    if (lf) lf.classList.remove("active-form");
-    if (sf) sf.classList.add("active-form");
+    if (lf) {
+      lf.classList.remove("active-form");
+      lf.style.display = "none";
+    }
+    if (sf) {
+      sf.classList.add("active-form");
+      sf.style.display = "";
+      if (window.getComputedStyle(sf).display === "none") {
+        sf.style.display = "block";
+      }
+    }
     hideError("login-error");
     hideError("signup-error");
   }
@@ -1182,10 +1210,15 @@
   function switchView(viewId) {
     document.querySelectorAll(".dashboard-view").forEach(function (v) {
       v.classList.remove("active-view");
+      v.style.display = "none";
     });
     var target = document.getElementById(viewId);
     if (target) {
       target.classList.add("active-view");
+      target.style.display = "";
+      if (window.getComputedStyle(target).display === "none") {
+        target.style.display = "block";
+      }
       var main = document.querySelector(".dashboard-main");
       if (main) main.scrollTop = 0;
     }
@@ -1519,47 +1552,34 @@
     }
   }
 
-  /* ===== FIXED: SHOW SPLASH AND REDIRECT ===== */
+  /* ===== ACCURATE SPLASH AND REDIRECT (NO FLASHING) ===== */
   function showSplashAndRedirect(callback) {
     var splash = document.getElementById("splash-page");
     if (!splash) { if (callback) callback(); return; }
 
-    // 1. HIDE LOGIN PAGE COMPLETELY
-    var loginPage = document.getElementById("login-page");
-    if (loginPage) {
-      loginPage.classList.remove("active-page");
-      loginPage.style.display = "none";
-    }
+    // Use showPage to cleanly hide all other pages
+    showPage("splash-page");
 
-    // 2. SHOW SPLASH WITH !important override
-    splash.classList.add("active-page");
-    splash.style.setProperty("display", "flex", "important");
-    splash.style.opacity = "0";
     splash.style.transition = "none";
-
-    // Force reflow to ensure the display change takes effect
-    void splash.offsetHeight;
-
-    // 3. Fade in splash
-    splash.style.transition = "opacity 0.5s ease";
     splash.style.opacity = "1";
+
+    // Force reflow
+    void splash.offsetHeight;
 
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.width = "100%";
 
-    // 4. Fade out splash after 1.2s
     setTimeout(function () {
+      splash.style.transition = "opacity 0.4s ease";
       splash.style.opacity = "0";
       setTimeout(function () {
-        splash.style.display = "none";
-        splash.classList.remove("active-page");
         document.body.style.overflow = "";
         document.body.style.position = "";
         document.body.style.width = "";
         if (callback) callback();
-      }, 500);
-    }, 1200);
+      }, 400);
+    }, 1000);
   }
 
   /* EVENT LISTENERS */
@@ -1607,7 +1627,6 @@
           setButtonLoading(btn, false);
           if (!result.success) { showError("login-error", result.message); return; }
           loginForm.reset();
-          // Show splash then dashboard
           showSplashAndRedirect(function () {
             showPage("dashboard-page");
             loadDashboard();
@@ -1638,7 +1657,6 @@
           setButtonLoading(btn, false);
           if (!result.success) { showError("signup-error", result.message); return; }
           signupForm.reset();
-          // Show success modal
           showSuccessModal("Your account has been created successfully!", "Back to Login", function () {
             showPage("login-page");
             showLoginForm();
@@ -2069,6 +2087,9 @@
     registerServiceWorker();
     handleOffline(!navigator.onLine);
 
+    // Cleanly show only splash screen immediately to prevent any initial page flashing
+    showPage("splash-page");
+
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.width    = "100%";
@@ -2076,12 +2097,9 @@
     setTimeout(function () {
       var splash = document.getElementById("splash-page");
       if (splash) {
-        splash.style.transition = "opacity 0.45s ease";
+        splash.style.transition = "opacity 0.4s ease";
         splash.style.opacity    = "0";
         setTimeout(function () {
-          splash.classList.remove("active-page");
-          splash.style.display = "none";
-          splash.style.opacity = "";
           if (isLoggedIn()) {
             showPage("dashboard-page");
             loadDashboard();
@@ -2089,9 +2107,9 @@
             showPage("login-page");
             showLoginForm();
           }
-        }, 450);
+        }, 400);
       }
-    }, 2400);
+    }, 1800);
   }
 
   window.navigateTo          = navigateTo;
