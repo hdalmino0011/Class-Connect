@@ -18,10 +18,10 @@
 
   const DEMO_CLASSMATES = [
     { name: "Maria Delacruz", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Juan Reyes",     course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Anna Santos",    course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
-    { name: "Carlos Garcia",  course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Lisa Tan",       course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
+    { name: "Juan Reyes", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
+    { name: "Anna Santos", course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
+    { name: "Carlos Garcia", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
+    { name: "Lisa Tan", course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
   ];
 
   const DEMO_FAQS = [
@@ -35,7 +35,6 @@
     { question: "Can I edit my profile information?", answer: "Yes. Go to the Profile page from the menu, update any of your personal information, and click Save Profile to apply your changes." },
   ];
 
-  /* UTILITY FUNCTIONS */
   function cryptoId() {
     return "id-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
   }
@@ -50,20 +49,18 @@
   function initials(name) {
     if (!name) return "S";
     const parts = name.trim().split(" ");
-    return parts.length > 1
-      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-      : parts[0][0].toUpperCase();
+    return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0][0].toUpperCase();
   }
 
   function timeAgo(timestamp) {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
-    if (seconds < 60)  return "Just now";
+    if (seconds < 60) return "Just now";
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60)  return minutes + "m ago";
+    if (minutes < 60) return minutes + "m ago";
     const hours = Math.floor(minutes / 60);
-    if (hours < 24)    return hours + "h ago";
+    if (hours < 24) return hours + "h ago";
     const days = Math.floor(hours / 24);
-    if (days < 7)      return days + "d ago";
+    if (days < 7) return days + "d ago";
     return Math.floor(days / 7) + "w ago";
   }
 
@@ -94,10 +91,7 @@
     for (var i = 0; i < str.length; i++) {
       hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    var palette = [
-      "#2563EB", "#8B5CF6", "#10B981", "#F59E0B",
-      "#EF4444", "#06B6D4", "#EC4899", "#84CC16",
-    ];
+    var palette = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899", "#84CC16"];
     return palette[Math.abs(hash) % palette.length];
   }
 
@@ -111,16 +105,15 @@
     return h + ":" + m + " " + ampm;
   }
 
-  /* TOAST */
   function showToast(message, type) {
     type = type || "success";
     var existing = document.getElementById("cc-toast");
     if (existing) existing.remove();
     var iconMap = {
       success: "fa-circle-check",
-      error:   "fa-circle-xmark",
+      error: "fa-circle-xmark",
       warning: "fa-triangle-exclamation",
-      info:    "fa-circle-info",
+      info: "fa-circle-info",
     };
     var toast = document.createElement("div");
     toast.id = "cc-toast";
@@ -149,7 +142,6 @@
     setTimeout(function () { if (toast.parentNode) toast.remove(); }, 380);
   }
 
-  /* CONFIRM DIALOG */
   function showConfirm(message, onConfirm) {
     var existing = document.getElementById("cc-confirm-overlay");
     if (existing) existing.remove();
@@ -187,7 +179,6 @@
     });
   }
 
-  /* SUCCESS MODAL (for signup) */
   function showSuccessModal(message, buttonText, onButtonClick) {
     var existing = document.getElementById("cc-success-overlay");
     if (existing) existing.remove();
@@ -225,12 +216,11 @@
     });
   }
 
-  /* AUTH */
-  function getUsers()       { return getData(KEYS.USERS, []); }
+  function getUsers() { return getData(KEYS.USERS, []); }
   function saveUsers(users) { setData(KEYS.USERS, users); }
 
   function signup(name, email, password) {
-    const users  = getUsers();
+    const users = getUsers();
     const exists = users.some(function (u) {
       return u.email.toLowerCase() === email.toLowerCase();
     });
@@ -238,9 +228,9 @@
       return { success: false, message: "An account with this email already exists." };
     }
     const newUser = {
-      id:       cryptoId(),
-      name:     name.trim(),
-      email:    email.trim().toLowerCase(),
+      id: cryptoId(),
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
       password: password,
     };
     users.push(newUser);
@@ -252,7 +242,7 @@
 
   function login(email, password) {
     const users = getUsers();
-    const user  = users.find(function (u) {
+    const user = users.find(function (u) {
       return u.email.toLowerCase() === email.toLowerCase() && u.password === password;
     });
     if (!user) {
@@ -288,7 +278,6 @@
     });
   }
 
-  /* PROFILE */
   function getProfile() {
     const user = getCurrentUser();
     if (!user) return {};
@@ -299,9 +288,9 @@
   function saveProfile(data) {
     const user = getCurrentUser();
     if (!user) return;
-    const all      = getData(KEYS.PROFILE + "_all", {});
+    const all = getData(KEYS.PROFILE + "_all", {});
     const existing = all[user.email.toLowerCase()] || {};
-    data.email     = user.email.toLowerCase();
+    data.email = user.email.toLowerCase();
     all[user.email.toLowerCase()] = Object.assign({}, existing, data);
     setData(KEYS.PROFILE + "_all", all);
     if (data.name && data.name !== user.name) {
@@ -327,57 +316,55 @@
     saveProfile(p);
   }
 
-  /* USER-SCOPED KEY */
   function userKey(base) {
     const user = getCurrentUser();
     if (!user) return base;
     return base + "_" + user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
   }
 
-  /* POSTS */
-  function getPosts()        { return getData(userKey(KEYS.POSTS), []); }
-  function savePosts(posts)  { setData(userKey(KEYS.POSTS), posts); }
+  function getPosts() { return getData(userKey(KEYS.POSTS), []); }
+  function savePosts(posts) { setData(userKey(KEYS.POSTS), posts); }
 
   function seedDemoPosts() {
     if (getPosts().length > 0) return;
     savePosts([
       {
-        id:        cryptoId(),
-        author:    "Prof. Santos",
-        content:   "<strong>Reminder:</strong> Project proposals are due this Friday, 11:59 PM. Submit through the class portal.",
-        tag:       "Web Systems and Technologies",
+        id: cryptoId(),
+        author: "Prof. Santos",
+        content: "<strong>Reminder:</strong> Project proposals are due this Friday, 11:59 PM. Submit through the class portal.",
+        tag: "Web Systems and Technologies",
         timestamp: Date.now() - 1000 * 60 * 60 * 3,
-        image:     null,
+        image: null,
       },
       {
-        id:        cryptoId(),
-        author:    "Maria Delacruz",
-        content:   "Does anyone have notes from yesterday's lecture on binary trees? I missed the last 20 minutes.",
-        tag:       "Data Structures and Algorithms",
+        id: cryptoId(),
+        author: "Maria Delacruz",
+        content: "Does anyone have notes from yesterday's lecture on binary trees? I missed the last 20 minutes.",
+        tag: "Data Structures and Algorithms",
         timestamp: Date.now() - 1000 * 60 * 60 * 20,
-        image:     null,
+        image: null,
       },
       {
-        id:        cryptoId(),
-        author:    "Prof. Reyes",
-        content:   "<strong>Notice:</strong> Class is moved to Room 402 for next week due to maintenance in our usual room.",
-        tag:       "Networking II",
+        id: cryptoId(),
+        author: "Prof. Reyes",
+        content: "<strong>Notice:</strong> Class is moved to Room 402 for next week due to maintenance in our usual room.",
+        tag: "Networking II",
         timestamp: Date.now() - 1000 * 60 * 60 * 30,
-        image:     null,
+        image: null,
       },
     ]);
   }
 
   function createPost(content, imageData) {
-    const user  = getCurrentUser();
+    const user = getCurrentUser();
     const posts = getPosts();
-    const post  = {
-      id:        cryptoId(),
-      author:    user ? user.name : "Student",
-      content:   content.trim(),
-      tag:       null,
+    const post = {
+      id: cryptoId(),
+      author: user ? user.name : "Student",
+      content: content.trim(),
+      tag: null,
       timestamp: Date.now(),
-      image:     imageData || null,
+      image: imageData || null,
     };
     posts.unshift(post);
     savePosts(posts);
@@ -405,12 +392,8 @@
     posts.forEach(function (post) {
       const card = document.createElement("div");
       card.className = "post-card";
-      var imgHtml = post.image
-        ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy"></div>'
-        : "";
-      var tagHtml = post.tag
-        ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>'
-        : "";
+      var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy"></div>' : "";
+      var tagHtml = post.tag ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>' : "";
       card.innerHTML =
         tagHtml +
         '<div class="post-header">' +
@@ -441,24 +424,20 @@
     });
   }
 
-  /* SUBJECTS */
-  function getSubjects()           { return getData(userKey(KEYS.SUBJECTS), []); }
-  function saveSubjects(subjects)  { setData(userKey(KEYS.SUBJECTS), subjects); }
+  function getSubjects() { return getData(userKey(KEYS.SUBJECTS), []); }
+  function saveSubjects(subjects) { setData(userKey(KEYS.SUBJECTS), subjects); }
 
-  var SUBJECT_COLORS = [
-    "#2563EB", "#8B5CF6", "#10B981",
-    "#F59E0B", "#EF4444", "#06B6D4", "#EC4899",
-  ];
+  var SUBJECT_COLORS = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
 
   function addSubject(name, professor, schedule) {
     const subjects = getSubjects();
-    const subject  = {
-      id:        cryptoId(),
-      name:      name.trim(),
+    const subject = {
+      id: cryptoId(),
+      name: name.trim(),
       professor: professor.trim(),
-      schedule:  schedule.trim(),
-      tasks:     [],
-      color:     SUBJECT_COLORS[subjects.length % SUBJECT_COLORS.length],
+      schedule: schedule.trim(),
+      tasks: [],
+      color: SUBJECT_COLORS[subjects.length % SUBJECT_COLORS.length],
     };
     subjects.push(subject);
     saveSubjects(subjects);
@@ -467,7 +446,7 @@
 
   function updateSubject(id, data) {
     const subjects = getSubjects();
-    const idx      = subjects.findIndex(function (s) { return s.id === id; });
+    const idx = subjects.findIndex(function (s) { return s.id === id; });
     if (idx === -1) return null;
     subjects[idx] = Object.assign({}, subjects[idx], data);
     saveSubjects(subjects);
@@ -480,7 +459,7 @@
 
   function addSubjectTask(subjectId, text) {
     const subjects = getSubjects();
-    const idx      = subjects.findIndex(function (s) { return s.id === subjectId; });
+    const idx = subjects.findIndex(function (s) { return s.id === subjectId; });
     if (idx === -1) return null;
     if (!subjects[idx].tasks) subjects[idx].tasks = [];
     const task = { id: cryptoId(), text: text.trim(), completed: false };
@@ -491,7 +470,7 @@
 
   function toggleSubjectTask(subjectId, taskId) {
     const subjects = getSubjects();
-    const idx      = subjects.findIndex(function (s) { return s.id === subjectId; });
+    const idx = subjects.findIndex(function (s) { return s.id === subjectId; });
     if (idx === -1) return;
     const tIdx = (subjects[idx].tasks || []).findIndex(function (t) { return t.id === taskId; });
     if (tIdx === -1) return;
@@ -501,7 +480,7 @@
 
   function deleteSubjectTask(subjectId, taskId) {
     const subjects = getSubjects();
-    const idx      = subjects.findIndex(function (s) { return s.id === subjectId; });
+    const idx = subjects.findIndex(function (s) { return s.id === subjectId; });
     if (idx === -1) return;
     subjects[idx].tasks = (subjects[idx].tasks || []).filter(function (t) { return t.id !== taskId; });
     saveSubjects(subjects);
@@ -522,13 +501,13 @@
       return;
     }
     subjects.forEach(function (subject) {
-      const card   = document.createElement("div");
+      const card = document.createElement("div");
       card.className = "subject-card";
       card.style.borderLeftColor = subject.color || "#2563EB";
-      const tasks    = subject.tasks || [];
-      const done     = tasks.filter(function (t) { return t.completed; }).length;
-      const total    = tasks.length;
-      const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
+      const tasks = subject.tasks || [];
+      const done = tasks.filter(function (t) { return t.completed; }).length;
+      const total = tasks.length;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
       var progressHtml = total > 0
         ? '<div class="subject-progress-wrap">' +
             '<div class="subject-progress-track">' +
@@ -576,7 +555,7 @@
         '</div>' +
         '<div class="subject-meta">' +
           '<span><i class="fas fa-user-tie"></i> ' + escapeHtml(subject.professor || "No professor assigned") + '</span>' +
-          '<span><i class="fas fa-calendar"></i> '  + escapeHtml(subject.schedule  || "No schedule set")      + '</span>' +
+          '<span><i class="fas fa-calendar"></i> ' + escapeHtml(subject.schedule || "No schedule set") + '</span>' +
         '</div>' +
         progressHtml +
         '<div class="subject-tasks">' +
@@ -626,27 +605,26 @@
   function editSubject(id) {
     const subject = getSubjects().find(function (s) { return s.id === id; });
     if (!subject) return;
-    document.getElementById("subject-edit-id").value       = id;
-    document.getElementById("subject-name").value          = subject.name;
-    document.getElementById("subject-professor").value     = subject.professor || "";
-    document.getElementById("subject-schedule").value      = subject.schedule  || "";
+    document.getElementById("subject-edit-id").value = id;
+    document.getElementById("subject-name").value = subject.name;
+    document.getElementById("subject-professor").value = subject.professor || "";
+    document.getElementById("subject-schedule").value = subject.schedule || "";
     document.getElementById("subject-modal-title").textContent = "Edit Subject";
     openModal("subject-modal-overlay");
   }
 
-  /* SCHEDULE */
-  function getSchedule()          { return getData(userKey(KEYS.SCHEDULE), []); }
+  function getSchedule() { return getData(userKey(KEYS.SCHEDULE), []); }
   function saveSchedule(schedule) { setData(userKey(KEYS.SCHEDULE), schedule); }
 
   function addScheduleItem(subject, day, startTime, endTime, room) {
     const schedule = getSchedule();
     const item = {
       id: cryptoId(),
-      subject:   subject.trim(),
-      day:       day.trim(),
+      subject: subject.trim(),
+      day: day.trim(),
       startTime: startTime,
-      endTime:   endTime,
-      room:      room.trim(),
+      endTime: endTime,
+      room: room.trim(),
     };
     schedule.push(item);
     saveSchedule(schedule);
@@ -655,7 +633,7 @@
 
   function updateScheduleItem(id, data) {
     const schedule = getSchedule();
-    const idx      = schedule.findIndex(function (s) { return s.id === id; });
+    const idx = schedule.findIndex(function (s) { return s.id === id; });
     if (idx === -1) return null;
     schedule[idx] = Object.assign({}, schedule[idx], data);
     saveSchedule(schedule);
@@ -681,14 +659,13 @@
       return;
     }
     const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
-    const sorted   = schedule.slice().sort(function (a, b) {
+    const sorted = schedule.slice().sort(function (a, b) {
       var da = a.day ? a.day.substring(0, 3) : "";
       var db = b.day ? b.day.substring(0, 3) : "";
-      var od = (dayOrder[da] !== undefined ? dayOrder[da] : 99) -
-               (dayOrder[db] !== undefined ? dayOrder[db] : 99);
+      var od = (dayOrder[da] !== undefined ? dayOrder[da] : 99) - (dayOrder[db] !== undefined ? dayOrder[db] : 99);
       return od !== 0 ? od : (a.startTime || "").localeCompare(b.startTime || "");
     });
-    const badgeColors = ["#2563EB","#8B5CF6","#10B981","#F59E0B","#EF4444","#06B6D4","#EC4899"];
+    const badgeColors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
     sorted.forEach(function (item) {
       const card = document.createElement("div");
       card.className = "schedule-card";
@@ -729,27 +706,26 @@
   function editScheduleItem(id) {
     const item = getSchedule().find(function (s) { return s.id === id; });
     if (!item) return;
-    document.getElementById("schedule-edit-id").value         = id;
-    document.getElementById("schedule-subject").value         = item.subject;
-    document.getElementById("schedule-day").value             = item.day       || "";
-    document.getElementById("schedule-start-time").value      = item.startTime || "";
-    document.getElementById("schedule-end-time").value        = item.endTime   || "";
-    document.getElementById("schedule-room").value            = item.room      || "";
+    document.getElementById("schedule-edit-id").value = id;
+    document.getElementById("schedule-subject").value = item.subject;
+    document.getElementById("schedule-day").value = item.day || "";
+    document.getElementById("schedule-start-time").value = item.startTime || "";
+    document.getElementById("schedule-end-time").value = item.endTime || "";
+    document.getElementById("schedule-room").value = item.room || "";
     document.getElementById("schedule-modal-title").textContent = "Edit Schedule";
     openModal("schedule-modal-overlay");
   }
 
-  /* ASSIGNMENTS */
-  function getAssignments()            { return getData(userKey(KEYS.ASSIGNMENTS), []); }
-  function saveAssignments(assignments){ setData(userKey(KEYS.ASSIGNMENTS), assignments); }
+  function getAssignments() { return getData(userKey(KEYS.ASSIGNMENTS), []); }
+  function saveAssignments(assignments) { setData(userKey(KEYS.ASSIGNMENTS), assignments); }
 
   function addAssignment(text, subject, dueDate) {
     const assignments = getAssignments();
     const item = {
-      id:        cryptoId(),
-      text:      text.trim(),
-      subject:   subject.trim(),
-      dueDate:   dueDate || "",
+      id: cryptoId(),
+      text: text.trim(),
+      subject: subject.trim(),
+      dueDate: dueDate || "",
       completed: false,
       createdAt: Date.now(),
     };
@@ -760,7 +736,7 @@
 
   function toggleAssignment(id) {
     const assignments = getAssignments();
-    const idx         = assignments.findIndex(function (a) { return a.id === id; });
+    const idx = assignments.findIndex(function (a) { return a.id === id; });
     if (idx === -1) return;
     assignments[idx].completed = !assignments[idx].completed;
     saveAssignments(assignments);
@@ -802,10 +778,10 @@
     sorted.forEach(function (item) {
       const div = document.createElement("div");
       div.className = "assignment-item" + (item.completed ? " assignment-done" : "");
-      var dueCls   = "";
+      var dueCls = "";
       var dueLabel = "Due";
       if (item.dueDate && !item.completed) {
-        if (isOverdue(item.dueDate))  { dueCls = "due-overdue"; dueLabel = "Overdue"; }
+        if (isOverdue(item.dueDate)) { dueCls = "due-overdue"; dueLabel = "Overdue"; }
         else if (isDueSoon(item.dueDate)) { dueCls = "due-soon"; }
       }
       var dueHtml = item.dueDate
@@ -818,7 +794,7 @@
         '<label class="assignment-check-wrap" title="Mark complete">' +
           '<input type="checkbox" class="assignment-checkbox" data-id="' + item.id + '" ' + (item.completed ? "checked" : "") + '>' +
           '<span class="assignment-checkmark"></span>' +
-        </label>' +
+        '</label>' +
         '<div class="assignment-info">' +
           '<span class="assignment-text ' + (item.completed ? "completed" : "") + '">' + escapeHtml(item.text) + '</span>' +
           '<div class="assignment-meta">' + subjectHtml + dueHtml + '</div>' +
@@ -845,19 +821,18 @@
     });
   }
 
-  /* GRADES */
-  function getGrades()        { return getData(userKey(KEYS.GRADES), []); }
+  function getGrades() { return getData(userKey(KEYS.GRADES), []); }
   function saveGrades(grades) { setData(userKey(KEYS.GRADES), grades); }
 
   function addGrade(subject, gradeValue, year, semester, exclude) {
     const grades = getGrades();
-    const item   = {
-      id:       cryptoId(),
-      subject:  subject.trim(),
-      grade:    parseFloat(gradeValue),
-      year:     year     || "1st",
+    const item = {
+      id: cryptoId(),
+      subject: subject.trim(),
+      grade: parseFloat(gradeValue),
+      year: year || "1st",
       semester: semester || "1st",
-      exclude:  !!exclude,
+      exclude: !!exclude,
     };
     grades.push(item);
     saveGrades(grades);
@@ -866,7 +841,7 @@
 
   function updateGrade(id, data) {
     const grades = getGrades();
-    const idx    = grades.findIndex(function (g) { return g.id === id; });
+    const idx = grades.findIndex(function (g) { return g.id === id; });
     if (idx === -1) return null;
     grades[idx] = Object.assign({}, grades[idx], data);
     saveGrades(grades);
@@ -879,7 +854,7 @@
 
   function toggleGradeExclude(id) {
     const grades = getGrades();
-    const idx    = grades.findIndex(function (g) { return g.id === id; });
+    const idx = grades.findIndex(function (g) { return g.id === id; });
     if (idx === -1) return;
     grades[idx].exclude = !grades[idx].exclude;
     saveGrades(grades);
@@ -910,12 +885,12 @@
   }
 
   function loadGrades() {
-    const list       = document.getElementById("grades-list");
+    const list = document.getElementById("grades-list");
     const gwaDisplay = document.getElementById("gwa-value");
     if (!list) return;
-    const year     = (document.getElementById("grade-year-filter")     || {}).value || "1st";
+    const year = (document.getElementById("grade-year-filter") || {}).value || "1st";
     const semester = (document.getElementById("grade-semester-filter") || {}).value || "1st";
-    const grades   = getGrades();
+    const grades = getGrades();
     const filtered = grades.filter(function (g) { return g.year === year && g.semester === semester; });
     list.innerHTML = "";
     if (filtered.length === 0) {
@@ -980,18 +955,17 @@
   function editGradeItem(id) {
     const item = getGrades().find(function (g) { return g.id === id; });
     if (!item) return;
-    document.getElementById("grade-edit-id").value            = id;
-    document.getElementById("grade-subject").value            = item.subject;
-    document.getElementById("grade-value").value              = item.grade;
-    document.getElementById("grade-year").value               = item.year;
-    document.getElementById("grade-semester").value           = item.semester;
-    document.getElementById("grade-exclude").checked          = item.exclude;
-    document.getElementById("grade-modal-title").textContent  = "Edit Grade";
+    document.getElementById("grade-edit-id").value = id;
+    document.getElementById("grade-subject").value = item.subject;
+    document.getElementById("grade-value").value = item.grade;
+    document.getElementById("grade-year").value = item.year;
+    document.getElementById("grade-semester").value = item.semester;
+    document.getElementById("grade-exclude").checked = item.exclude;
+    document.getElementById("grade-modal-title").textContent = "Edit Grade";
     openModal("grade-modal-overlay");
   }
 
-  /* CLASSMATES */
-  function getClassmates()            { return getData(KEYS.CLASSMATES, []); }
+  function getClassmates() { return getData(KEYS.CLASSMATES, []); }
   function saveClassmates(classmates) { setData(KEYS.CLASSMATES, classmates); }
 
   function seedDemoClassmates() {
@@ -1024,7 +998,7 @@
           '<h4>' + escapeHtml(cm.name) + '</h4>' +
           '<p>' +
             (cm.course ? '<span><i class="fas fa-graduation-cap"></i> ' + escapeHtml(cm.course) + '</span> ' : '') +
-            (cm.year   ? '<span>' + escapeHtml(cm.year) + '</span>' : '') +
+            (cm.year ? '<span>' + escapeHtml(cm.year) + '</span>' : '') +
           '</p>' +
           (cm.section ? '<p class="classmate-section"><i class="fas fa-users"></i> ' + escapeHtml(cm.section) + '</p>' : '') +
         '</div>';
@@ -1032,7 +1006,6 @@
     });
   }
 
-  /* FAQS */
   function loadFaqs() {
     const list = document.getElementById("faqs-list");
     if (!list) return;
@@ -1060,8 +1033,7 @@
     });
   }
 
-  /* SETTINGS */
-  function getSettings()          { return getData(KEYS.SETTINGS, { darkMode: false, fontSize: "medium" }); }
+  function getSettings() { return getData(KEYS.SETTINGS, { darkMode: false, fontSize: "medium" }); }
   function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
 
   function applySettings(settings) {
@@ -1079,36 +1051,30 @@
     }
     var el = document.getElementById("settings-storage");
     if (!el) return;
-    if (total < 1024)        el.textContent = total + " B";
+    if (total < 1024) el.textContent = total + " B";
     else if (total < 1048576) el.textContent = (total / 1024).toFixed(1) + " KB";
-    else                      el.textContent = (total / 1048576).toFixed(2) + " MB";
+    else el.textContent = (total / 1048576).toFixed(2) + " MB";
   }
 
   function loadSettings() {
-    const settings   = getSettings();
+    const settings = getSettings();
     const darkToggle = document.getElementById("dark-mode-toggle");
     const fontSelect = document.getElementById("font-size-select");
     if (darkToggle) darkToggle.checked = !!settings.darkMode;
-    if (fontSelect) fontSelect.value   = settings.fontSize || "medium";
+    if (fontSelect) fontSelect.value = settings.fontSize || "medium";
     applySettings(settings);
     updateStorageDisplay();
   }
 
-  /* UI HELPERS */
   function showPage(pageId) {
     document.querySelectorAll(".page").forEach(function (p) {
       p.classList.remove("active-page");
       p.style.display = "none";
-      p.style.opacity = "";
-      p.style.transition = "";
     });
     var target = document.getElementById(pageId);
     if (target) {
       target.classList.add("active-page");
       target.style.display = "";
-      if (window.getComputedStyle(target).display === "none") {
-        target.style.display = pageId === "splash-page" ? "flex" : "block";
-      }
     }
 
     var bottomNav = document.querySelector(".bottom-nav");
@@ -1120,12 +1086,12 @@
       document.body.classList.remove("body-scroll-lock");
       document.body.style.overflow = "";
       document.body.style.position = "";
-      document.body.style.width    = "";
+      document.body.style.width = "";
     } else {
       document.body.classList.add("body-scroll-lock");
       document.body.style.overflow = "hidden";
       document.body.style.position = "fixed";
-      document.body.style.width    = "100%";
+      document.body.style.width = "100%";
     }
   }
 
@@ -1139,9 +1105,6 @@
     if (lf) {
       lf.classList.add("active-form");
       lf.style.display = "";
-      if (window.getComputedStyle(lf).display === "none") {
-        lf.style.display = "block";
-      }
     }
     hideError("login-error");
     hideError("signup-error");
@@ -1157,9 +1120,6 @@
     if (sf) {
       sf.classList.add("active-form");
       sf.style.display = "";
-      if (window.getComputedStyle(sf).display === "none") {
-        sf.style.display = "block";
-      }
     }
     hideError("login-error");
     hideError("signup-error");
@@ -1216,9 +1176,6 @@
     if (target) {
       target.classList.add("active-view");
       target.style.display = "";
-      if (window.getComputedStyle(target).display === "none") {
-        target.style.display = "block";
-      }
       var main = document.querySelector(".dashboard-main");
       if (main) main.scrollTop = 0;
     }
@@ -1230,26 +1187,25 @@
     });
     closeDrawer();
     if (viewId === "view-settings") updateStorageDisplay();
-    if (viewId === "view-grades")   loadGrades();
-    if (viewId === "view-faqs")     loadFaqs();
+    if (viewId === "view-grades") loadGrades();
+    if (viewId === "view-faqs") loadFaqs();
   }
 
   function navigateTo(viewId) { switchView(viewId); }
 
-  /* DRAWER */
   function openDrawer() {
     var overlay = document.getElementById("side-drawer-overlay");
-    var drawer  = document.getElementById("side-drawer");
+    var drawer = document.getElementById("side-drawer");
     if (overlay) overlay.classList.add("active-drawer");
-    if (drawer)  drawer.classList.add("open");
+    if (drawer) drawer.classList.add("open");
     document.body.style.overflow = "hidden";
   }
 
   function closeDrawer() {
     var overlay = document.getElementById("side-drawer-overlay");
-    var drawer  = document.getElementById("side-drawer");
+    var drawer = document.getElementById("side-drawer");
     if (overlay) overlay.classList.remove("active-drawer");
-    if (drawer)  drawer.classList.remove("open");
+    if (drawer) drawer.classList.remove("open");
     if (!document.querySelector(".modal-overlay.active-modal")) {
       document.body.style.overflow = "";
     }
@@ -1261,21 +1217,20 @@
     else openDrawer();
   }
 
-  /* LOAD DASHBOARD */
   function loadDashboard() {
     if (!isLoggedIn()) {
       showPage("login-page");
       showLoginForm();
       return;
     }
-    var user  = getCurrentUser();
-    var name  = user ? user.name  : "Student";
+    var user = getCurrentUser();
+    var name = user ? user.name : "Student";
     var email = user ? user.email : "";
-    var dashName   = document.getElementById("dash-user-name");
+    var dashName = document.getElementById("dash-user-name");
     var drawerName = document.getElementById("drawer-name");
-    var drawerEmail= document.getElementById("drawer-email");
-    if (dashName)    dashName.textContent    = name;
-    if (drawerName)  drawerName.textContent  = name;
+    var drawerEmail = document.getElementById("drawer-email");
+    if (dashName) dashName.textContent = name;
+    if (drawerName) drawerName.textContent = name;
     if (drawerEmail) drawerEmail.textContent = email;
     var composerAvatar = document.getElementById("composer-avatar");
     if (composerAvatar) composerAvatar.textContent = initials(name);
@@ -1283,13 +1238,13 @@
     if (drawerAvatar) {
       var photo = getProfilePhoto();
       if (photo) {
-        drawerAvatar.style.backgroundImage    = "url(" + photo + ")";
-        drawerAvatar.style.backgroundSize     = "cover";
+        drawerAvatar.style.backgroundImage = "url(" + photo + ")";
+        drawerAvatar.style.backgroundSize = "cover";
         drawerAvatar.style.backgroundPosition = "center";
-        drawerAvatar.textContent              = "";
+        drawerAvatar.textContent = "";
       } else {
         drawerAvatar.style.backgroundImage = "";
-        drawerAvatar.textContent           = initials(name);
+        drawerAvatar.textContent = initials(name);
       }
     }
     seedDemoPosts();
@@ -1305,38 +1260,37 @@
     switchView("view-home");
   }
 
-  /* PROFILE FORM */
   function loadProfileForm() {
     var profile = getProfile();
-    var user    = getCurrentUser();
+    var user = getCurrentUser();
     var map = {
-      "profile-fullname":        profile.name          || (user ? user.name  : ""),
-      "profile-email":           profile.email         || (user ? user.email : ""),
-      "profile-bio":             profile.bio           || "",
-      "profile-student-id":      profile.studentId     || "",
-      "profile-course":          profile.course        || "",
-      "profile-year":            profile.year          || "",
-      "profile-section":         profile.section       || "",
-      "profile-contact":         profile.contact       || "",
-      "profile-birthdate":       profile.birthdate     || "",
-      "profile-gender":          profile.gender        || "",
-      "profile-address":         profile.address       || "",
-      "profile-emergency":       profile.emergency     || "",
-      "profile-guardian-name":   profile.guardianName  || "",
-      "profile-guardian-contact":profile.guardianContact || "",
+      "profile-fullname": profile.name || (user ? user.name : ""),
+      "profile-email": profile.email || (user ? user.email : ""),
+      "profile-bio": profile.bio || "",
+      "profile-student-id": profile.studentId || "",
+      "profile-course": profile.course || "",
+      "profile-year": profile.year || "",
+      "profile-section": profile.section || "",
+      "profile-contact": profile.contact || "",
+      "profile-birthdate": profile.birthdate || "",
+      "profile-gender": profile.gender || "",
+      "profile-address": profile.address || "",
+      "profile-emergency": profile.emergency || "",
+      "profile-guardian-name": profile.guardianName || "",
+      "profile-guardian-contact": profile.guardianContact || "",
     };
     for (var id in map) {
       var el = document.getElementById(id);
       if (el) el.value = map[id];
     }
     var avatar = document.getElementById("profile-avatar");
-    var photo  = getProfilePhoto();
+    var photo = getProfilePhoto();
     if (avatar) {
       if (photo) {
-        avatar.style.backgroundImage    = "url(" + photo + ")";
-        avatar.style.backgroundSize     = "cover";
+        avatar.style.backgroundImage = "url(" + photo + ")";
+        avatar.style.backgroundSize = "cover";
         avatar.style.backgroundPosition = "center";
-        avatar.textContent              = "";
+        avatar.textContent = "";
       } else {
         avatar.style.backgroundImage = "";
         avatar.textContent = initials(profile.name || (user ? user.name : "S"));
@@ -1344,7 +1298,6 @@
     }
   }
 
-  /* POST TOOLBAR */
   var currentPostImage = null;
 
   function setupPostToolbar() {
@@ -1364,7 +1317,7 @@
         editor.focus();
       });
     }
-    var imageBtn   = document.getElementById("post-image-btn");
+    var imageBtn = document.getElementById("post-image-btn");
     var imageInput = document.getElementById("post-image-input");
     if (imageBtn && imageInput) {
       imageBtn.addEventListener("click", function () { imageInput.click(); });
@@ -1380,7 +1333,7 @@
         reader.onload = function (e) {
           currentPostImage = e.target.result;
           var preview = document.getElementById("post-image-preview");
-          var img     = document.getElementById("post-preview-img");
+          var img = document.getElementById("post-preview-img");
           if (preview && img) { img.src = currentPostImage; preview.hidden = false; }
           imageInput.value = "";
         };
@@ -1392,9 +1345,9 @@
       removeBtn.addEventListener("click", function () {
         currentPostImage = null;
         var preview = document.getElementById("post-image-preview");
-        var img     = document.getElementById("post-preview-img");
+        var img = document.getElementById("post-preview-img");
         if (preview) preview.hidden = true;
-        if (img)     img.src        = "#";
+        if (img) img.src = "#";
       });
     }
   }
@@ -1409,9 +1362,9 @@
     if (editor) editor.innerHTML = "";
     currentPostImage = null;
     var preview = document.getElementById("post-image-preview");
-    var img     = document.getElementById("post-preview-img");
+    var img = document.getElementById("post-preview-img");
     if (preview) preview.hidden = true;
-    if (img)     img.src        = "#";
+    if (img) img.src = "#";
     var fontSel = document.getElementById("post-font-select");
     if (fontSel) fontSel.selectedIndex = 0;
     document.querySelectorAll(".toolbar-btn.active-toolbar").forEach(function (b) {
@@ -1425,37 +1378,35 @@
     return !tmp.textContent.trim() && !tmp.querySelector("img");
   }
 
-  /* SETTINGS COLLAPSIBLE */
   function toggleSettingsGroup(groupId) {
-    var group   = document.getElementById(groupId);
+    var group = document.getElementById(groupId);
     if (!group) return;
     var isHidden = group.style.display === "none" || group.style.display === "";
     group.style.display = isHidden ? "block" : "none";
     var chevronId = groupId.replace("-group", "-chevron");
-    var chevron   = document.getElementById(chevronId);
+    var chevron = document.getElementById(chevronId);
     if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "";
   }
 
-  /* EXPORT / IMPORT */
   function exportData() {
     var user = getCurrentUser();
     var data = {
-      version:     "1.0.0",
-      exportedAt:  new Date().toISOString(),
-      exportedBy:  user ? user.email : "unknown",
-      posts:       getPosts(),
-      subjects:    getSubjects(),
-      schedule:    getSchedule(),
+      version: "1.0.0",
+      exportedAt: new Date().toISOString(),
+      exportedBy: user ? user.email : "unknown",
+      posts: getPosts(),
+      subjects: getSubjects(),
+      schedule: getSchedule(),
       assignments: getAssignments(),
-      grades:      getGrades(),
-      profile:     getProfile(),
-      settings:    getSettings(),
-      classmates:  getClassmates(),
+      grades: getGrades(),
+      profile: getProfile(),
+      settings: getSettings(),
+      classmates: getClassmates(),
     };
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    var url  = URL.createObjectURL(blob);
-    var a    = document.createElement("a");
-    a.href   = url;
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
     a.download = "classconnect-backup-" + new Date().toISOString().slice(0, 10) + ".json";
     document.body.appendChild(a);
     a.click();
@@ -1471,14 +1422,14 @@
         var data = JSON.parse(e.target.result);
         if (!data.version) { showToast("Invalid backup file.", "error"); return; }
         showConfirm("This will replace all your current data. Continue?", function () {
-          if (data.posts)       savePosts(data.posts);
-          if (data.subjects)    saveSubjects(data.subjects);
-          if (data.schedule)    saveSchedule(data.schedule);
+          if (data.posts) savePosts(data.posts);
+          if (data.subjects) saveSubjects(data.subjects);
+          if (data.schedule) saveSchedule(data.schedule);
           if (data.assignments) saveAssignments(data.assignments);
-          if (data.grades)      saveGrades(data.grades);
-          if (data.profile)     saveProfile(data.profile);
-          if (data.settings)    saveSettings(data.settings);
-          if (data.classmates)  saveClassmates(data.classmates);
+          if (data.grades) saveGrades(data.grades);
+          if (data.profile) saveProfile(data.profile);
+          if (data.settings) saveSettings(data.settings);
+          if (data.classmates) saveClassmates(data.classmates);
           showToast("Data imported. Reloading...", "success");
           setTimeout(function () { location.reload(); }, 1500);
         });
@@ -1489,7 +1440,6 @@
     reader.readAsText(file);
   }
 
-  /* CLEAR ALL DATA */
   function clearAllData() {
     showConfirm("Delete all your data? This cannot be undone.", function () {
       showConfirm("This is permanent. Are you absolutely sure?", function () {
@@ -1511,7 +1461,6 @@
     });
   }
 
-  /* CHANGE PASSWORD */
   function changePassword(currentPwd, newPwd, confirmPwd) {
     if (!currentPwd || !newPwd || !confirmPwd) {
       return { success: false, message: "Please fill in all password fields." };
@@ -1522,10 +1471,10 @@
     if (newPwd !== confirmPwd) {
       return { success: false, message: "New passwords do not match." };
     }
-    var user  = getCurrentUser();
+    var user = getCurrentUser();
     if (!user) return { success: false, message: "Not logged in." };
     var users = getUsers();
-    var idx   = users.findIndex(function (u) {
+    var idx = users.findIndex(function (u) {
       return u.email.toLowerCase() === user.email.toLowerCase();
     });
     if (idx === -1) return { success: false, message: "User account not found." };
@@ -1537,13 +1486,11 @@
     return { success: true, message: "Password updated successfully." };
   }
 
-  /* OFFLINE BANNER */
   function handleOffline(isOffline) {
     var banner = document.getElementById("offline-banner");
     if (banner) banner.hidden = !isOffline;
   }
 
-  /* PWA */
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(function (err) {
@@ -1552,41 +1499,9 @@
     }
   }
 
-  /* ===== ACCURATE SPLASH AND REDIRECT (NO FLASHING) ===== */
-  function showSplashAndRedirect(callback) {
-    var splash = document.getElementById("splash-page");
-    if (!splash) { if (callback) callback(); return; }
-
-    // Use showPage to cleanly hide all other pages
-    showPage("splash-page");
-
-    splash.style.transition = "none";
-    splash.style.opacity = "1";
-
-    // Force reflow
-    void splash.offsetHeight;
-
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.width = "100%";
-
-    setTimeout(function () {
-      splash.style.transition = "opacity 0.4s ease";
-      splash.style.opacity = "0";
-      setTimeout(function () {
-        document.body.style.overflow = "";
-        document.body.style.position = "";
-        document.body.style.width = "";
-        if (callback) callback();
-      }, 400);
-    }, 1000);
-  }
-
-  /* EVENT LISTENERS */
   function initEventListeners() {
-    // Auth form switching
     var showSignupLink = document.getElementById("show-signup");
-    var showLoginLink  = document.getElementById("show-login");
+    var showLoginLink = document.getElementById("show-login");
     if (showSignupLink) {
       showSignupLink.addEventListener("click", function (e) { e.preventDefault(); showSignupForm(); });
     }
@@ -1594,11 +1509,10 @@
       showLoginLink.addEventListener("click", function (e) { e.preventDefault(); showLoginForm(); });
     }
 
-    // Password visibility
     document.querySelectorAll(".toggle-password").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var input = document.getElementById(btn.getAttribute("data-target"));
-        var icon  = btn.querySelector("i");
+        var icon = btn.querySelector("i");
         if (!input || !icon) return;
         if (input.type === "password") {
           input.type = "text";
@@ -1610,16 +1524,15 @@
       });
     });
 
-    // Login form
     var loginForm = document.getElementById("login-form");
     if (loginForm) {
       loginForm.addEventListener("submit", function (e) {
         e.preventDefault();
         hideError("login-error");
-        var email    = (document.getElementById("login-email").value    || "").trim();
-        var password =  document.getElementById("login-password").value || "";
+        var email = (document.getElementById("login-email").value || "").trim();
+        var password = document.getElementById("login-password").value || "";
         if (!isValidEmail(email)) { showError("login-error", "Please enter a valid email address."); return; }
-        if (!password)            { showError("login-error", "Please enter your password."); return; }
+        if (!password) { showError("login-error", "Please enter your password."); return; }
         var btn = document.getElementById("login-submit-btn");
         setButtonLoading(btn, true);
         setTimeout(function () {
@@ -1627,29 +1540,26 @@
           setButtonLoading(btn, false);
           if (!result.success) { showError("login-error", result.message); return; }
           loginForm.reset();
-          showSplashAndRedirect(function () {
-            showPage("dashboard-page");
-            loadDashboard();
-            showToast("Welcome back, " + getCurrentUser().name + ".", "success");
-          });
+          showPage("dashboard-page");
+          loadDashboard();
+          showToast("Welcome back, " + getCurrentUser().name + ".", "success");
         }, 600);
       });
     }
 
-    // Signup form
     var signupForm = document.getElementById("signup-form");
     if (signupForm) {
       signupForm.addEventListener("submit", function (e) {
         e.preventDefault();
         hideError("signup-error");
-        var name     = (document.getElementById("signup-name").value     || "").trim();
-        var email    = (document.getElementById("signup-email").value    || "").trim();
-        var password =  document.getElementById("signup-password").value || "";
-        var confirm  =  document.getElementById("signup-confirm").value  || "";
-        if (name.length < 2)      { showError("signup-error", "Please enter your full name."); return; }
+        var name = (document.getElementById("signup-name").value || "").trim();
+        var email = (document.getElementById("signup-email").value || "").trim();
+        var password = document.getElementById("signup-password").value || "";
+        var confirm = document.getElementById("signup-confirm").value || "";
+        if (name.length < 2) { showError("signup-error", "Please enter your full name."); return; }
         if (!isValidEmail(email)) { showError("signup-error", "Please enter a valid email address."); return; }
-        if (password.length < 6)  { showError("signup-error", "Password must be at least 6 characters."); return; }
-        if (password !== confirm)  { showError("signup-error", "Passwords do not match."); return; }
+        if (password.length < 6) { showError("signup-error", "Password must be at least 6 characters."); return; }
+        if (password !== confirm) { showError("signup-error", "Passwords do not match."); return; }
         var btn = document.getElementById("signup-submit-btn");
         setButtonLoading(btn, true);
         setTimeout(function () {
@@ -1666,39 +1576,34 @@
       });
     }
 
-    // Logout
     ["logout-btn", "drawer-logout-btn", "settings-logout-btn"].forEach(function (id) {
       var btn = document.getElementById(id);
       if (btn) btn.addEventListener("click", logout);
     });
 
-    // Hamburger / Drawer
-    var hamburger     = document.getElementById("hamburger-btn");
-    var drawerClose   = document.getElementById("drawer-close-btn");
+    var hamburger = document.getElementById("hamburger-btn");
+    var drawerClose = document.getElementById("drawer-close-btn");
     var drawerOverlay = document.getElementById("side-drawer-overlay");
-    if (hamburger)     hamburger.addEventListener("click", toggleDrawer);
-    if (drawerClose)   drawerClose.addEventListener("click", closeDrawer);
+    if (hamburger) hamburger.addEventListener("click", toggleDrawer);
+    if (drawerClose) drawerClose.addEventListener("click", closeDrawer);
     if (drawerOverlay) {
       drawerOverlay.addEventListener("click", function (e) {
         if (e.target === drawerOverlay) closeDrawer();
       });
     }
 
-    // Drawer navigation
     document.querySelectorAll(".drawer-item[data-view]").forEach(function (btn) {
       btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
-    // Bottom nav
     document.querySelectorAll(".nav-item[data-view]").forEach(function (btn) {
       btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
-    // Create post modal
-    var composerBtn1  = document.getElementById("open-composer-btn");
-    var composerBtn2  = document.getElementById("open-composer-btn-2");
+    var composerBtn1 = document.getElementById("open-composer-btn");
+    var composerBtn2 = document.getElementById("open-composer-btn-2");
     var closeModalBtn = document.getElementById("close-modal-btn");
-    var postOverlay   = document.getElementById("post-modal-overlay");
+    var postOverlay = document.getElementById("post-modal-overlay");
     var submitPostBtn = document.getElementById("submit-post-btn");
 
     function openPostModal() {
@@ -1739,18 +1644,17 @@
       });
     }
 
-    // Subject modal
-    var addSubjectBtn      = document.getElementById("add-subject-btn");
-    var closeSubjectModal  = document.getElementById("close-subject-modal-btn");
-    var subjectOverlay     = document.getElementById("subject-modal-overlay");
-    var subjectForm        = document.getElementById("subject-form");
+    var addSubjectBtn = document.getElementById("add-subject-btn");
+    var closeSubjectModal = document.getElementById("close-subject-modal-btn");
+    var subjectOverlay = document.getElementById("subject-modal-overlay");
+    var subjectForm = document.getElementById("subject-form");
 
     if (addSubjectBtn) {
       addSubjectBtn.addEventListener("click", function () {
-        document.getElementById("subject-edit-id").value           = "";
-        document.getElementById("subject-name").value              = "";
-        document.getElementById("subject-professor").value         = "";
-        document.getElementById("subject-schedule").value          = "";
+        document.getElementById("subject-edit-id").value = "";
+        document.getElementById("subject-name").value = "";
+        document.getElementById("subject-professor").value = "";
+        document.getElementById("subject-schedule").value = "";
         document.getElementById("subject-modal-title").textContent = "Add Subject";
         openModal("subject-modal-overlay");
       });
@@ -1764,23 +1668,22 @@
     if (subjectForm) {
       subjectForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var id        = document.getElementById("subject-edit-id").value;
-        var name      = (document.getElementById("subject-name").value      || "").trim();
+        var id = document.getElementById("subject-edit-id").value;
+        var name = (document.getElementById("subject-name").value || "").trim();
         var professor = (document.getElementById("subject-professor").value || "").trim();
-        var schedule  = (document.getElementById("subject-schedule").value  || "").trim();
+        var schedule = (document.getElementById("subject-schedule").value || "").trim();
         if (!name) { showToast("Please enter a subject name.", "warning"); return; }
         if (id) { updateSubject(id, { name: name, professor: professor, schedule: schedule }); showToast("Subject updated.", "success"); }
-        else    { addSubject(name, professor, schedule); showToast("Subject added.", "success"); }
+        else { addSubject(name, professor, schedule); showToast("Subject added.", "success"); }
         closeModal("subject-modal-overlay");
         subjectForm.reset();
         loadSubjects();
       });
     }
 
-    // Subject task modal
     var closeSubjectTaskModal = document.getElementById("close-subject-task-modal-btn");
-    var subjectTaskOverlay    = document.getElementById("subject-task-modal-overlay");
-    var subjectTaskForm       = document.getElementById("subject-task-form");
+    var subjectTaskOverlay = document.getElementById("subject-task-modal-overlay");
+    var subjectTaskForm = document.getElementById("subject-task-form");
 
     if (closeSubjectTaskModal) closeSubjectTaskModal.addEventListener("click", function () { closeModal("subject-task-modal-overlay"); });
     if (subjectTaskOverlay) {
@@ -1792,7 +1695,7 @@
       subjectTaskForm.addEventListener("submit", function (e) {
         e.preventDefault();
         var subjectId = document.getElementById("subject-task-subject-id").value;
-        var text      = (document.getElementById("subject-task-text").value || "").trim();
+        var text = (document.getElementById("subject-task-text").value || "").trim();
         if (!text) { showToast("Please enter a task description.", "warning"); return; }
         addSubjectTask(subjectId, text);
         closeModal("subject-task-modal-overlay");
@@ -1802,20 +1705,19 @@
       });
     }
 
-    // Schedule modal
-    var addScheduleBtn    = document.getElementById("add-schedule-btn");
-    var closeScheduleMdl  = document.getElementById("close-schedule-modal-btn");
-    var scheduleOverlay   = document.getElementById("schedule-modal-overlay");
-    var scheduleForm      = document.getElementById("schedule-form");
+    var addScheduleBtn = document.getElementById("add-schedule-btn");
+    var closeScheduleMdl = document.getElementById("close-schedule-modal-btn");
+    var scheduleOverlay = document.getElementById("schedule-modal-overlay");
+    var scheduleForm = document.getElementById("schedule-form");
 
     if (addScheduleBtn) {
       addScheduleBtn.addEventListener("click", function () {
-        document.getElementById("schedule-edit-id").value           = "";
-        document.getElementById("schedule-subject").value           = "";
-        document.getElementById("schedule-day").value               = "";
-        document.getElementById("schedule-start-time").value        = "";
-        document.getElementById("schedule-end-time").value          = "";
-        document.getElementById("schedule-room").value              = "";
+        document.getElementById("schedule-edit-id").value = "";
+        document.getElementById("schedule-subject").value = "";
+        document.getElementById("schedule-day").value = "";
+        document.getElementById("schedule-start-time").value = "";
+        document.getElementById("schedule-end-time").value = "";
+        document.getElementById("schedule-room").value = "";
         document.getElementById("schedule-modal-title").textContent = "Add Schedule";
         openModal("schedule-modal-overlay");
       });
@@ -1829,34 +1731,33 @@
     if (scheduleForm) {
       scheduleForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var id        = document.getElementById("schedule-edit-id").value;
-        var subject   = (document.getElementById("schedule-subject").value    || "").trim();
-        var day       = (document.getElementById("schedule-day").value        || "").trim();
-        var startTime =  document.getElementById("schedule-start-time").value;
-        var endTime   =  document.getElementById("schedule-end-time").value;
-        var room      = (document.getElementById("schedule-room").value       || "").trim();
+        var id = document.getElementById("schedule-edit-id").value;
+        var subject = (document.getElementById("schedule-subject").value || "").trim();
+        var day = (document.getElementById("schedule-day").value || "").trim();
+        var startTime = document.getElementById("schedule-start-time").value;
+        var endTime = document.getElementById("schedule-end-time").value;
+        var room = (document.getElementById("schedule-room").value || "").trim();
         if (!subject || !day || !startTime || !endTime) {
           showToast("Please fill in all required fields.", "warning"); return;
         }
         if (id) { updateScheduleItem(id, { subject: subject, day: day, startTime: startTime, endTime: endTime, room: room }); showToast("Schedule updated.", "success"); }
-        else    { addScheduleItem(subject, day, startTime, endTime, room); showToast("Schedule added.", "success"); }
+        else { addScheduleItem(subject, day, startTime, endTime, room); showToast("Schedule added.", "success"); }
         closeModal("schedule-modal-overlay");
         scheduleForm.reset();
         loadSchedule();
       });
     }
 
-    // Assignment modal
-    var addAssignmentBtn    = document.getElementById("add-assignment-btn");
-    var closeAssignmentMdl  = document.getElementById("close-assignment-modal-btn");
-    var assignmentOverlay   = document.getElementById("assignment-modal-overlay");
-    var assignmentForm      = document.getElementById("assignment-form");
+    var addAssignmentBtn = document.getElementById("add-assignment-btn");
+    var closeAssignmentMdl = document.getElementById("close-assignment-modal-btn");
+    var assignmentOverlay = document.getElementById("assignment-modal-overlay");
+    var assignmentForm = document.getElementById("assignment-form");
 
     if (addAssignmentBtn) {
       addAssignmentBtn.addEventListener("click", function () {
-        document.getElementById("assignment-text").value      = "";
-        document.getElementById("assignment-subject").value   = "";
-        document.getElementById("assignment-due-date").value  = "";
+        document.getElementById("assignment-text").value = "";
+        document.getElementById("assignment-subject").value = "";
+        document.getElementById("assignment-due-date").value = "";
         openModal("assignment-modal-overlay");
       });
     }
@@ -1869,9 +1770,9 @@
     if (assignmentForm) {
       assignmentForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var text    = (document.getElementById("assignment-text").value    || "").trim();
+        var text = (document.getElementById("assignment-text").value || "").trim();
         var subject = (document.getElementById("assignment-subject").value || "").trim();
-        var due     =  document.getElementById("assignment-due-date").value;
+        var due = document.getElementById("assignment-due-date").value;
         if (!text) { showToast("Please enter a task description.", "warning"); return; }
         addAssignment(text, subject, due);
         closeModal("assignment-modal-overlay");
@@ -1881,29 +1782,9 @@
       });
     }
 
-    // Grade modal - inject add button
-    var gradesHeader = document.querySelector("#view-grades .view-header");
-    if (gradesHeader && !document.getElementById("add-grade-btn")) {
-      var addGradeBtn = document.createElement("button");
-      addGradeBtn.id        = "add-grade-btn";
-      addGradeBtn.className = "btn-add";
-      addGradeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Grade';
-      gradesHeader.appendChild(addGradeBtn);
-      addGradeBtn.addEventListener("click", function () {
-        document.getElementById("grade-edit-id").value           = "";
-        document.getElementById("grade-subject").value           = "";
-        document.getElementById("grade-value").value             = "";
-        document.getElementById("grade-year").value              = (document.getElementById("grade-year-filter") || {}).value || "1st";
-        document.getElementById("grade-semester").value          = (document.getElementById("grade-semester-filter") || {}).value || "1st";
-        document.getElementById("grade-exclude").checked         = false;
-        document.getElementById("grade-modal-title").textContent = "Add Grade";
-        openModal("grade-modal-overlay");
-      });
-    }
-
     var closeGradeMdl = document.getElementById("close-grade-modal-btn");
-    var gradeOverlay  = document.getElementById("grade-modal-overlay");
-    var gradeForm     = document.getElementById("grade-form");
+    var gradeOverlay = document.getElementById("grade-modal-overlay");
+    var gradeForm = document.getElementById("grade-form");
 
     if (closeGradeMdl) closeGradeMdl.addEventListener("click", function () { closeModal("grade-modal-overlay"); });
     if (gradeOverlay) {
@@ -1914,49 +1795,47 @@
     if (gradeForm) {
       gradeForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var id       = document.getElementById("grade-edit-id").value;
-        var subject  = (document.getElementById("grade-subject").value || "").trim();
+        var id = document.getElementById("grade-edit-id").value;
+        var subject = (document.getElementById("grade-subject").value || "").trim();
         var gradeVal = parseFloat(document.getElementById("grade-value").value);
-        var year     = document.getElementById("grade-year").value;
+        var year = document.getElementById("grade-year").value;
         var semester = document.getElementById("grade-semester").value;
-        var exclude  = document.getElementById("grade-exclude").checked;
+        var exclude = document.getElementById("grade-exclude").checked;
         if (!subject) { showToast("Please enter a subject name.", "warning"); return; }
         if (isNaN(gradeVal) || gradeVal < 0 || gradeVal > 100) {
           showToast("Please enter a valid grade between 0 and 100.", "warning"); return;
         }
         if (id) { updateGrade(id, { subject: subject, grade: gradeVal, year: year, semester: semester, exclude: exclude }); showToast("Grade updated.", "success"); }
-        else    { addGrade(subject, gradeVal, year, semester, exclude); showToast("Grade added.", "success"); }
+        else { addGrade(subject, gradeVal, year, semester, exclude); showToast("Grade added.", "success"); }
         closeModal("grade-modal-overlay");
         gradeForm.reset();
         loadGrades();
       });
     }
 
-    // Grade filters
     var yearFilter = document.getElementById("grade-year-filter");
-    var semFilter  = document.getElementById("grade-semester-filter");
+    var semFilter = document.getElementById("grade-semester-filter");
     if (yearFilter) yearFilter.addEventListener("change", loadGrades);
-    if (semFilter)  semFilter.addEventListener("change",  loadGrades);
+    if (semFilter) semFilter.addEventListener("change", loadGrades);
 
-    // Profile form
     var profileForm = document.getElementById("profile-form");
     if (profileForm) {
       profileForm.addEventListener("submit", function (e) {
         e.preventDefault();
         var data = {
-          name:           (document.getElementById("profile-fullname").value         || "").trim(),
-          bio:            (document.getElementById("profile-bio").value              || "").trim(),
-          studentId:      (document.getElementById("profile-student-id").value       || "").trim(),
-          course:         (document.getElementById("profile-course").value           || "").trim(),
-          year:            document.getElementById("profile-year").value,
-          section:        (document.getElementById("profile-section").value          || "").trim(),
-          contact:        (document.getElementById("profile-contact").value          || "").trim(),
-          birthdate:       document.getElementById("profile-birthdate").value,
-          gender:          document.getElementById("profile-gender").value,
-          address:        (document.getElementById("profile-address").value          || "").trim(),
-          emergency:      (document.getElementById("profile-emergency").value        || "").trim(),
-          guardianName:   (document.getElementById("profile-guardian-name").value    || "").trim(),
-          guardianContact:(document.getElementById("profile-guardian-contact").value || "").trim(),
+          name: (document.getElementById("profile-fullname").value || "").trim(),
+          bio: (document.getElementById("profile-bio").value || "").trim(),
+          studentId: (document.getElementById("profile-student-id").value || "").trim(),
+          course: (document.getElementById("profile-course").value || "").trim(),
+          year: document.getElementById("profile-year").value,
+          section: (document.getElementById("profile-section").value || "").trim(),
+          contact: (document.getElementById("profile-contact").value || "").trim(),
+          birthdate: document.getElementById("profile-birthdate").value,
+          gender: document.getElementById("profile-gender").value,
+          address: (document.getElementById("profile-address").value || "").trim(),
+          emergency: (document.getElementById("profile-emergency").value || "").trim(),
+          guardianName: (document.getElementById("profile-guardian-name").value || "").trim(),
+          guardianContact: (document.getElementById("profile-guardian-contact").value || "").trim(),
         };
         if (!data.name) { showToast("Please enter your full name.", "warning"); return; }
         saveProfile(data);
@@ -1965,9 +1844,8 @@
       });
     }
 
-    // Profile photo
     var photoUploadBtn = document.getElementById("upload-photo-btn");
-    var photoInput     = document.getElementById("profile-photo-input");
+    var photoInput = document.getElementById("profile-photo-input");
     if (photoUploadBtn && photoInput) {
       photoUploadBtn.addEventListener("click", function () { photoInput.click(); });
       photoInput.addEventListener("change", function () {
@@ -1989,7 +1867,6 @@
       });
     }
 
-    // Settings: dark mode
     var darkToggle = document.getElementById("dark-mode-toggle");
     if (darkToggle) {
       darkToggle.addEventListener("change", function () {
@@ -2001,7 +1878,6 @@
       });
     }
 
-    // Settings: font size
     var fontSizeSelect = document.getElementById("font-size-select");
     if (fontSizeSelect) {
       fontSizeSelect.addEventListener("change", function () {
@@ -2013,18 +1889,17 @@
       });
     }
 
-    // Settings: change password
     var changePwdBtn = document.getElementById("settings-change-password-btn");
     if (changePwdBtn) {
       changePwdBtn.addEventListener("click", function () {
         var current = document.getElementById("settings-current-password").value;
-        var newPwd  = document.getElementById("settings-new-password").value;
+        var newPwd = document.getElementById("settings-new-password").value;
         var confirm = document.getElementById("settings-confirm-password").value;
-        var result  = changePassword(current, newPwd, confirm);
+        var result = changePassword(current, newPwd, confirm);
         if (result.success) {
           showToast(result.message, "success");
           document.getElementById("settings-current-password").value = "";
-          document.getElementById("settings-new-password").value     = "";
+          document.getElementById("settings-new-password").value = "";
           document.getElementById("settings-confirm-password").value = "";
           toggleSettingsGroup("password-group");
         } else {
@@ -2033,16 +1908,13 @@
       });
     }
 
-    // Settings: clear data
     var clearDataBtn = document.getElementById("settings-clear-data-btn");
     if (clearDataBtn) clearDataBtn.addEventListener("click", clearAllData);
 
-    // Settings: export
     var exportBtn = document.getElementById("settings-export-btn");
     if (exportBtn) exportBtn.addEventListener("click", exportData);
 
-    // Settings: import
-    var importBtn   = document.getElementById("settings-import-btn");
+    var importBtn = document.getElementById("settings-import-btn");
     var importInput = document.getElementById("settings-import-input");
     if (importBtn && importInput) {
       importBtn.addEventListener("click", function () { importInput.click(); });
@@ -2052,7 +1924,6 @@
       });
     }
 
-    // Settings: collapsible
     var pwdCollapsible = document.querySelector(".settings-collapsible");
     if (pwdCollapsible) {
       pwdCollapsible.addEventListener("click", function (e) {
@@ -2061,20 +1932,31 @@
       });
     }
 
-    // Offline
     window.addEventListener("offline", function () { handleOffline(true); });
-    window.addEventListener("online",  function () {
+    window.addEventListener("online", function () {
       handleOffline(false);
       showToast("Connection restored.", "success");
     });
 
-    // Escape key
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") { closeAllModals(); closeDrawer(); }
     });
+
+    var addGradeBtn = document.getElementById("add-grade-btn");
+    if (addGradeBtn) {
+      addGradeBtn.addEventListener("click", function () {
+        document.getElementById("grade-edit-id").value = "";
+        document.getElementById("grade-subject").value = "";
+        document.getElementById("grade-value").value = "";
+        document.getElementById("grade-year").value = (document.getElementById("grade-year-filter") || {}).value || "1st";
+        document.getElementById("grade-semester").value = (document.getElementById("grade-semester-filter") || {}).value || "1st";
+        document.getElementById("grade-exclude").checked = false;
+        document.getElementById("grade-modal-title").textContent = "Add Grade";
+        openModal("grade-modal-overlay");
+      });
+    }
   }
 
-  /* INIT */
   function init() {
     seedDemoClassmates();
     applySettings(getSettings());
@@ -2087,18 +1969,17 @@
     registerServiceWorker();
     handleOffline(!navigator.onLine);
 
-    // Cleanly show only splash screen immediately to prevent any initial page flashing
     showPage("splash-page");
 
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
-    document.body.style.width    = "100%";
+    document.body.style.width = "100%";
 
     setTimeout(function () {
       var splash = document.getElementById("splash-page");
       if (splash) {
         splash.style.transition = "opacity 0.4s ease";
-        splash.style.opacity    = "0";
+        splash.style.opacity = "0";
         setTimeout(function () {
           if (isLoggedIn()) {
             showPage("dashboard-page");
@@ -2112,7 +1993,7 @@
     }, 1800);
   }
 
-  window.navigateTo          = navigateTo;
+  window.navigateTo = navigateTo;
   window.toggleSettingsGroup = toggleSettingsGroup;
 
   document.addEventListener("DOMContentLoaded", init);
