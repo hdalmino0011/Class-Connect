@@ -88,7 +88,7 @@ img {
 
 ul, ol { list-style: none; }
 
-/* ===== SCROLL LOCK (used by JS) ===== */
+/* ===== SCROLL LOCK ===== */
 body.body-scroll-lock {
   overflow:  hidden !important;
   height:    100% !important;
@@ -115,7 +115,7 @@ body.body-scroll-lock {
 }
 
 /* =========================================================
-   HARD SAFEGUARD — dashboard-only chrome
+   DASHBOARD CHROME SAFEGUARD
    ========================================================= */
 #dashboard-page .dashboard-topnav,
 #dashboard-page .bottom-nav,
@@ -361,7 +361,6 @@ body.body-scroll-lock {
   margin-bottom: 4px;
 }
 
-/* ===== FIX: Error messages only show when not hidden ===== */
 .form-error[hidden] {
   display: none !important;
 }
@@ -387,7 +386,6 @@ body.body-scroll-lock {
   flex-shrink: 0;
 }
 
-/* ===== Success message for forgot password ===== */
 .form-success[hidden] {
   display: none !important;
 }
@@ -996,7 +994,7 @@ body.body-scroll-lock {
 }
 
 .btn-cta {
-  align-self:    flex-end;
+  align-self:    center;
   background:    linear-gradient(135deg, var(--vibrant-orange), #F97316);
   color:         var(--white);
   border:        none;
@@ -1104,12 +1102,89 @@ body.body-scroll-lock {
   display:    block;
 }
 
+.post-actions {
+  display:        flex;
+  align-items: center;
+  gap:           12px;
+  flex-wrap:     wrap;
+  margin-top:    6px;
+}
+
 .post-footer {
   display:        flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items:    center;
   border-top:     1px solid var(--gray-100);
   padding-top:    12px;
+  flex-wrap:      wrap;
+  gap:            8px;
 }
+
+.post-footer-left {
+  display:     flex;
+  align-items: center;
+  gap:         12px;
+}
+
+.post-footer-right {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+}
+
+.btn-acknowledge {
+  display:     inline-flex;
+  align-items: center;
+  gap:         5px;
+  background:  none;
+  border:      none;
+  color:       var(--gray-400);
+  cursor:      pointer;
+  font-size:   13px;
+  padding:     0 8px;
+  min-height:  36px;
+  border-radius: var(--radius-sm);
+  transition:  color var(--transition-fast), background var(--transition-fast);
+  font-family: var(--font-base);
+}
+
+.btn-acknowledge:hover { color: var(--primary-blue); background: var(--very-light-blue); }
+
+.btn-acknowledge.acknowledged {
+  color: var(--mint-green);
+}
+
+.btn-acknowledge.acknowledged:hover {
+  color: var(--coral-pink);
+  background: #FEF2F2;
+}
+
+.acknowledge-count {
+  font-size:   12px;
+  color:       var(--gray-400);
+  cursor:      pointer;
+  transition:  color var(--transition-fast);
+}
+
+.acknowledge-count:hover { color: var(--primary-blue); }
+
+.btn-edit-post {
+  background:    none;
+  border:        none;
+  color:         var(--gray-400);
+  cursor:        pointer;
+  font-size:     13px;
+  display:       flex;
+  align-items:   center;
+  gap:           5px;
+  padding:       0 10px;
+  min-height:    36px;
+  border-radius: var(--radius-sm);
+  transition:    color var(--transition-fast), background var(--transition-fast);
+  font-family:   var(--font-base);
+}
+
+.btn-edit-post:hover { color: var(--primary-blue); background: var(--very-light-blue); }
 
 .btn-delete-post {
   background:    none;
@@ -1124,9 +1199,106 @@ body.body-scroll-lock {
   min-height:    36px;
   border-radius: var(--radius-sm);
   transition:    color var(--transition-fast), background var(--transition-fast);
+  font-family:   var(--font-base);
 }
 
 .btn-delete-post:hover { color: var(--coral-pink); background: #FEF2F2; }
+
+.acknowledgments-popup {
+  position:        fixed;
+  top:             50%;
+  left:            50%;
+  transform:       translate(-50%, -50%) scale(0.9);
+  background:      var(--white);
+  border-radius:   var(--radius-xl);
+  padding:         28px 24px;
+  max-width:       340px;
+  width:           90%;
+  box-shadow:      var(--shadow-lg);
+  z-index:         9999;
+  opacity:         0;
+  transition:      opacity 0.25s ease, transform 0.25s ease;
+  pointer-events:  none;
+  max-height:      80vh;
+  overflow-y:      auto;
+}
+
+.acknowledgments-popup.active {
+  opacity:         1;
+  transform:       translate(-50%, -50%) scale(1);
+  pointer-events:  auto;
+}
+
+.acknowledgments-popup-overlay {
+  position:        fixed;
+  inset:           0;
+  background:      rgba(15, 23, 42, 0.5);
+  z-index:         9998;
+  opacity:         0;
+  transition:      opacity 0.25s ease;
+  pointer-events:  none;
+}
+
+.acknowledgments-popup-overlay.active {
+  opacity:         1;
+  pointer-events:  auto;
+}
+
+.acknowledgments-popup h4 {
+  font-size:      18px;
+  font-weight:    700;
+  color:          var(--deep-navy);
+  margin-bottom: 14px;
+  text-align:     center;
+}
+
+.acknowledgments-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+  margin-bottom:  16px;
+}
+
+.acknowledgments-list .ack-item {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  padding:     8px 12px;
+  background:  var(--gray-50);
+  border-radius: var(--radius-sm);
+  font-size:   14px;
+  color:       var(--gray-700);
+}
+
+.acknowledgments-list .ack-item .ack-avatar {
+  width:           28px;
+  height:          28px;
+  border-radius:   50%;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-weight:     700;
+  font-size:       12px;
+  color:           var(--white);
+  flex-shrink:     0;
+}
+
+.acknowledgments-close {
+  width:       100%;
+  padding:     0 12px;
+  min-height:  var(--tap-min);
+  border:      none;
+  border-radius: var(--radius-md);
+  background:  var(--gray-100);
+  color:       var(--gray-700);
+  font-weight: 600;
+  cursor:      pointer;
+  font-size:   14px;
+  font-family: var(--font-base);
+  transition:  background var(--transition-fast);
+}
+
+.acknowledgments-close:hover { background: var(--gray-200); }
 
 .empty-state {
   text-align: center;
@@ -1761,6 +1933,195 @@ body.body-scroll-lock {
   margin-top:  3px;
 }
 
+/* ===== CURRICULUM ===== */
+.curriculum-pdf-section {
+  background:    var(--white);
+  border-radius: var(--radius-lg);
+  padding:       18px 20px;
+  box-shadow:    var(--shadow-sm);
+  border:        1px solid var(--gray-100);
+  margin-bottom: 20px;
+}
+
+.curriculum-pdf-section .pdf-upload-area {
+  display:          flex;
+  align-items:      center;
+  justify-content:  space-between;
+  gap:              12px;
+  flex-wrap:        wrap;
+}
+
+.curriculum-pdf-section .pdf-info {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  font-size:   14px;
+  color:       var(--gray-600);
+}
+
+.curriculum-pdf-section .pdf-info i {
+  font-size:   28px;
+  color:       var(--coral-pink);
+}
+
+.curriculum-pdf-section .pdf-actions {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.curriculum-pdf-section .pdf-actions button {
+  padding:       0 14px;
+  min-height:    var(--tap-min);
+  border:        none;
+  border-radius: var(--radius-md);
+  font-weight:   600;
+  cursor:        pointer;
+  font-size:     13px;
+  font-family:   var(--font-base);
+  transition:    all var(--transition-fast);
+  white-space:   nowrap;
+}
+
+.curriculum-pdf-section .pdf-actions .btn-pdf-upload {
+  background:    var(--primary-blue);
+  color:         var(--white);
+}
+
+.curriculum-pdf-section .pdf-actions .btn-pdf-upload:hover {
+  background:  var(--bright-blue);
+  transform:   translateY(-1px);
+  box-shadow:  0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.curriculum-pdf-section .pdf-actions .btn-pdf-remove {
+  background:    #FEF2F2;
+  color:         var(--coral-pink);
+  border:        1.5px solid #FECACA;
+}
+
+.curriculum-pdf-section .pdf-actions .btn-pdf-remove:hover {
+  background: #FEE2E2;
+}
+
+.curriculum-pdf-section .pdf-actions .btn-pdf-view {
+  background:    var(--gray-100);
+  color:         var(--gray-700);
+}
+
+.curriculum-pdf-section .pdf-actions .btn-pdf-view:hover {
+  background: var(--gray-200);
+}
+
+.curriculum-pdf-section .no-pdf {
+  color:       var(--gray-400);
+  font-size:   14px;
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+}
+
+.curriculum-filters {
+  display:     flex;
+  gap:         10px;
+  margin-bottom: 18px;
+  flex-wrap:   wrap;
+}
+
+.curriculum-year-filter {
+  padding:       8px 16px;
+  border:        2px solid var(--sky-blue);
+  border-radius: 999px;
+  background:    var(--white);
+  color:         var(--gray-600);
+  font-size:     13px;
+  font-weight:   600;
+  cursor:        pointer;
+  font-family:   var(--font-base);
+  transition:    all var(--transition-fast);
+  min-height:    var(--tap-min);
+}
+
+.curriculum-year-filter:hover {
+  border-color: var(--electric-blue);
+  color:        var(--primary-blue);
+}
+
+.curriculum-year-filter.active {
+  border-color: var(--primary-blue);
+  background:   var(--primary-blue);
+  color:        var(--white);
+}
+
+.curriculum-subjects-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            14px;
+}
+
+.curriculum-subject-card {
+  background:    var(--white);
+  border-radius: var(--radius-lg);
+  padding:       18px 20px;
+  box-shadow:    var(--shadow-sm);
+  border:        1px solid var(--gray-100);
+  border-left:   4px solid var(--primary-blue);
+  display:       flex;
+  align-items:   center;
+  justify-content: space-between;
+  gap:           14px;
+  transition:    box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.curriculum-subject-card:hover {
+  box-shadow: var(--shadow-md);
+  transform:  translateY(-1px);
+}
+
+.curriculum-subject-card .cs-info {
+  flex:      1;
+  min-width: 0;
+}
+
+.curriculum-subject-card .cs-info h4 {
+  font-size:   16px;
+  font-weight: 700;
+  color:       var(--deep-navy);
+  margin-bottom: 4px;
+  word-break:  break-word;
+}
+
+.curriculum-subject-card .cs-info .cs-meta {
+  display:     flex;
+  align-items: center;
+  flex-wrap:   wrap;
+  gap:         12px;
+  font-size:   13px;
+  color:       var(--gray-500);
+}
+
+.curriculum-subject-card .cs-info .cs-meta span {
+  display:     inline-flex;
+  align-items: center;
+  gap:         5px;
+}
+
+.curriculum-subject-card .cs-info .cs-meta .cs-year {
+  background:    var(--sky-blue);
+  color:         var(--primary-blue);
+  padding:       2px 10px;
+  border-radius: 999px;
+  font-weight:   600;
+  font-size:     12px;
+}
+
+.curriculum-subject-card .cs-actions {
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+  flex-shrink: 0;
+}
+
 /* Profile */
 .profile-form {
   background:    var(--white);
@@ -1998,18 +2359,18 @@ body.body-scroll-lock {
 }
 
 .about-info-grid {
-  display:               grid;
-  grid-template-columns: 1fr 1fr;
-  gap:                   12px 20px;
-  text-align:            left;
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+  text-align:     left;
 }
 
 .about-info-item {
   display:         flex;
   justify-content: space-between;
   align-items:     center;
-  padding:         7px 0;
-  border-bottom:   1px solid var(--gray-100);
+  padding:         6px 0;
+  border-bottom:   none;
 }
 
 .about-label {
@@ -2546,7 +2907,7 @@ body.body-scroll-lock {
   font-family:   var(--font-base);
   cursor:        pointer;
   transition:    border-color var(--transition-fast);
-  max-width:     130px;
+  width:         150px;
 }
 
 .toolbar-font-select:focus { outline: none; border-color: var(--primary-blue); }
@@ -2790,7 +3151,7 @@ body.body-scroll-lock {
 
 .cc-confirm-ok:hover { box-shadow: 0 5px 14px rgba(37, 99, 235, 0.4); }
 
-/* Success Modal (for signup) */
+/* Success Modal */
 .cc-success-overlay {
   position:          fixed;
   inset:             0;
@@ -2900,7 +3261,7 @@ body.body-scroll-lock {
   }
   .profile-fields .form-row { grid-column: 1 / -1; }
   .settings-item { padding: 17px 26px; }
-  .about-info-grid { grid-template-columns: 1fr 1fr; }
+  .about-info-grid { gap: 10px; }
   .subjects-list,
   .classmates-list { gap: 18px; }
   .posts-feed { gap: 18px; }
@@ -2921,7 +3282,7 @@ body.body-scroll-lock {
   .modal-card .form-row { grid-template-columns: 1fr; }
   .post-toolbar    { gap: 2px; }
   .toolbar-btn     { width: 32px; height: 32px; font-size: 13px; }
-  .toolbar-font-select { max-width: 100px; }
+  .toolbar-font-select { width: 120px; }
   .grades-controls { flex-direction: column; }
   .grade-filter    { min-width: auto; }
   .form-row        { grid-template-columns: 1fr; }
