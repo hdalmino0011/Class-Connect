@@ -1433,7 +1433,8 @@ body.body-scroll-lock {
   font-weight:   700;
   color:         var(--deep-navy);
   line-height:   1.3;
-  word-break:    break-word;
+  word-break:    normal;
+  overflow-wrap: break-word;
 }
 
 .subject-actions {
@@ -1589,15 +1590,17 @@ body.body-scroll-lock {
 }
 
 .schedule-card {
-  background:    var(--white);
-  border-radius: var(--radius-lg);
-  padding:       18px;
-  box-shadow:    var(--shadow-sm);
-  border:        1px solid var(--gray-200);
-  display:       flex;
-  align-items:   center;
-  gap:           16px;
-  transition:    all var(--transition-fast);
+  background:     var(--white);
+  border-radius:  var(--radius-lg);
+  padding:        18px 20px;
+  box-shadow:     var(--shadow-sm);
+  border:         1px solid var(--gray-200);
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-start;
+  gap:            12px;
+  position:       relative;
+  transition:     all var(--transition-fast);
 }
 
 .schedule-card:hover {
@@ -1607,51 +1610,61 @@ body.body-scroll-lock {
 }
 
 .schedule-day-badge {
-  min-width:       56px;
-  padding:         10px 8px;
-  border-radius:   var(--radius-md);
+  display:         inline-block;
+  padding:         6px 14px;
+  border-radius:   999px;
   color:           var(--white);
-  font-size:       12px;
+  font-size:       11.5px;
   font-weight:     700;
   text-align:      center;
-  letter-spacing:  0.4px;
-  flex-shrink:     0;
+  letter-spacing:  0.5px;
   text-transform:  uppercase;
+  max-width:       calc(100% - 85px);
+  word-break:      normal;
+  overflow-wrap:   break-word;
 }
 
-.schedule-card-info { flex: 1; min-width: 0; }
+.schedule-card-info {
+  width:           100%;
+  min-width:       0;
+}
 
 .schedule-card-info h4 {
-  font-size:   16px;
-  font-weight: 700;
-  color:       var(--deep-navy);
-  margin-bottom: 6px;
-  word-break:  break-word;
+  font-size:       17px;
+  font-weight:     700;
+  color:           var(--deep-navy);
+  margin-bottom:   8px;
+  word-break:      normal;
+  overflow-wrap:   break-word;
+  line-height:     1.35;
 }
 
 .schedule-time,
 .schedule-room {
-  font-size:   13px;
-  color:       var(--gray-500);
+  font-size:   13.5px;
+  color:       var(--gray-600);
   display:     flex;
   align-items: center;
   gap:         8px;
-  margin-top:  4px;
+  margin-top:  6px;
+  flex-wrap:   wrap;
 }
 
 .schedule-time i,
 .schedule-room i {
-  width:     14px;
-  color:     var(--gray-400);
-  font-size: 13px;
+  width:       16px;
+  color:       var(--gray-400);
+  font-size:   14px;
   flex-shrink: 0;
 }
 
 .schedule-card-actions {
+  position:    absolute;
+  top:         16px;
+  right:       16px;
   display:     flex;
   align-items: center;
-  gap:         4px;
-  flex-shrink: 0;
+  gap:         6px;
 }
 
 /* Assignments */
@@ -1842,16 +1855,17 @@ body.body-scroll-lock {
 }
 
 .grade-item {
-  background:    var(--white);
-  border-radius: var(--radius-md);
-  padding:       16px 18px;
-  box-shadow:    var(--shadow-sm);
-  border:        1px solid var(--gray-200);
-  display:       flex;
-  align-items:   center;
-  justify-content: space-between;
-  gap:           14px;
-  transition:    all var(--transition-fast);
+  background:     var(--white);
+  border-radius:  var(--radius-md);
+  padding:        16px 18px;
+  box-shadow:     var(--shadow-sm);
+  border:         1px solid var(--gray-200);
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-start;
+  gap:            12px;
+  position:       relative;
+  transition:     all var(--transition-fast);
 }
 
 .grade-item:hover {
@@ -1862,16 +1876,18 @@ body.body-scroll-lock {
 .grade-item.grade-excluded { opacity: 0.55; }
 
 .grade-info {
-  flex:      1;
-  min-width: 0;
+  width:         100%;
+  min-width:     0;
+  padding-right: 140px;
 }
 
 .grade-info h4 {
-  font-size:   15px;
-  font-weight: 700;
-  color:       var(--deep-navy);
-  margin-bottom: 6px;
-  word-break:  break-word;
+  font-size:       16px;
+  font-weight:     700;
+  color:           var(--deep-navy);
+  margin-bottom:   6px;
+  word-break:      normal;
+  overflow-wrap:   break-word;
 }
 
 .grade-badge {
@@ -1906,18 +1922,20 @@ body.body-scroll-lock {
 }
 
 .grade-actions {
+  position:    absolute;
+  top:         16px;
+  right:       16px;
   display:     flex;
   align-items: center;
   gap:         4px;
-  flex-shrink: 0;
 }
 
 .grade-value {
-  font-size:   20px;
-  font-weight: 700;
-  min-width:   56px;
-  text-align:  right;
-  line-height: 1;
+  font-size:    20px;
+  font-weight:  700;
+  min-width:    40px;
+  text-align:   right;
+  line-height:  1;
   margin-right: 6px;
 }
 
@@ -2202,17 +2220,18 @@ body.body-scroll-lock {
 }
 
 .curriculum-subject-card {
-  background:    var(--white);
-  border-radius: var(--radius-lg);
-  padding:       20px 22px;
-  box-shadow:    var(--shadow-sm);
-  border:        1px solid var(--gray-200);
-  border-left:   5px solid var(--primary-blue);
-  display:       flex;
-  align-items:   center;
-  justify-content: space-between;
-  gap:           16px;
-  transition:    all var(--transition-fast);
+  background:     var(--white);
+  border-radius:  var(--radius-lg);
+  padding:        18px 20px;
+  box-shadow:     var(--shadow-sm);
+  border:         1px solid var(--gray-200);
+  border-left:    5px solid var(--primary-blue);
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-start;
+  gap:            12px;
+  position:       relative;
+  transition:     all var(--transition-fast);
 }
 
 .curriculum-subject-card:hover {
@@ -2222,23 +2241,26 @@ body.body-scroll-lock {
 }
 
 .curriculum-subject-card .cs-info {
-  flex:      1;
-  min-width: 0;
+  width:         100%;
+  min-width:     0;
+  padding-right: 80px;
 }
 
 .curriculum-subject-card .cs-info h4 {
-  font-size:   16px;
-  font-weight: 700;
-  color:       var(--deep-navy);
-  margin-bottom: 4px;
-  word-break:  break-word;
+  font-size:       17px;
+  font-weight:     700;
+  color:           var(--deep-navy);
+  margin-bottom:   8px;
+  word-break:      normal;
+  overflow-wrap:   break-word;
+  line-height:     1.35;
 }
 
 .curriculum-subject-card .cs-info .cs-meta {
   display:     flex;
   align-items: center;
   flex-wrap:   wrap;
-  gap:         12px;
+  gap:         10px;
   font-size:   13px;
   color:       var(--gray-500);
 }
@@ -2259,10 +2281,12 @@ body.body-scroll-lock {
 }
 
 .curriculum-subject-card .cs-actions {
+  position:    absolute;
+  top:         16px;
+  right:       16px;
   display:     flex;
   align-items: center;
   gap:         4px;
-  flex-shrink: 0;
 }
 
 /* Profile */
