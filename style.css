@@ -35,6 +35,7 @@
   --transition:      0.28s ease;
   --transition-slow: 0.4s ease;
   --font-base:       "Times New Roman", Times, serif;
+  --tap-min:         40px;
 }
 
 [data-font-size="small"]  { font-size: 14px; }
@@ -108,6 +109,41 @@ body.body-scroll-lock {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* =========================================================
+   HARD SAFEGUARD — dashboard-only chrome (topnav, side drawer,
+   bottom nav) must NEVER be able to render unless #dashboard-page
+   itself carries .active-page. These selectors use an ID-scoped
+   ancestor, so they always win the cascade over the plain
+   .dashboard-topnav / .bottom-nav / .side-drawer rules further
+   down regardless of source order — this guarantees none of that
+   fixed-position chrome can ever bleed onto the splash or login
+   screens, even in edge cases (stale class state, race conditions,
+   cached CSS, etc).
+   ========================================================= */
+#dashboard-page .dashboard-topnav,
+#dashboard-page .bottom-nav,
+#dashboard-page .side-drawer,
+#dashboard-page .drawer-overlay {
+  display: none;
+}
+#dashboard-page.active-page .dashboard-topnav {
+  display: flex;
+}
+#dashboard-page.active-page .bottom-nav {
+  display: flex;
+}
+#dashboard-page.active-page .side-drawer {
+  display: flex;
+}
+#dashboard-page.active-page .drawer-overlay.active-drawer {
+  display: block;
+}
+@media (min-width: 768px) {
+  #dashboard-page.active-page .bottom-nav {
+    display: none;
+  }
 }
 
 /* ===== SPLASH SCREEN ===== */
@@ -373,6 +409,7 @@ body.body-scroll-lock {
   color:           var(--deep-navy);
   transition:      border-color var(--transition), box-shadow var(--transition), background var(--transition);
   -webkit-appearance: none;
+  min-height:      48px;
 }
 
 .input-group input::placeholder { color: var(--gray-400); }
@@ -394,19 +431,24 @@ body.body-scroll-lock {
 
 .toggle-password {
   position:   absolute;
-  right:      12px;
+  right:      8px;
   background: none;
   border:     none;
   color:      var(--gray-400);
   cursor:     pointer;
   font-size:  14px;
-  padding:    6px 8px;
+  width:      36px;
+  height:     36px;
+  display:    flex;
+  align-items: center;
+  justify-content: center;
   z-index:    3;
   transition: color var(--transition-fast);
   line-height: 1;
+  border-radius: var(--radius-sm);
 }
 
-.toggle-password:hover { color: var(--primary-blue); }
+.toggle-password:hover { color: var(--primary-blue); background: var(--very-light-blue); }
 
 .forgot-link {
   align-self: flex-end;
@@ -478,7 +520,6 @@ body.body-scroll-lock {
 .dashboard-topnav {
   background:  linear-gradient(135deg, var(--deep-navy) 0%, #1E3A8A 100%);
   color:       var(--white);
-  display:     flex;
   align-items: center;
   justify-content: space-between;
   padding:     0 16px;
@@ -503,12 +544,15 @@ body.body-scroll-lock {
   font-size:     20px;
   cursor:        pointer;
   padding:       8px;
+  width:         var(--tap-min);
+  height:        var(--tap-min);
   border-radius: var(--radius-sm);
   transition:    background var(--transition-fast);
   line-height:   1;
   display:       flex;
   align-items:   center;
   justify-content: center;
+  flex-shrink:   0;
 }
 
 .hamburger-btn:hover { background: rgba(255, 255, 255, 0.1); }
@@ -544,11 +588,14 @@ body.body-scroll-lock {
   background:    rgba(255, 255, 255, 0.1);
   border:        1px solid rgba(255, 255, 255, 0.2);
   color:         var(--white);
-  padding:       7px 13px;
+  padding:       0 13px;
+  min-height:    var(--tap-min);
+  min-width:     var(--tap-min);
   border-radius: var(--radius-md);
   cursor:        pointer;
   display:       flex;
   align-items:   center;
+  justify-content: center;
   gap:           6px;
   font-size:     13px;
   font-weight:   500;
@@ -575,7 +622,6 @@ body.body-scroll-lock {
 }
 
 .drawer-overlay.active-drawer {
-  display:   block;
   animation: fadeIn 0.25s ease both;
 }
 
@@ -590,7 +636,6 @@ body.body-scroll-lock {
   z-index:           50;
   box-shadow:        var(--shadow-lg);
   transition:        left var(--transition);
-  display:           flex;
   flex-direction:    column;
   overflow-y:        auto;
   overscroll-behavior: contain;
@@ -653,8 +698,8 @@ body.body-scroll-lock {
   background:      rgba(255, 255, 255, 0.12);
   border:          none;
   color:           var(--white);
-  width:           32px;
-  height:          32px;
+  width:           36px;
+  height:          36px;
   border-radius:   50%;
   cursor:          pointer;
   font-size:       16px;
@@ -677,7 +722,8 @@ body.body-scroll-lock {
   display:     flex;
   align-items: center;
   gap:         13px;
-  padding:     13px 18px;
+  padding:     14px 18px;
+  min-height:  var(--tap-min);
   background:  none;
   border:      none;
   width:       100%;
@@ -800,7 +846,8 @@ body.body-scroll-lock {
   background:    var(--primary-blue);
   color:         var(--white);
   border:        none;
-  padding:       9px 16px;
+  padding:       0 16px;
+  min-height:    var(--tap-min);
   border-radius: var(--radius-md);
   font-weight:   600;
   cursor:        pointer;
@@ -827,7 +874,8 @@ body.body-scroll-lock {
   border:        none;
   color:         var(--gray-400);
   cursor:        pointer;
-  padding:       6px 8px;
+  width:         34px;
+  height:        34px;
   font-size:     15px;
   border-radius: var(--radius-sm);
   transition:    color var(--transition-fast), background var(--transition-fast);
@@ -835,6 +883,7 @@ body.body-scroll-lock {
   align-items:   center;
   justify-content: center;
   line-height:   1;
+  flex-shrink:   0;
 }
 
 .btn-icon:hover { color: var(--primary-blue); background: var(--very-light-blue); }
@@ -896,11 +945,14 @@ body.body-scroll-lock {
   background:     var(--very-light-blue);
   border:         1.5px solid var(--sky-blue);
   border-radius:  999px;
-  padding:        11px 18px;
+  padding:        0 18px;
+  min-height:     var(--tap-min);
   color:          var(--gray-400);
   font-size:      14px;
   cursor:         pointer;
   transition:     background var(--transition-fast), border-color var(--transition-fast);
+  display:        flex;
+  align-items:    center;
 }
 
 .composer-fake-input:hover {
@@ -913,7 +965,8 @@ body.body-scroll-lock {
   background:    linear-gradient(135deg, var(--vibrant-orange), #F97316);
   color:         var(--white);
   border:        none;
-  padding:       10px 18px;
+  padding:       0 18px;
+  min-height:    var(--tap-min);
   border-radius: var(--radius-md);
   font-weight:   700;
   cursor:        pointer;
@@ -1032,7 +1085,8 @@ body.body-scroll-lock {
   display:       flex;
   align-items:   center;
   gap:           5px;
-  padding:       5px 10px;
+  padding:       0 10px;
+  min-height:    36px;
   border-radius: var(--radius-sm);
   transition:    color var(--transition-fast), background var(--transition-fast);
 }
@@ -1125,7 +1179,8 @@ body.body-scroll-lock {
 
 .subject-actions {
   display:     flex;
-  gap:         4px;
+  align-items: center;
+  gap:         2px;
   flex-shrink: 0;
 }
 
@@ -1196,13 +1251,13 @@ body.body-scroll-lock {
   display:     flex;
   align-items: center;
   gap:         10px;
-  padding:     5px 0;
+  padding:     6px 0;
   font-size:   14px;
 }
 
 .task-checkbox {
-  width:          17px;
-  height:         17px;
+  width:          18px;
+  height:         18px;
   accent-color:   var(--mint-green);
   cursor:         pointer;
   flex-shrink:    0;
@@ -1227,7 +1282,11 @@ body.body-scroll-lock {
   color:         var(--gray-300);
   cursor:        pointer;
   font-size:     13px;
-  padding:       3px 6px;
+  width:         30px;
+  height:        30px;
+  display:       inline-flex;
+  align-items:   center;
+  justify-content: center;
   border-radius: var(--radius-sm);
   transition:    color var(--transition-fast), background var(--transition-fast);
   flex-shrink:   0;
@@ -1240,7 +1299,8 @@ body.body-scroll-lock {
   background:    none;
   border:        1.5px dashed var(--gray-200);
   color:         var(--gray-400);
-  padding:       7px 12px;
+  padding:       0 12px;
+  min-height:    38px;
   border-radius: var(--radius-md);
   cursor:        pointer;
   font-size:     13px;
@@ -1327,7 +1387,8 @@ body.body-scroll-lock {
 
 .schedule-card-actions {
   display:     flex;
-  gap:         4px;
+  align-items: center;
+  gap:         2px;
   flex-shrink: 0;
 }
 
@@ -1358,8 +1419,8 @@ body.body-scroll-lock {
   position:    relative;
   flex-shrink: 0;
   cursor:      pointer;
-  width:       20px;
-  height:      20px;
+  width:       22px;
+  height:      22px;
   display:     block;
 }
 
@@ -1446,7 +1507,8 @@ body.body-scroll-lock {
   color:         var(--gray-300);
   cursor:        pointer;
   font-size:     15px;
-  padding:       5px 7px;
+  width:         34px;
+  height:        34px;
   border-radius: var(--radius-sm);
   transition:    color var(--transition-fast), background var(--transition-fast);
   flex-shrink:   0;
@@ -1483,9 +1545,10 @@ body.body-scroll-lock {
 .grade-filter select {
   width:            100%;
   padding:          9px 12px;
+  min-height:       var(--tap-min);
   border:           2px solid var(--sky-blue);
   border-radius:    var(--radius-md);
-  background:       var(--white);
+  background-color: var(--white);
   font-size:        14px;
   color:            var(--deep-navy);
   font-family:      var(--font-base);
@@ -1553,7 +1616,7 @@ body.body-scroll-lock {
 .grade-actions {
   display:     flex;
   align-items: center;
-  gap:         6px;
+  gap:         2px;
   flex-shrink: 0;
 }
 
@@ -1563,6 +1626,7 @@ body.body-scroll-lock {
   min-width:   56px;
   text-align:  right;
   line-height: 1;
+  margin-right: 4px;
 }
 
 .grade-value s { opacity: 0.5; }
@@ -1687,8 +1751,8 @@ body.body-scroll-lock {
   position:        absolute;
   bottom:          2px;
   right:           2px;
-  width:           30px;
-  height:          30px;
+  width:           32px;
+  height:          32px;
   border-radius:   50%;
   background:      var(--primary-blue);
   color:           var(--white);
@@ -1734,6 +1798,7 @@ body.body-scroll-lock {
 .form-group textarea,
 .form-group select {
   padding:          10px 14px;
+  min-height:       46px;
   border:           2px solid var(--sky-blue);
   border-radius:    var(--radius-md);
   font-size:        15px;
@@ -1744,6 +1809,8 @@ body.body-scroll-lock {
   -webkit-appearance: none;
   appearance:       none;
 }
+
+.form-group textarea { min-height: 80px; }
 
 .form-group input:focus,
 .form-group textarea:focus,
@@ -1763,7 +1830,6 @@ body.body-scroll-lock {
 
 .form-group textarea {
   resize:     vertical;
-  min-height: 80px;
 }
 
 .form-group select {
@@ -1801,6 +1867,7 @@ body.body-scroll-lock {
 
 .faq-question {
   padding:         14px 16px;
+  min-height:      var(--tap-min);
   font-weight:     600;
   font-size:       15px;
   color:           var(--deep-navy);
@@ -1839,7 +1906,7 @@ body.body-scroll-lock {
 }
 
 .faq-item.open .faq-answer {
-  max-height: 400px;
+  max-height: 600px;
   padding:    0 16px 16px;
 }
 
@@ -2009,6 +2076,7 @@ body.body-scroll-lock {
   align-items:     center;
   justify-content: space-between;
   padding:         15px 18px;
+  min-height:      56px;
   border-bottom:   1px solid var(--gray-50);
   gap:             12px;
   transition:      background var(--transition-fast);
@@ -2050,13 +2118,14 @@ body.body-scroll-lock {
 
 .settings-select {
   padding:          7px 30px 7px 10px;
+  min-height:       38px;
   border:           2px solid var(--sky-blue);
   border-radius:    var(--radius-md);
-  background:       var(--very-light-blue);
+  background-color: var(--very-light-blue);
   font-size:        13px;
   color:            var(--deep-navy);
   font-family:      var(--font-base);
-  min-width:        90px;
+  min-width:        96px;
   -webkit-appearance: none;
   appearance:       none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -2146,7 +2215,8 @@ body.body-scroll-lock {
 }
 
 .btn-secondary {
-  padding:       8px 16px;
+  padding:       0 16px;
+  min-height:    var(--tap-min);
   background:    var(--very-light-blue);
   border:        2px solid var(--sky-blue);
   border-radius: var(--radius-md);
@@ -2162,7 +2232,8 @@ body.body-scroll-lock {
 .btn-secondary:hover { background: var(--sky-blue); border-color: var(--electric-blue); }
 
 .btn-danger {
-  padding:       8px 16px;
+  padding:       0 16px;
+  min-height:    var(--tap-min);
   background:    #FEF2F2;
   border:        2px solid #FECACA;
   border-radius: var(--radius-md);
@@ -2207,7 +2278,6 @@ body.body-scroll-lock {
   right:           0;
   background:      var(--white);
   border-top:      1px solid var(--gray-100);
-  display:         flex;
   justify-content: space-around;
   padding:         6px 0 env(safe-area-inset-bottom, 6px);
   box-shadow:      0 -4px 16px rgba(15, 23, 42, 0.07);
@@ -2220,10 +2290,12 @@ body.body-scroll-lock {
   display:        flex;
   flex-direction: column;
   align-items:    center;
+  justify-content: center;
   gap:            3px;
   color:          var(--gray-400);
   font-size:      10px;
-  padding:        7px 20px;
+  padding:        6px 18px;
+  min-width:      var(--tap-min);
   min-height:     50px;
   cursor:         pointer;
   border-radius:  var(--radius-md);
@@ -2310,8 +2382,8 @@ body.body-scroll-lock {
 .modal-close {
   background:      var(--gray-100);
   border:          none;
-  width:           32px;
-  height:          32px;
+  width:           36px;
+  height:          36px;
   border-radius:   50%;
   cursor:          pointer;
   color:           var(--gray-500);
@@ -2340,6 +2412,7 @@ body.body-scroll-lock {
 .modal-card .form-group textarea {
   width:            100%;
   padding:          10px 13px;
+  min-height:       46px;
   border:           2px solid var(--sky-blue);
   border-radius:    var(--radius-md);
   font-size:        15px;
@@ -2350,6 +2423,8 @@ body.body-scroll-lock {
   appearance:       none;
   transition:       border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
+
+.modal-card .form-group textarea { min-height: 80px; }
 
 .modal-card .form-group input:focus,
 .modal-card .form-group select:focus,
@@ -2369,6 +2444,7 @@ body.body-scroll-lock {
 
 .modal-card .form-group input[type="checkbox"] {
   width:        auto;
+  min-height:   auto;
   padding:      0;
   margin-right: 8px;
   accent-color: var(--primary-blue);
@@ -2389,7 +2465,7 @@ body.body-scroll-lock {
   align-items:   center;
   gap:           2px;
   flex-wrap:     wrap;
-  padding:       8px 8px;
+  padding:       6px;
   background:    var(--gray-50);
   border-radius: var(--radius-md);
   border:        1.5px solid var(--gray-200);
@@ -2398,7 +2474,8 @@ body.body-scroll-lock {
 .toolbar-btn {
   background:    none;
   border:        none;
-  padding:       6px 10px;
+  width:         36px;
+  height:        36px;
   border-radius: var(--radius-sm);
   cursor:        pointer;
   font-size:     14px;
@@ -2408,6 +2485,7 @@ body.body-scroll-lock {
   display:       flex;
   align-items:   center;
   justify-content: center;
+  flex-shrink:   0;
 }
 
 .toolbar-btn:hover { background: var(--sky-blue); color: var(--primary-blue); }
@@ -2423,6 +2501,7 @@ body.body-scroll-lock {
 
 .toolbar-font-select {
   padding:       5px 8px;
+  min-height:    36px;
   border:        1.5px solid var(--gray-200);
   border-radius: var(--radius-sm);
   font-size:     12px;
@@ -2491,8 +2570,8 @@ body.body-scroll-lock {
   position:        absolute;
   top:             8px;
   right:           8px;
-  width:           28px;
-  height:          28px;
+  width:           30px;
+  height:          30px;
   border-radius:   50%;
   border:          none;
   background:      rgba(15, 23, 42, 0.7);
@@ -2648,7 +2727,8 @@ body.body-scroll-lock {
 .cc-confirm-cancel,
 .cc-confirm-ok {
   flex:          1;
-  padding:       11px;
+  padding:       0 16px;
+  min-height:    var(--tap-min);
   border-radius: var(--radius-md);
   border:        none;
   font-size:     14px;
@@ -2738,7 +2818,8 @@ body.body-scroll-lock {
 
 .cc-success-btn {
   width:      100%;
-  padding:    12px;
+  padding:    0 12px;
+  min-height: var(--tap-min);
   border:     none;
   border-radius: var(--radius-md);
   font-size:  15px;
@@ -2863,11 +2944,18 @@ body.dark-mode .cc-success-box { background: #161B22; }
 body.dark-mode .cc-success-title { color: #E6EDF3; }
 body.dark-mode .cc-success-msg { color: var(--gray-600); }
 
+/* Dark mode dropdown arrows need a lighter stroke to stay visible */
+body.dark-mode .grade-filter select,
+body.dark-mode .settings-select,
+body.dark-mode .form-group select,
+body.dark-mode .modal-card .form-group select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236E7681' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
 /* Responsive */
 @media (min-width: 768px) {
   .welcome-text    { display: inline; }
   .logout-label    { display: inline; }
-  .bottom-nav      { display: none; }
   .auth-card       { padding: 48px 44px; }
   .dashboard-main  { padding: 24px 24px 32px; }
   .side-drawer     { width: 300px; max-width: 65%; }
@@ -2916,12 +3004,12 @@ body.dark-mode .cc-success-msg { color: var(--gray-600); }
   .modal-card      { padding: 18px 14px; }
   .modal-card .form-row { grid-template-columns: 1fr; }
   .post-toolbar    { gap: 1px; }
-  .toolbar-btn     { padding: 5px 7px; font-size: 13px; }
+  .toolbar-btn     { width: 32px; height: 32px; font-size: 13px; }
   .toolbar-font-select { max-width: 100px; }
   .grades-controls { flex-direction: column; }
   .grade-filter    { min-width: auto; }
   .form-row        { grid-template-columns: 1fr; }
-  .nav-item        { padding: 7px 14px; }
+  .nav-item        { padding: 6px 12px; }
   .nav-item i      { font-size: 20px; }
   .gwa-display strong { font-size: 30px; }
   .cc-toast        { font-size: 13px; padding: 10px 14px; }
