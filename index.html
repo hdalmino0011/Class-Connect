@@ -229,6 +229,9 @@
           <i class="fas fa-users"></i> Classmates
         </button>
         <div class="drawer-divider"></div>
+        <button class="drawer-item" data-view="view-curriculum">
+          <i class="fas fa-file-pdf"></i> Curriculum
+        </button>
         <button class="drawer-item" data-view="view-profile">
           <i class="fas fa-user"></i> Profile
         </button>
@@ -356,6 +359,39 @@
       </div>
       <div id="classmates-list" class="classmates-list">
         <!-- classmates rendered by script.js -->
+      </div>
+    </div>
+
+    <!-- ===== VIEW: CURRICULUM ===== -->
+    <div id="view-curriculum" class="dashboard-view">
+      <div class="view-header">
+        <h2 class="view-heading"><i class="fas fa-file-pdf"></i> Curriculum</h2>
+        <div style="display:flex;gap:10px;">
+          <button id="add-curriculum-subject-btn" class="btn-add" type="button">
+            <i class="fas fa-plus"></i> Add Subject
+          </button>
+          <button id="upload-curriculum-pdf-btn" class="btn-add" type="button" style="background:var(--coral-pink);">
+            <i class="fas fa-upload"></i> Upload PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- PDF Upload Section -->
+      <div id="curriculum-pdf-section" class="curriculum-pdf-section" style="margin-bottom:20px;">
+        <!-- rendered by script.js -->
+      </div>
+
+      <!-- Year Level Filters -->
+      <div class="curriculum-filters" style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+        <button class="curriculum-year-filter active" data-year="all">All</button>
+        <button class="curriculum-year-filter" data-year="1st Year">1st Year</button>
+        <button class="curriculum-year-filter" data-year="2nd Year">2nd Year</button>
+        <button class="curriculum-year-filter" data-year="3rd Year">3rd Year</button>
+        <button class="curriculum-year-filter" data-year="4th Year">4th Year</button>
+      </div>
+
+      <div id="curriculum-subjects-list" class="curriculum-subjects-list">
+        <!-- curriculum subjects rendered by script.js -->
       </div>
     </div>
 
@@ -846,6 +882,57 @@
   </div>
 </div>
 
+<!-- EDIT POST MODAL -->
+<div id="edit-post-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-post-modal-heading">
+    <div class="modal-header">
+      <h3 id="edit-post-modal-heading">Edit Post</h3>
+      <button id="close-edit-modal-btn" class="modal-close" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="post-toolbar" role="toolbar" aria-label="Text formatting">
+      <button type="button" class="toolbar-btn" data-command="bold" title="Bold" aria-label="Bold">
+        <i class="fas fa-bold"></i>
+      </button>
+      <button type="button" class="toolbar-btn" data-command="italic" title="Italic" aria-label="Italic">
+        <i class="fas fa-italic"></i>
+      </button>
+      <button type="button" class="toolbar-btn" data-command="underline" title="Underline" aria-label="Underline">
+        <i class="fas fa-underline"></i>
+      </button>
+      <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Strikethrough" aria-label="Strikethrough">
+        <i class="fas fa-strikethrough"></i>
+      </button>
+      <span class="toolbar-divider"></span>
+      <select class="toolbar-font-select" id="edit-post-font-select" aria-label="Font family">
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Arial">Arial</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Courier New">Courier New</option>
+      </select>
+    </div>
+
+    <div class="post-content-wrapper">
+      <div
+        id="edit-post-content-editable"
+        class="post-content-editable"
+        contenteditable="true"
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Edit post content"
+      ></div>
+    </div>
+
+    <input type="hidden" id="edit-post-id">
+
+    <button type="button" id="save-edit-post-btn" class="btn-primary">
+      <i class="fas fa-check"></i> Save Changes
+    </button>
+  </div>
+</div>
+
 <!-- SUBJECT MODAL -->
 <div id="subject-modal-overlay" class="modal-overlay" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="subject-modal-title">
@@ -1016,7 +1103,47 @@
   </div>
 </div>
 
-<!-- ==================== FORGOT PASSWORD MODAL ==================== -->
+<!-- CURRICULUM SUBJECT MODAL -->
+<div id="curriculum-subject-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="curriculum-subject-modal-title">
+    <div class="modal-header">
+      <h3 id="curriculum-subject-modal-title">Add Curriculum Subject</h3>
+      <button id="close-curriculum-subject-modal-btn" class="modal-close" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form id="curriculum-subject-form" novalidate>
+      <input type="hidden" id="curriculum-subject-edit-id">
+      <div class="form-group">
+        <label for="curriculum-subject-name">Subject Name</label>
+        <input type="text" id="curriculum-subject-name" placeholder="e.g. Data Structures" required>
+      </div>
+      <div class="form-group">
+        <label for="curriculum-subject-code">Subject Code</label>
+        <input type="text" id="curriculum-subject-code" placeholder="e.g. IT 203" required>
+      </div>
+      <div class="form-group">
+        <label for="curriculum-subject-schedule">Schedule / Time</label>
+        <input type="text" id="curriculum-subject-schedule" placeholder="e.g. MWF 10:00-11:30 AM">
+      </div>
+      <div class="form-group">
+        <label for="curriculum-subject-year">Year Level</label>
+        <select id="curriculum-subject-year" required>
+          <option value="">Select</option>
+          <option value="1st Year">1st Year</option>
+          <option value="2nd Year">2nd Year</option>
+          <option value="3rd Year">3rd Year</option>
+          <option value="4th Year">4th Year</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">
+        <i class="fas fa-check"></i> Save Subject
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
 <div id="forgot-password-modal-overlay" class="modal-overlay" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="forgot-modal-heading">
     <div class="modal-header">
