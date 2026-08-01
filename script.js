@@ -1600,6 +1600,79 @@
       btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
+    // Forgot Password
+    var forgotLink = document.querySelector(".forgot-link");
+    if (forgotLink) {
+      forgotLink.addEventListener("click", function (e) {
+        e.preventDefault();
+        document.getElementById("forgot-email").value = "";
+        hideError("forgot-error");
+        var successEl = document.getElementById("forgot-success");
+        if (successEl) successEl.hidden = true;
+        openModal("forgot-password-modal-overlay");
+      });
+    }
+
+    var closeForgotModal = document.getElementById("close-forgot-modal-btn");
+    if (closeForgotModal) {
+      closeForgotModal.addEventListener("click", function () {
+        closeModal("forgot-password-modal-overlay");
+      });
+    }
+
+    var forgotBackToLogin = document.getElementById("forgot-back-to-login");
+    if (forgotBackToLogin) {
+      forgotBackToLogin.addEventListener("click", function (e) {
+        e.preventDefault();
+        closeModal("forgot-password-modal-overlay");
+      });
+    }
+
+    var forgotForm = document.getElementById("forgot-password-form");
+    if (forgotForm) {
+      forgotForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        hideError("forgot-error");
+        var successEl = document.getElementById("forgot-success");
+        if (successEl) successEl.hidden = true;
+        
+        var email = (document.getElementById("forgot-email").value || "").trim();
+        if (!isValidEmail(email)) {
+          showError("forgot-error", "Please enter a valid email address.");
+          return;
+        }
+        
+        var users = getUsers();
+        var exists = users.some(function (u) {
+          return u.email.toLowerCase() === email.toLowerCase();
+        });
+        
+        var btn = forgotForm.querySelector(".btn-primary");
+        setButtonLoading(btn, true);
+        
+        setTimeout(function () {
+          setButtonLoading(btn, false);
+          if (!exists) {
+            showError("forgot-error", "No account found with this email address.");
+            return;
+          }
+          if (successEl) {
+            successEl.textContent = "✅ Password reset instructions have been sent to " + email + ".";
+            successEl.hidden = false;
+          }
+          document.getElementById("forgot-email").value = "";
+          showToast("Password reset link sent to your email.", "success");
+        }, 800);
+      });
+    }
+
+    var forgotOverlay = document.getElementById("forgot-password-modal-overlay");
+    if (forgotOverlay) {
+      forgotOverlay.addEventListener("click", function (e) {
+        if (e.target === forgotOverlay) closeModal("forgot-password-modal-overlay");
+      });
+    }
+
     var composerBtn1 = document.getElementById("open-composer-btn");
     var composerBtn2 = document.getElementById("open-composer-btn-2");
     var closeModalBtn = document.getElementById("close-modal-btn");
