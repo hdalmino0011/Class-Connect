@@ -1544,12 +1544,13 @@
   }
 
   /* ===== SETTINGS ===== */
-  function getSettings() { return getData(KEYS.SETTINGS, { fontSize: "medium" }); }
+  function getSettings() { return getData(KEYS.SETTINGS, { fontType: "sans-serif" }); }
   function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
 
   function applySettings(settings) {
     if (!settings) settings = getSettings();
-    document.documentElement.setAttribute("data-font-size", settings.fontSize || "medium");
+    var fontType = settings.fontType || "sans-serif";
+    document.documentElement.setAttribute("data-font-type", fontType);
   }
 
   function updateStorageDisplay() {
@@ -1568,8 +1569,8 @@
 
   function loadSettings() {
     const settings = getSettings();
-    const fontSelect = document.getElementById("font-size-select");
-    if (fontSelect) fontSelect.value = settings.fontSize || "medium";
+    const fontSelect = document.getElementById("font-type-select");
+    if (fontSelect) fontSelect.value = settings.fontType || "sans-serif";
     applySettings(settings);
     updateStorageDisplay();
   }
@@ -2211,7 +2212,6 @@
     }
 
     var composerBtn1 = document.getElementById("open-composer-btn");
-    var composerBtn2 = document.getElementById("open-composer-btn-2");
     var closeModalBtn = document.getElementById("close-modal-btn");
     var postOverlay = document.getElementById("post-modal-overlay");
     var submitPostBtn = document.getElementById("submit-post-btn");
@@ -2225,7 +2225,6 @@
     }
 
     if (composerBtn1) composerBtn1.addEventListener("click", openPostModal);
-    if (composerBtn2) composerBtn2.addEventListener("click", openPostModal);
 
     if (closeModalBtn) {
       closeModalBtn.addEventListener("click", function () {
@@ -2538,14 +2537,14 @@
       });
     }
 
-    var fontSizeSelect = document.getElementById("font-size-select");
-    if (fontSizeSelect) {
-      fontSizeSelect.addEventListener("change", function () {
+    var fontTypeSelect = document.getElementById("font-type-select");
+    if (fontTypeSelect) {
+      fontTypeSelect.addEventListener("change", function () {
         var settings = getSettings();
-        settings.fontSize = fontSizeSelect.value;
+        settings.fontType = fontTypeSelect.value;
         saveSettings(settings);
         applySettings(settings);
-        showToast("Font size updated.", "info");
+        showToast("Font type updated.", "info");
       });
     }
 
