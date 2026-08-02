@@ -268,9 +268,6 @@
             What's happening in class?
           </button>
         </div>
-        <button id="open-composer-btn-2" class="btn-cta" type="button">
-          <i class="fas fa-plus"></i> Create Post
-        </button>
       </div>
 
       <div id="posts-feed" class="posts-feed">
@@ -662,19 +659,20 @@
       <h2 class="view-heading"><i class="fas fa-gear"></i> Settings</h2>
       <div class="settings-card">
 
-        <!-- Font Size -->
+        <!-- Font Type -->
         <div class="settings-item">
           <div class="settings-item-left">
             <i class="fas fa-font"></i>
             <div>
-              <span class="settings-label">Font Size</span>
-              <span class="settings-desc">Adjust the text size</span>
+              <span class="settings-label">Font Type</span>
+              <span class="settings-desc">Choose your preferred font family</span>
             </div>
           </div>
-          <select id="font-size-select" class="settings-select">
-            <option value="small">Small</option>
-            <option value="medium" selected>Medium</option>
-            <option value="large">Large</option>
+          <select id="font-type-select" class="settings-select">
+            <option value="sans-serif" selected>Sans-Serif (Default)</option>
+            <option value="serif">Serif (Classic)</option>
+            <option value="monospace">Monospace (Code)</option>
+            <option value="rounded">Rounded (Modern)</option>
           </select>
         </div>
 
@@ -855,10 +853,10 @@
       </button>
       <span class="toolbar-divider"></span>
       <select class="toolbar-font-select" id="post-font-select" aria-label="Font family">
-        <option value="Times New Roman">Times New Roman</option>
-        <option value="Arial">Arial</option>
-        <option value="Georgia">Georgia</option>
-        <option value="Courier New">Courier New</option>
+        <option value="sans-serif">Sans-Serif</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="monospace">Monospace</option>
+        <option value="Trebuchet MS, sans-serif">Trebuchet</option>
       </select>
       <span class="toolbar-divider"></span>
       <button type="button" class="toolbar-btn" id="post-image-btn" title="Upload Image" aria-label="Upload image">
@@ -917,10 +915,10 @@
       </button>
       <span class="toolbar-divider"></span>
       <select class="toolbar-font-select" id="edit-post-font-select" aria-label="Font family">
-        <option value="Times New Roman">Times New Roman</option>
-        <option value="Arial">Arial</option>
-        <option value="Georgia">Georgia</option>
-        <option value="Courier New">Courier New</option>
+        <option value="sans-serif">Sans-Serif</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="monospace">Monospace</option>
+        <option value="Trebuchet MS, sans-serif">Trebuchet</option>
       </select>
     </div>
 
