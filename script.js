@@ -22,23 +22,23 @@
   const ADMIN_EMAILS = ["admin@classconnect.com", "admin@hddev.com"];
 
   const DEMO_CLASSMATES = [
-    { name: "Maria Delacruz", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Juan Reyes", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Anna Santos", course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
-    { name: "Carlos Garcia", course: "BSIT", year: "3rd Year", section: "BSIT 3-A" },
-    { name: "Lisa Tan", course: "BSIT", year: "3rd Year", section: "BSIT 3-B" },
+    { name: "Maria Delacruz", course: "BSIT", year: "3rd Year", section: "BSIT 3-A", email: "maria.delacruz@ctu.edu.ph", bio: "Aspiring Web Developer & UI Designer" },
+    { name: "Juan Reyes", course: "BSIT", year: "3rd Year", section: "BSIT 3-A", email: "juan.reyes@ctu.edu.ph", bio: "Tech Enthusiast and Mobile App Developer" },
+    { name: "Anna Santos", course: "BSIT", year: "3rd Year", section: "BSIT 3-B", email: "anna.santos@ctu.edu.ph", bio: "Data Analyst & Database Administrator" },
+    { name: "Carlos Garcia", course: "BSIT", year: "3rd Year", section: "BSIT 3-A", email: "carlos.garcia@ctu.edu.ph", bio: "Cybersecurity student & Networking enthusiast" },
+    { name: "Lisa Tan", course: "BSIT", year: "3rd Year", section: "BSIT 3-B", email: "lisa.tan@ctu.edu.ph", bio: "AI & Machine Learning student" },
   ];
 
   const DEMO_FAQS = [
-    { question: "What is ClassConnect?", answer: "ClassConnect is a platform designed to help students connect with classmates, manage subjects, track assignments, and stay organized throughout their academic journey." },
+    { question: "What is ClassConnect?", answer: "ClassConnect is a platform designed to help college students connect with classmates, manage subjects, track assignments, calculate GWA, and stay organized throughout their academic journey." },
     { question: "How do I create an account?", answer: "Click on Sign Up on the login page, fill in your full name, email address, and a password of at least 6 characters, then confirm your password and submit." },
-    { question: "Can I access ClassConnect on multiple devices?", answer: "Yes. ClassConnect is a Progressive Web App that works on both mobile phones and desktop computers. You can install it as an app for the best experience." },
+    { question: "How are classmates matched?", answer: "Classmates are automatically matched based on your section in your Profile (e.g. BSIT 3-A). Ensure your section is filled in accurately!" },
+    { question: "Can I access ClassConnect on multiple devices?", answer: "Yes. ClassConnect is a Progressive Web App that works seamlessly on both mobile phones and desktop computers." },
     { question: "How do I add a subject?", answer: "Go to the Subjects page from the menu, click the Add Subject button, fill in the subject name, professor, and schedule, then click Save." },
     { question: "How do I track my assignments?", answer: "Navigate to the Assignments page, click Add Task to create new tasks, and check them off as you complete them using the checkbox." },
-    { question: "How does the Grades page work?", answer: "Enter your grade for each subject along with its units/credits. Select your year level and semester, and the app will automatically calculate your General Weighted Average (GWA). You can also exclude specific subjects (like PE or NSTP) from the computation." },
-    { question: "How does the Curriculum section work?", answer: "You can add your college subjects by Year Level, or upload your official curriculum PDF so you can reference it anytime." },
-    { question: "Is my data safe?", answer: "Your data is stored locally in your browser and is not shared with anyone. We prioritize your privacy and security. For more details, please read our Privacy Policy." },
-    { question: "Can I edit my profile information?", answer: "Yes. Go to the Profile page from the menu, update any of your personal information, and click Save Profile to apply your changes." },
+    { question: "How does the Grades page work?", answer: "Enter your grade for each subject along with its units/credits, year level, and semester. The app automatically calculates your General Weighted Average (GWA). You can also exclude PE/NSTP subjects." },
+    { question: "How does the Curriculum section work?", answer: "You can organize college subjects by Year Level and Semester, or upload your official curriculum PDF syllabus for instant offline access." },
+    { question: "Is my data safe?", answer: "Your data is stored securely in your browser's local storage and is not shared with third parties." },
   ];
 
   /* UTILITY FUNCTIONS */
@@ -73,6 +73,11 @@
 
   function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function normalizeSection(section) {
+    if (!section) return "";
+    return section.trim().toUpperCase();
   }
 
   function getData(key, defaultVal) {
@@ -251,7 +256,7 @@
     users.push(newUser);
     saveUsers(users);
     setSession(newUser);
-    saveProfile({ name: newUser.name, email: newUser.email });
+    saveProfile({ name: newUser.name, email: newUser.email, section: "BSIT 3-A", course: "BSIT", year: "3rd Year" });
     return { success: true };
   }
 
@@ -297,7 +302,7 @@
     const user = getCurrentUser();
     if (!user) return {};
     const all = getData(KEYS.PROFILE + "_all", {});
-    return all[user.email.toLowerCase()] || { name: user.name, email: user.email };
+    return all[user.email.toLowerCase()] || { name: user.name, email: user.email, section: "BSIT 3-A" };
   }
 
   function saveProfile(data) {
@@ -306,6 +311,9 @@
     const all = getData(KEYS.PROFILE + "_all", {});
     const existing = all[user.email.toLowerCase()] || {};
     data.email = user.email.toLowerCase();
+    if (data.section) {
+      data.section = normalizeSection(data.section);
+    }
     all[user.email.toLowerCase()] = Object.assign({}, existing, data);
     setData(KEYS.PROFILE + "_all", all);
     if (data.name && data.name !== user.name) {
@@ -337,13 +345,12 @@
     return base + "_" + user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
   }
 
-  /* ===== POSTS ===== */
+  /* ===== POSTS & DASHBOARD SEARCH ===== */
   function getPosts() { return getData(userKey(KEYS.POSTS), []); }
   function savePosts(posts) { setData(userKey(KEYS.POSTS), posts); }
 
   function seedDemoPosts() {
     if (getPosts().length > 0) return;
-    var user = getCurrentUser();
     savePosts([
       {
         id: cryptoId(),
@@ -459,20 +466,33 @@
     });
   }
 
-  function loadPosts() {
+  function loadPosts(searchQuery) {
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
-    const posts = getPosts();
+    var posts = getPosts();
+
+    if (searchQuery && searchQuery.trim() !== "") {
+      var q = searchQuery.trim().toLowerCase();
+      posts = posts.filter(function (p) {
+        var matchAuthor = p.author && p.author.toLowerCase().indexOf(q) !== -1;
+        var matchContent = p.content && p.content.toLowerCase().indexOf(q) !== -1;
+        var matchTag = p.tag && p.tag.toLowerCase().indexOf(q) !== -1;
+        var matchDate = timeAgo(p.timestamp).toLowerCase().indexOf(q) !== -1;
+        return matchAuthor || matchContent || matchTag || matchDate;
+      });
+    }
+
     feed.innerHTML = "";
     if (posts.length === 0) {
       feed.innerHTML =
         '<div class="empty-state">' +
-          '<div class="empty-icon"><i class="fas fa-inbox"></i></div>' +
-          '<p class="empty-title">No posts yet</p>' +
-          '<p class="empty-sub">Be the first to share something with your class.</p>' +
+          '<div class="empty-icon"><i class="fas fa-search"></i></div>' +
+          '<p class="empty-title">' + (searchQuery ? 'No matching posts found' : 'No posts yet') + '</p>' +
+          '<p class="empty-sub">' + (searchQuery ? 'Try searching for another keyword or author.' : 'Be the first to share something with your class.') + '</p>' +
         '</div>';
       return;
     }
+
     posts.forEach(function (post) {
       const card = document.createElement("div");
       card.className = "post-card";
@@ -534,7 +554,7 @@
       btn.addEventListener("click", function () {
         showConfirm("Delete this post?", function () {
           deletePost(btn.getAttribute("data-id"));
-          loadPosts();
+          loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
           showToast("Post deleted.", "info");
         });
       });
@@ -551,7 +571,7 @@
       btn.addEventListener("click", function () {
         var postId = btn.getAttribute("data-id");
         toggleAcknowledgePost(postId);
-        loadPosts();
+        loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
       });
     });
 
@@ -861,8 +881,14 @@
       card.className = "schedule-card";
       var dayIdx = item.day ? (dayOrder[item.day.substring(0, 3)] || 0) : 0;
       card.innerHTML =
-        '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
-          escapeHtml(item.day || "N/A") +
+        '<div class="schedule-card-top">' +
+          '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
+            escapeHtml(item.day || "N/A") +
+          '</div>' +
+          '<div class="schedule-card-actions">' +
+            '<button class="btn-icon btn-edit-schedule" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
+            '<button class="btn-icon btn-delete-schedule" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
+          '</div>' +
         '</div>' +
         '<div class="schedule-card-info">' +
           '<h4>' + escapeHtml(item.subject) + '</h4>' +
@@ -872,10 +898,6 @@
           '<p class="schedule-room"><i class="fas fa-location-dot"></i> ' +
             escapeHtml(item.room || "No room assigned") +
           '</p>' +
-        '</div>' +
-        '<div class="schedule-card-actions">' +
-          '<button class="btn-icon btn-edit-schedule" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
-          '<button class="btn-icon btn-delete-schedule" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
         '</div>';
       list.appendChild(card);
     });
@@ -1012,7 +1034,7 @@
     });
   }
 
-  /* ===== GRADES (COLLEGE LEVEL ENHANCED) ===== */
+  /* ===== GRADES (FIXED RE-STRUCTURED NO OVERLAP LAYOUT) ===== */
   function getGrades() { return getData(userKey(KEYS.GRADES), []); }
   function saveGrades(grades) { setData(userKey(KEYS.GRADES), grades); }
 
@@ -1168,6 +1190,7 @@
       return;
     }
 
+    /* RE-STRUCTURED CLEAN VERTICAL BLOCK LAYOUT FOR GRADES */
     filtered.forEach(function (item) {
       const div = document.createElement("div");
       div.className = "grade-item" + (item.exclude ? " grade-excluded" : "");
@@ -1176,28 +1199,33 @@
       var uLabel = (item.units || 3) + " Units";
 
       div.innerHTML =
-        '<div class="grade-info">' +
-          '<h4>' + escapeHtml(item.subject) + '</h4>' +
-          '<div class="grade-meta-tags">' +
+        '<div class="grade-card-main">' +
+          '<div class="grade-card-header-row">' +
+            '<h4 class="grade-subject-title">' + escapeHtml(item.subject) + '</h4>' +
+            '<div class="grade-score-wrap">' +
+              '<span class="grade-score-value" style="color:' + gc + '">' +
+                (item.exclude ? '<s>' + item.grade.toFixed(2) + '</s>' : item.grade.toFixed(2)) +
+              '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="grade-meta-tags-row">' +
             '<span class="grade-badge" style="background:' + gc + '20;color:' + gc + '">' + gl + '</span>' +
             '<span class="grade-unit-badge"><i class="fas fa-layer-group"></i> ' + uLabel + '</span>' +
             '<span class="grade-term-badge"><i class="fas fa-calendar"></i> ' + escapeHtml(item.year || "1st Year") + ' &bull; ' + escapeHtml(item.semester || "1st Semester") + '</span>' +
           '</div>' +
-        '</div>' +
-        '<div class="grade-actions">' +
-          '<span class="grade-value" style="color:' + gc + '">' +
-            (item.exclude ? '<s>' + item.grade.toFixed(2) + '</s>' : item.grade.toFixed(2)) +
-          '</span>' +
-          '<button class="btn-icon btn-toggle-exclude" data-id="' + item.id + '" ' +
-            'title="' + (item.exclude ? 'Include in GWA calculation' : 'Exclude from GWA calculation (e.g. PE/NSTP)') + '">' +
-            '<i class="fas ' + (item.exclude ? 'fa-eye' : 'fa-eye-slash') + '"></i>' +
-          '</button>' +
-          '<button class="btn-icon btn-edit-grade" data-id="' + item.id + '" title="Edit grade">' +
-            '<i class="fas fa-pen"></i>' +
-          '</button>' +
-          '<button class="btn-icon btn-delete-grade" data-id="' + item.id + '" title="Delete grade">' +
-            '<i class="fas fa-trash"></i>' +
-          '</button>' +
+          '<div class="grade-card-actions-row">' +
+            '<button class="btn-grade-action btn-toggle-exclude" data-id="' + item.id + '" ' +
+              'title="' + (item.exclude ? 'Include in GWA calculation' : 'Exclude from GWA calculation (e.g. PE/NSTP)') + '">' +
+              '<i class="fas ' + (item.exclude ? 'fa-eye' : 'fa-eye-slash') + '"></i> ' +
+              (item.exclude ? 'Include' : 'Exclude') +
+            '</button>' +
+            '<button class="btn-grade-action btn-edit-grade" data-id="' + item.id + '" title="Edit grade">' +
+              '<i class="fas fa-pen"></i> Edit' +
+            '</button>' +
+            '<button class="btn-grade-action btn-delete-grade" data-id="' + item.id + '" title="Delete grade">' +
+              '<i class="fas fa-trash"></i> Delete' +
+            '</button>' +
+          '</div>' +
         '</div>';
       list.appendChild(div);
     });
@@ -1244,7 +1272,7 @@
     openModal("grade-modal-overlay");
   }
 
-  /* ===== CLASSMATES ===== */
+  /* ===== CLASSMATES & CLASSMATE PROFILE VIEW ===== */
   function getClassmates() { return getData(KEYS.CLASSMATES, []); }
   function saveClassmates(classmates) { setData(KEYS.CLASSMATES, classmates); }
 
@@ -1253,26 +1281,125 @@
     saveClassmates(DEMO_CLASSMATES);
   }
 
+  function getSectionClassmates() {
+    var userProf = getProfile();
+    var currentUser = getCurrentUser();
+    var mySection = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
+
+    var result = [];
+
+    // 1. Registered users matching section
+    var users = getUsers();
+    var profileAll = getData(KEYS.PROFILE + "_all", {});
+    users.forEach(function (u) {
+      if (currentUser && u.email.toLowerCase() === currentUser.email.toLowerCase()) return;
+      var prof = profileAll[u.email.toLowerCase()] || {};
+      var uSec = prof.section ? normalizeSection(prof.section) : "BSIT 3-A";
+      if (uSec === mySection || mySection === "ALL") {
+        result.push({
+          id: u.id || cryptoId(),
+          name: prof.name || u.name,
+          email: u.email,
+          course: prof.course || "BSIT",
+          year: prof.year || "3rd Year",
+          section: uSec,
+          bio: prof.bio || "Classmate in " + uSec,
+          studentId: prof.studentId || "2023-CTU-" + Math.floor(1000 + Math.random() * 9000),
+          contact: prof.contact || "0912-345-6789",
+          photo: prof.photo || null
+        });
+      }
+    });
+
+    // 2. Demo classmates matching section
+    var demo = getClassmates();
+    demo.forEach(function (cm) {
+      var cmSec = normalizeSection(cm.section);
+      if (cmSec === mySection || mySection === "ALL") {
+        var alreadyAdded = result.some(function (r) { return r.name.toLowerCase() === cm.name.toLowerCase(); });
+        if (!alreadyAdded) {
+          result.push({
+            id: cryptoId(),
+            name: cm.name,
+            email: cm.email || (cm.name.toLowerCase().replace(/\s+/g, '.') + "@ctu.edu.ph"),
+            course: cm.course || "BSIT",
+            year: cm.year || "3rd Year",
+            section: cmSec,
+            bio: cm.bio || "BSIT Student at CTU Main Campus",
+            studentId: "2023-CTU-" + Math.floor(1000 + Math.random() * 9000),
+            contact: "0912-345-6789",
+            photo: null
+          });
+        }
+      }
+    });
+
+    return result;
+  }
+
+  function showClassmateProfileModal(cm) {
+    var avatarEl = document.getElementById("cm-modal-avatar");
+    var nameEl = document.getElementById("cm-modal-name");
+    var sectionEl = document.getElementById("cm-modal-section");
+    var courseYearEl = document.getElementById("cm-modal-course-year");
+    var emailEl = document.getElementById("cm-modal-email");
+    var bioEl = document.getElementById("cm-modal-bio");
+    var studentIdEl = document.getElementById("cm-modal-studentid");
+    var contactEl = document.getElementById("cm-modal-contact");
+
+    if (avatarEl) {
+      if (cm.photo) {
+        avatarEl.style.backgroundImage = "url(" + cm.photo + ")";
+        avatarEl.textContent = "";
+      } else {
+        avatarEl.style.backgroundImage = "";
+        avatarEl.style.backgroundColor = stringToColor(cm.name);
+        avatarEl.textContent = initials(cm.name);
+      }
+    }
+    if (nameEl) nameEl.textContent = cm.name;
+    if (sectionEl) sectionEl.textContent = "Section: " + cm.section;
+    if (courseYearEl) courseYearEl.textContent = (cm.course || "BSIT") + " • " + (cm.year || "3rd Year");
+    if (emailEl) emailEl.textContent = cm.email || "N/A";
+    if (bioEl) bioEl.textContent = cm.bio || "No bio provided.";
+    if (studentIdEl) studentIdEl.textContent = cm.studentId || "N/A";
+    if (contactEl) contactEl.textContent = cm.contact || "N/A";
+
+    openModal("classmate-profile-modal-overlay");
+  }
+
   function loadClassmates() {
     const list = document.getElementById("classmates-list");
+    const mySectionBadge = document.getElementById("my-section-display");
     if (!list) return;
-    const classmates = getClassmates();
+
+    var userProf = getProfile();
+    var mySec = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
+    if (mySectionBadge) {
+      mySectionBadge.textContent = "Your Section: " + mySec;
+    }
+
+    const classmates = getSectionClassmates();
     list.innerHTML = "";
     if (classmates.length === 0) {
       list.innerHTML =
         '<div class="empty-state">' +
           '<div class="empty-icon"><i class="fas fa-users"></i></div>' +
-          '<p class="empty-title">No classmates found</p>' +
-          '<p class="empty-sub">Classmates will appear here.</p>' +
+          '<p class="empty-title">No classmates found for section ' + escapeHtml(mySec) + '</p>' +
+          '<p class="empty-sub">Make sure your Section in Profile matches your classmates (e.g. BSIT 3-A).</p>' +
         '</div>';
       return;
     }
+
     classmates.forEach(function (cm) {
       const card = document.createElement("div");
-      card.className = "classmate-card";
+      card.className = "classmate-card clickable-card";
+      var avatarBg = cm.photo ? 'background-image:url(' + cm.photo + ')' : 'background:' + stringToColor(cm.name);
+      var avatarContent = cm.photo ? '' : escapeHtml(initials(cm.name));
+
       card.innerHTML =
-        '<div class="classmate-avatar" style="background:' + stringToColor(cm.name) + '">' +
-          escapeHtml(initials(cm.name)) +
+        '<div class="classmate-avatar" style="' + avatarBg + '">' +
+          avatarContent +
         '</div>' +
         '<div class="classmate-info">' +
           '<h4>' + escapeHtml(cm.name) + '</h4>' +
@@ -1280,8 +1407,14 @@
             (cm.course ? '<span><i class="fas fa-graduation-cap"></i> ' + escapeHtml(cm.course) + '</span> ' : '') +
             (cm.year ? '<span>' + escapeHtml(cm.year) + '</span>' : '') +
           '</p>' +
-          (cm.section ? '<p class="classmate-section"><i class="fas fa-users"></i> ' + escapeHtml(cm.section) + '</p>' : '') +
-        '</div>';
+          '<p class="classmate-section"><i class="fas fa-users"></i> Section ' + escapeHtml(cm.section) + '</p>' +
+        '</div>' +
+        '<div class="classmate-arrow"><i class="fas fa-chevron-right"></i></div>';
+
+      card.addEventListener("click", function () {
+        showClassmateProfileModal(cm);
+      });
+
       list.appendChild(card);
     });
   }
@@ -1314,7 +1447,7 @@
     });
   }
 
-  /* ===== CURRICULUM (COLLEGE LEVEL ENHANCED) ===== */
+  /* ===== CURRICULUM WITH SEMESTER SELECTOR ===== */
   function getCurriculumSubjects() {
     return getData(userKey(KEYS.CURRICULUM_SUBJECTS), []);
   }
@@ -1341,6 +1474,7 @@
         name: "Web Systems and Technologies",
         schedule: "MWF 10:00-11:30 AM",
         year: "3rd Year",
+        semester: "1st Semester"
       },
       {
         id: cryptoId(),
@@ -1348,6 +1482,15 @@
         name: "Database Management Systems II",
         schedule: "TTH 1:00-2:30 PM",
         year: "3rd Year",
+        semester: "1st Semester"
+      },
+      {
+        id: cryptoId(),
+        code: "IT 303",
+        name: "Mobile Application Development",
+        schedule: "MWF 2:30-4:00 PM",
+        year: "3rd Year",
+        semester: "2nd Semester"
       },
       {
         id: cryptoId(),
@@ -1355,6 +1498,7 @@
         name: "Data Structures & Algorithms",
         schedule: "MWF 1:00-2:30 PM",
         year: "2nd Year",
+        semester: "1st Semester"
       },
       {
         id: cryptoId(),
@@ -1362,11 +1506,12 @@
         name: "Introduction to Computing",
         schedule: "MWF 8:30-10:00 AM",
         year: "1st Year",
+        semester: "1st Semester"
       },
     ]);
   }
 
-  function addCurriculumSubject(name, code, schedule, year) {
+  function addCurriculumSubject(name, code, schedule, year, semester) {
     const subjects = getCurriculumSubjects();
     const item = {
       id: cryptoId(),
@@ -1374,6 +1519,7 @@
       code: code.trim(),
       schedule: schedule.trim(),
       year: year.trim(),
+      semester: (semester || "1st Semester").trim(),
     };
     subjects.push(item);
     saveCurriculumSubjects(subjects);
@@ -1464,15 +1610,19 @@
       }
     }
 
-    // Load subjects
+    // Load subjects with filters
     var subjects = getCurriculumSubjects();
-    var filter = document.querySelector(".curriculum-year-filter.active");
-    var filterYear = filter ? filter.getAttribute("data-year") : "all";
+    var yearFilterBtn = document.querySelector(".curriculum-year-filter.active");
+    var filterYear = yearFilterBtn ? yearFilterBtn.getAttribute("data-year") : "all";
 
-    var filtered = subjects;
-    if (filterYear !== "all") {
-      filtered = subjects.filter(function (s) { return s.year === filterYear; });
-    }
+    var semSelect = document.getElementById("curriculum-semester-filter");
+    var filterSem = semSelect ? semSelect.value : "all";
+
+    var filtered = subjects.filter(function (s) {
+      var matchYear = (filterYear === "all" || s.year === filterYear);
+      var matchSem = (filterSem === "all" || !s.semester || s.semester === filterSem);
+      return matchYear && matchSem;
+    });
 
     list.innerHTML = "";
     if (filtered.length === 0) {
@@ -1480,7 +1630,7 @@
         '<div class="empty-state">' +
           '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
           '<p class="empty-title">No subjects found</p>' +
-          '<p class="empty-sub">Add subjects to your curriculum or select another Year Level.</p>' +
+          '<p class="empty-sub">Add subjects to your curriculum or select another filter.</p>' +
         '</div>';
       return;
     }
@@ -1495,6 +1645,7 @@
             '<span><i class="fas fa-hashtag"></i> ' + escapeHtml(item.code) + '</span>' +
             '<span><i class="fas fa-clock"></i> ' + escapeHtml(item.schedule || "No schedule") + '</span>' +
             '<span class="cs-year">' + escapeHtml(item.year) + '</span>' +
+            '<span class="cs-sem">' + escapeHtml(item.semester || "1st Semester") + '</span>' +
           '</div>' +
         '</div>' +
         '<div class="cs-actions">' +
@@ -1528,6 +1679,7 @@
     document.getElementById("curriculum-subject-code").value = found.code;
     document.getElementById("curriculum-subject-schedule").value = found.schedule || "";
     document.getElementById("curriculum-subject-year").value = found.year;
+    document.getElementById("curriculum-subject-semester").value = found.semester || "1st Semester";
     document.getElementById("curriculum-subject-modal-title").textContent = "Edit Subject";
     openModal("curriculum-subject-modal-overlay");
   }
@@ -1541,6 +1693,13 @@
         loadCurriculum();
       });
     });
+
+    var semFilterSelect = document.getElementById("curriculum-semester-filter");
+    if (semFilterSelect) {
+      semFilterSelect.addEventListener("change", function () {
+        loadCurriculum();
+      });
+    }
   }
 
   /* ===== SETTINGS ===== */
@@ -1698,6 +1857,7 @@
     closeDrawer();
     if (viewId === "view-settings") updateStorageDisplay();
     if (viewId === "view-grades") loadGrades();
+    if (viewId === "view-classmates") loadClassmates();
     if (viewId === "view-faqs") loadFaqs();
     if (viewId === "view-curriculum") {
       setupCurriculumFilters();
@@ -1764,6 +1924,7 @@
     }
     seedDemoPosts();
     seedDemoGrades();
+    seedDemoClassmates();
     seedDemoCurriculum();
     loadProfileForm();
     loadPosts();
@@ -1788,7 +1949,7 @@
       "profile-student-id": profile.studentId || "",
       "profile-course": profile.course || "",
       "profile-year": profile.year || "",
-      "profile-section": profile.section || "",
+      "profile-section": profile.section || "BSIT 3-A",
       "profile-contact": profile.contact || "",
       "profile-birthdate": profile.birthdate || "",
       "profile-gender": profile.gender || "",
@@ -2143,6 +2304,14 @@
       btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
+    /* SEARCH INPUT LISTENER FOR DASHBOARD */
+    var dashboardSearchInput = document.getElementById("dashboard-search-input");
+    if (dashboardSearchInput) {
+      dashboardSearchInput.addEventListener("input", function (e) {
+        loadPosts(e.target.value);
+      });
+    }
+
     var forgotLink = document.querySelector(".forgot-link");
     if (forgotLink) {
       forgotLink.addEventListener("click", function (e) {
@@ -2247,7 +2416,7 @@
         createPost(content, currentPostImage);
         closeModal("post-modal-overlay");
         clearPostContent();
-        loadPosts();
+        loadPosts(dashboardSearchInput ? dashboardSearchInput.value : "");
         switchView("view-home");
         showToast("Post shared successfully.", "success");
       });
@@ -2279,7 +2448,7 @@
         var result = updatePost(id, content);
         if (result) {
           closeModal("edit-post-modal-overlay");
-          loadPosts();
+          loadPosts(dashboardSearchInput ? dashboardSearchInput.value : "");
           showToast("Post updated successfully.", "success");
         } else {
           showToast("Failed to update post.", "error");
@@ -2425,7 +2594,7 @@
       });
     }
 
-    /* GRADES EVENT LISTENERS (COLLEGE LEVEL ENHANCED) */
+    /* GRADES EVENT LISTENERS */
     var addGradeBtn = document.getElementById("add-grade-btn");
     var closeGradeMdl = document.getElementById("close-grade-modal-btn");
     var gradeOverlay = document.getElementById("grade-modal-overlay");
@@ -2488,17 +2657,31 @@
     if (yearFilter) yearFilter.addEventListener("change", loadGrades);
     if (semFilter) semFilter.addEventListener("change", loadGrades);
 
+    var closeCmProfileModalBtn = document.getElementById("close-classmate-modal-btn");
+    if (closeCmProfileModalBtn) {
+      closeCmProfileModalBtn.addEventListener("click", function () {
+        closeModal("classmate-profile-modal-overlay");
+      });
+    }
+    var cmProfileOverlay = document.getElementById("classmate-profile-modal-overlay");
+    if (cmProfileOverlay) {
+      cmProfileOverlay.addEventListener("click", function (e) {
+        if (e.target === cmProfileOverlay) closeModal("classmate-profile-modal-overlay");
+      });
+    }
+
     var profileForm = document.getElementById("profile-form");
     if (profileForm) {
       profileForm.addEventListener("submit", function (e) {
         e.preventDefault();
+        var rawSec = document.getElementById("profile-section").value;
         var data = {
           name: (document.getElementById("profile-fullname").value || "").trim(),
           bio: (document.getElementById("profile-bio").value || "").trim(),
           studentId: (document.getElementById("profile-student-id").value || "").trim(),
           course: (document.getElementById("profile-course").value || "").trim(),
           year: document.getElementById("profile-year").value,
-          section: (document.getElementById("profile-section").value || "").trim(),
+          section: normalizeSection(rawSec || "BSIT 3-A"),
           contact: (document.getElementById("profile-contact").value || "").trim(),
           birthdate: document.getElementById("profile-birthdate").value,
           gender: document.getElementById("profile-gender").value,
@@ -2609,6 +2792,7 @@
         document.getElementById("curriculum-subject-code").value = "";
         document.getElementById("curriculum-subject-schedule").value = "";
         document.getElementById("curriculum-subject-year").value = "1st Year";
+        document.getElementById("curriculum-subject-semester").value = "1st Semester";
         document.getElementById("curriculum-subject-modal-title").textContent = "Add Subject";
         openModal("curriculum-subject-modal-overlay");
       });
@@ -2636,16 +2820,17 @@
         var code = (document.getElementById("curriculum-subject-code").value || "").trim();
         var schedule = (document.getElementById("curriculum-subject-schedule").value || "").trim();
         var year = document.getElementById("curriculum-subject-year").value;
+        var semester = document.getElementById("curriculum-subject-semester").value;
         if (!name || !code || !year) {
           showToast("Please fill in all required fields.", "warning");
           return;
         }
         if (id) {
-          updateCurriculumSubject(id, { name: name, code: code, schedule: schedule, year: year });
+          updateCurriculumSubject(id, { name: name, code: code, schedule: schedule, year: year, semester: semester });
           showToast("Subject updated.", "success");
         } else {
-          addCurriculumSubject(name, code, schedule, year);
-          showToast("Subject added to " + year + ".", "success");
+          addCurriculumSubject(name, code, schedule, year, semester);
+          showToast("Subject added to " + year + ", " + semester + ".", "success");
         }
         closeModal("curriculum-subject-modal-overlay");
         curriculumForm.reset();
