@@ -28,7 +28,8 @@
 <section id="splash-page" class="page active-page" aria-label="Loading">
   <div class="splash-content">
     <div class="splash-logo">
-      <img src="logo.png" alt="ClassConnect Logo" onerror="this.style.display='none'">
+      <img src="logo.png" alt="ClassConnect Logo" class="app-logo-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-block';">
+      <i class="fas fa-graduation-cap" style="font-size: 48px; color: white; display: none;"></i>
     </div>
     <h1 class="splash-title">ClassConnect</h1>
     <div class="loading-dots" aria-label="Loading">
@@ -46,7 +47,8 @@
     <div class="auth-card">
 
       <div class="auth-logo" aria-hidden="true">
-        <i class="fas fa-graduation-cap"></i>
+        <img src="logo.png" alt="ClassConnect Logo" class="app-logo-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-block';">
+        <i class="fas fa-graduation-cap" style="display: none;"></i>
       </div>
 
       <!-- LOGIN FORM -->
@@ -180,7 +182,8 @@
         <i class="fas fa-bars"></i>
       </button>
       <div class="topnav-brand">
-        <i class="fas fa-graduation-cap" aria-hidden="true"></i>
+        <img src="logo.png" alt="ClassConnect Logo" class="topnav-logo-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-block';">
+        <i class="fas fa-graduation-cap" aria-hidden="true" style="display: none;"></i>
         <span>ClassConnect</span>
       </div>
     </div>
@@ -261,6 +264,18 @@
     <!-- ===== VIEW: HOME / DASHBOARD ===== -->
     <div id="view-home" class="dashboard-view active-view">
 
+      <!-- DASHBOARD SEARCH BAR -->
+      <div class="dashboard-search-wrap">
+        <i class="fas fa-search dashboard-search-icon"></i>
+        <input
+          type="text"
+          id="dashboard-search-input"
+          class="dashboard-search-input"
+          placeholder="Search announcements, authors, tags, dates..."
+          aria-label="Search dashboard"
+        >
+      </div>
+
       <div class="create-post-card">
         <div class="create-post-row">
           <div class="avatar-circle" id="composer-avatar">S</div>
@@ -314,11 +329,10 @@
       </div>
     </div>
 
-    <!-- ===== VIEW: GRADES (COLLEGE LEVEL ENHANCED) ===== -->
+    <!-- ===== VIEW: GRADES ===== -->
     <div id="view-grades" class="dashboard-view">
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-chart-simple"></i> College Grades</h2>
-        <!-- FIXED: Add Grade button option is now explicitly added -->
         <button id="add-grade-btn" class="btn-add" type="button">
           <i class="fas fa-plus"></i> Add Grade
         </button>
@@ -362,6 +376,9 @@
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-users"></i> Classmates</h2>
       </div>
+      <div id="my-section-display" class="classmate-section-badge">
+        Your Section: BSIT 3-A
+      </div>
       <div id="classmates-list" class="classmates-list">
         <!-- classmates rendered by script.js -->
       </div>
@@ -386,14 +403,20 @@
         <!-- rendered by script.js -->
       </div>
 
-      <!-- Year Level Filters -->
+      <!-- Year Level & Semester Filters -->
       <div class="curriculum-filters">
         <button class="curriculum-year-filter active" data-year="all">All Years</button>
         <button class="curriculum-year-filter" data-year="1st Year">1st Year</button>
         <button class="curriculum-year-filter" data-year="2nd Year">2nd Year</button>
         <button class="curriculum-year-filter" data-year="3rd Year">3rd Year</button>
         <button class="curriculum-year-filter" data-year="4th Year">4th Year</button>
-        <button class="curriculum-year-filter" data-year="5th Year">5th Year</button>
+
+        <select id="curriculum-semester-filter" class="curriculum-semester-filter" aria-label="Select Semester">
+          <option value="all">All Semesters</option>
+          <option value="1st Semester">1st Semester</option>
+          <option value="2nd Semester">2nd Semester</option>
+          <option value="Summer / Midyear">Summer / Midyear</option>
+        </select>
       </div>
 
       <div id="curriculum-subjects-list" class="curriculum-subjects-list">
@@ -445,14 +468,14 @@
                 <option value="">Select</option>
                 <option value="1st Year">1st Year</option>
                 <option value="2nd Year">2nd Year</option>
-                <option value="3rd Year">3rd Year</option>
+                <option value="3rd Year" selected>3rd Year</option>
                 <option value="4th Year">4th Year</option>
                 <option value="5th Year">5th Year</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="profile-section">Section</label>
-              <input type="text" id="profile-section" placeholder="e.g. BSIT 3-A">
+              <label for="profile-section">Section (e.g. BSIT 3-A)</label>
+              <input type="text" id="profile-section" placeholder="e.g. BSIT 3-A" value="BSIT 3-A">
             </div>
           </div>
           <div class="form-group">
@@ -562,94 +585,24 @@
 
           <h4>Information We Collect</h4>
           <ul>
-            <li>Name, email address, and contact details</li>
+            <li>Name, email address, and section details</li>
             <li>Academic information (subjects, grades, assignments)</li>
             <li>Profile photo and bio (optional)</li>
-            <li>Usage data and preferences</li>
-          </ul>
-
-          <h4>How We Use Your Information</h4>
-          <ul>
-            <li>To provide and maintain the ClassConnect service</li>
-            <li>To personalize your experience</li>
-            <li>To help you manage your academic tasks</li>
-            <li>To improve the app based on user feedback</li>
           </ul>
 
           <h4>Data Storage</h4>
           <p>
             Your data is stored locally in your browser. We do not share your personal information with third parties.
-            Future versions may include cloud synchronization with your explicit consent.
           </p>
-
-          <h4>Your Rights</h4>
-          <ul>
-            <li>Access, update, or delete your profile information</li>
-            <li>Export your data at any time</li>
-            <li>Request deletion of your account and all associated data</li>
-          </ul>
         </div>
 
         <div class="policy-divider"></div>
 
         <div class="policy-section">
           <h3><i class="fas fa-file-signature"></i> Terms of Service</h3>
-          <p><strong>Last Updated:</strong> 2026</p>
           <p>
-            By using ClassConnect, you agree to the following terms and conditions. Please read them carefully.
+            By using ClassConnect, you agree to these Terms of Service. Always back up your academic information.
           </p>
-
-          <h4>Acceptance of Terms</h4>
-          <p>
-            By creating an account and using ClassConnect, you agree to comply with these Terms of Service.
-            If you do not agree, please do not use the platform.
-          </p>
-
-          <h4>User Accounts</h4>
-          <ul>
-            <li>You are responsible for maintaining the confidentiality of your account credentials</li>
-            <li>You agree to provide accurate and complete information</li>
-            <li>You are solely responsible for all activities under your account</li>
-          </ul>
-
-          <h4>User Content</h4>
-          <ul>
-            <li>You retain ownership of your content (posts, assignments, grades, etc.)</li>
-            <li>You grant ClassConnect a license to display your content within the app</li>
-            <li>You agree not to post harmful or inappropriate content</li>
-          </ul>
-
-          <h4>Prohibited Activities</h4>
-          <ul>
-            <li>Unauthorized access to other users' accounts</li>
-            <li>Harassment, bullying, or inappropriate behavior</li>
-            <li>Sharing false or misleading information</li>
-            <li>Any activity that violates applicable laws</li>
-          </ul>
-
-          <h4>Modification and Termination</h4>
-          <p>
-            We reserve the right to modify or terminate the service at any time.
-            We will provide notice of significant changes.
-          </p>
-
-          <h4>Disclaimer</h4>
-          <p>
-            ClassConnect is provided "as is" without warranties of any kind.
-            We are not responsible for any loss of data or academic outcomes.
-            Always back up your important information.
-          </p>
-        </div>
-
-        <div class="policy-divider"></div>
-
-        <div class="policy-section">
-          <h3><i class="fas fa-handshake"></i> Contact Us</h3>
-          <p>
-            If you have any questions about our Privacy Policy or Terms of Service, please contact us through the
-            app's feedback feature or reach out to HDDev.
-          </p>
-          <p><strong>HDDev &bull; All Rights Reserved 2026</strong></p>
         </div>
       </div>
     </div>
@@ -778,18 +731,6 @@
           <i class="fas fa-chevron-right"></i>
         </div>
 
-        <!-- Policy Link -->
-        <div class="settings-item settings-link" onclick="navigateTo('view-policy')">
-          <div class="settings-item-left">
-            <i class="fas fa-file-lines"></i>
-            <div>
-              <span class="settings-label">Privacy Policy</span>
-              <span class="settings-desc">Read our privacy policy and terms</span>
-            </div>
-          </div>
-          <i class="fas fa-chevron-right"></i>
-        </div>
-
         <!-- Logout -->
         <div class="settings-item settings-logout" id="settings-logout-btn">
           <div class="settings-item-left">
@@ -827,6 +768,46 @@
 
 <!-- ==================== MODALS ==================== -->
 
+<!-- CLASSMATE PROFILE MODAL -->
+<div id="classmate-profile-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cm-modal-title">
+    <div class="modal-header">
+      <h3 id="cm-modal-title"><i class="fas fa-user"></i> Classmate Profile</h3>
+      <button id="close-classmate-modal-btn" class="modal-close" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="cm-profile-box">
+      <div id="cm-modal-avatar" class="cm-profile-avatar">S</div>
+      <h3 id="cm-modal-name" style="font-size:20px;font-weight:800;color:var(--deep-navy);">Classmate Name</h3>
+      <div id="cm-modal-section" class="classmate-section-badge">Section: BSIT 3-A</div>
+
+      <div class="cm-profile-details">
+        <div class="cm-detail-item">
+          <span class="cm-detail-label">Program & Year:</span>
+          <span class="cm-detail-val" id="cm-modal-course-year">BSIT • 3rd Year</span>
+        </div>
+        <div class="cm-detail-item">
+          <span class="cm-detail-label">Email:</span>
+          <span class="cm-detail-val" id="cm-modal-email">student@ctu.edu.ph</span>
+        </div>
+        <div class="cm-detail-item">
+          <span class="cm-detail-label">Student ID:</span>
+          <span class="cm-detail-val" id="cm-modal-studentid">2023-12345</span>
+        </div>
+        <div class="cm-detail-item">
+          <span class="cm-detail-label">Contact Number:</span>
+          <span class="cm-detail-val" id="cm-modal-contact">0912-345-6789</span>
+        </div>
+        <div class="cm-detail-item" style="flex-direction:column;gap:4px;">
+          <span class="cm-detail-label">Bio:</span>
+          <span class="cm-detail-val" id="cm-modal-bio" style="text-align:left;font-weight:normal;">Bio text...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- CREATE POST MODAL -->
 <div id="post-modal-overlay" class="modal-overlay" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="post-modal-heading">
@@ -839,40 +820,27 @@
 
     <!-- Rich Text Toolbar -->
     <div class="post-toolbar" role="toolbar" aria-label="Text formatting">
-      <button type="button" class="toolbar-btn" data-command="bold" title="Bold" aria-label="Bold">
-        <i class="fas fa-bold"></i>
-      </button>
-      <button type="button" class="toolbar-btn" data-command="italic" title="Italic" aria-label="Italic">
-        <i class="fas fa-italic"></i>
-      </button>
-      <button type="button" class="toolbar-btn" data-command="underline" title="Underline" aria-label="Underline">
-        <i class="fas fa-underline"></i>
-      </button>
-      <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Strikethrough" aria-label="Strikethrough">
-        <i class="fas fa-strikethrough"></i>
-      </button>
+      <button type="button" class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+      <button type="button" class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+      <button type="button" class="toolbar-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+      <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
       <span class="toolbar-divider"></span>
       <select class="toolbar-font-select" id="post-font-select" aria-label="Font family">
         <option value="sans-serif">Sans-Serif</option>
         <option value="Georgia, serif">Georgia</option>
         <option value="monospace">Monospace</option>
-        <option value="Trebuchet MS, sans-serif">Trebuchet</option>
       </select>
       <span class="toolbar-divider"></span>
-      <button type="button" class="toolbar-btn" id="post-image-btn" title="Upload Image" aria-label="Upload image">
-        <i class="fas fa-image"></i>
-      </button>
+      <button type="button" class="toolbar-btn" id="post-image-btn" title="Upload Image"><i class="fas fa-image"></i></button>
       <input type="file" id="post-image-input" accept="image/*" hidden>
     </div>
 
-    <div id="post-content-wrapper" class="post-content-wrapper">
+    <div class="post-content-wrapper">
       <div
         id="post-content-editable"
         class="post-content-editable"
         contenteditable="true"
         role="textbox"
-        aria-multiline="true"
-        aria-label="Post content"
         placeholder="Share an announcement or update with your classmates..."
       ></div>
     </div>
@@ -901,18 +869,10 @@
     </div>
 
     <div class="post-toolbar" role="toolbar" aria-label="Text formatting">
-      <button type="button" class="toolbar-btn" data-command="bold" title="Bold" aria-label="Bold">
-        <i class="fas fa-bold"></i>
-      </button>
-      <button type="button" class="toolbar-btn" data-command="italic" title="Italic" aria-label="Italic">
-        <i class="fas fa-italic"></i>
-      </button>
-      <button type="button" class="toolbar-btn" data-command="underline" title="Underline" aria-label="Underline">
-        <i class="fas fa-underline"></i>
-      </button>
-      <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Strikethrough" aria-label="Strikethrough">
-        <i class="fas fa-strikethrough"></i>
-      </button>
+      <button type="button" class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+      <button type="button" class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+      <button type="button" class="toolbar-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+      <button type="button" class="toolbar-btn" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
       <span class="toolbar-divider"></span>
       <select class="toolbar-font-select" id="edit-post-font-select" aria-label="Font family">
         <option value="sans-serif">Sans-Serif</option>
@@ -928,8 +888,6 @@
         class="post-content-editable"
         contenteditable="true"
         role="textbox"
-        aria-multiline="true"
-        aria-label="Edit post content"
       ></div>
     </div>
 
@@ -1062,7 +1020,7 @@
   </div>
 </div>
 
-<!-- GRADE MODAL (COLLEGE LEVEL ENHANCED) -->
+<!-- GRADE MODAL -->
 <div id="grade-modal-overlay" class="modal-overlay" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="grade-modal-title">
     <div class="modal-header">
@@ -1143,16 +1101,25 @@
         <label for="curriculum-subject-schedule">Schedule / Time</label>
         <input type="text" id="curriculum-subject-schedule" placeholder="e.g. MWF 10:00-11:30 AM">
       </div>
-      <div class="form-group">
-        <label for="curriculum-subject-year">Year Level</label>
-        <select id="curriculum-subject-year" required>
-          <option value="">Select Year Level</option>
-          <option value="1st Year">1st Year</option>
-          <option value="2nd Year">2nd Year</option>
-          <option value="3rd Year">3rd Year</option>
-          <option value="4th Year">4th Year</option>
-          <option value="5th Year">5th Year</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="curriculum-subject-year">Year Level</label>
+          <select id="curriculum-subject-year" required>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="curriculum-subject-semester">Semester</label>
+          <select id="curriculum-subject-semester" required>
+            <option value="1st Semester">1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer / Midyear">Summer / Midyear</option>
+          </select>
+        </div>
       </div>
       <button type="submit" class="btn-primary">
         <i class="fas fa-check"></i> Save Subject
