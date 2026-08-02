@@ -51,6 +51,19 @@
 [data-font-size="medium"] { font-size: 16px; }
 [data-font-size="large"]  { font-size: 18px; }
 
+html[data-font-type="sans-serif"] {
+  --font-base: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+html[data-font-type="serif"] {
+  --font-base: Georgia, "Times New Roman", Times, serif;
+}
+html[data-font-type="monospace"] {
+  --font-base: "Courier New", Courier, "Lucida Console", monospace;
+}
+html[data-font-type="rounded"] {
+  --font-base: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", Tahoma, sans-serif;
+}
+
 *,
 *::before,
 *::after {
@@ -156,7 +169,14 @@ body.body-scroll-lock {
   flex-direction:  column;
   align-items:     center;
   justify-content: center;
-  background:      linear-gradient(155deg, var(--deep-navy) 0%, #1E3A8A 100%);
+  background-color: #0F172A;
+  background-image:
+    radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.28) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.25) 0%, transparent 50%),
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(155deg, #090E17 0%, #0F172A 50%, #1E3A8A 100%);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px, 100% 100%;
   color:           var(--white);
   text-align:      center;
   position:        fixed;
@@ -170,24 +190,26 @@ body.body-scroll-lock {
 #splash-page::before {
   content:         "";
   position:        absolute;
-  width:           520px;
-  height:          520px;
+  width:           580px;
+  height:          580px;
   border-radius:   50%;
-  background:      radial-gradient(circle, rgba(96, 165, 250, 0.15) 0%, transparent 70%);
-  top:             -120px;
-  right:           -120px;
+  border:          1px solid rgba(255, 255, 255, 0.08);
+  background:      radial-gradient(circle, rgba(96, 165, 250, 0.18) 0%, transparent 70%);
+  top:             -160px;
+  right:           -160px;
   pointer-events:  none;
 }
 
 #splash-page::after {
   content:         "";
   position:        absolute;
-  width:           440px;
-  height:          440px;
+  width:           480px;
+  height:          480px;
   border-radius:   50%;
-  background:      radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
-  bottom:          -100px;
-  left:            -100px;
+  border:          1px solid rgba(255, 255, 255, 0.08);
+  background:      radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+  bottom:          -120px;
+  left:            -120px;
   pointer-events:  none;
 }
 
@@ -201,16 +223,17 @@ body.body-scroll-lock {
 }
 
 .splash-logo {
-  width:           96px;
-  height:          96px;
+  width:           108px;
+  height:          108px;
   border-radius:   50%;
   background:      linear-gradient(135deg, var(--electric-blue), var(--purple));
   display:         flex;
   align-items:     center;
   justify-content: center;
   overflow:        hidden;
-  box-shadow:      0 0 0 8px rgba(96, 165, 250, 0.18), 0 20px 48px rgba(15, 23, 42, 0.45);
+  box-shadow:      0 0 0 12px rgba(96, 165, 250, 0.15), 0 0 0 24px rgba(139, 92, 246, 0.08), 0 24px 56px rgba(15, 23, 42, 0.55);
   animation:       splashLogoIn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  border:          2px solid rgba(255, 255, 255, 0.25);
 }
 
 .splash-logo img {
@@ -283,7 +306,14 @@ body.body-scroll-lock {
 #login-page {
   min-height:     100vh;
   height:         100vh;
-  background:     linear-gradient(160deg, #F0F6FF 0%, var(--white) 50%, #F8FAFC 100%);
+  background-color: #F8FAFC;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 45%),
+    linear-gradient(rgba(37, 99, 235, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.035) 1px, transparent 1px),
+    linear-gradient(160deg, #EFF6FF 0%, #F8FAFC 50%, #F1F5F9 100%);
+  background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px, 100% 100%;
   display:        flex;
   align-items:    center;
   justify-content: center;
@@ -295,24 +325,26 @@ body.body-scroll-lock {
 #login-page::before {
   content:         "";
   position:        absolute;
-  width:           400px;
-  height:          400px;
+  width:           480px;
+  height:          480px;
   border-radius:   50%;
-  background:      radial-gradient(circle, rgba(37, 99, 235, 0.06) 0%, transparent 70%);
-  top:             -80px;
-  right:           -80px;
+  border:          1px solid rgba(37, 99, 235, 0.08);
+  background:      radial-gradient(circle, rgba(37, 99, 235, 0.07) 0%, transparent 70%);
+  top:             -140px;
+  right:           -140px;
   pointer-events:  none;
 }
 
 #login-page::after {
   content:         "";
   position:        absolute;
-  width:           320px;
-  height:          320px;
+  width:           360px;
+  height:          360px;
   border-radius:   50%;
-  background:      radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
-  bottom:          -60px;
-  left:            -60px;
+  border:          1px solid rgba(139, 92, 246, 0.08);
+  background:      radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 70%);
+  bottom:          -100px;
+  left:            -100px;
   pointer-events:  none;
 }
 
@@ -3040,9 +3072,9 @@ body.body-scroll-lock {
 .post-toolbar {
   display:       flex;
   align-items:   center;
-  gap:           4px;
+  gap:           6px;
   flex-wrap:     wrap;
-  padding:       6px;
+  padding:       8px 10px;
   background:    var(--gray-50);
   border-radius: var(--radius-md);
   border:        1px solid var(--gray-200);
@@ -3077,7 +3109,7 @@ body.body-scroll-lock {
 }
 
 .toolbar-font-select {
-  padding:       6px 10px;
+  padding:       6px 26px 6px 10px;
   min-height:    36px;
   border:        1px solid var(--gray-200);
   border-radius: var(--radius-sm);
@@ -3087,7 +3119,11 @@ body.body-scroll-lock {
   font-family:   var(--font-base);
   cursor:        pointer;
   transition:    border-color var(--transition-fast);
-  width:         150px;
+  width:         auto;
+  min-width:     120px;
+  max-width:     100%;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
 }
 
 .toolbar-font-select:focus { outline: none; border-color: var(--primary-blue); }
@@ -3460,9 +3496,9 @@ body.body-scroll-lock {
   .drawer-item     { padding: 12px 16px; font-size: 13px; }
   .modal-card      { padding: 22px 16px; }
   .modal-card .form-row { grid-template-columns: 1fr; }
-  .post-toolbar    { gap: 2px; }
+  .post-toolbar    { gap: 4px; padding: 6px; }
   .toolbar-btn     { width: 32px; height: 32px; font-size: 13px; }
-  .toolbar-font-select { width: 120px; }
+  .toolbar-font-select { width: auto; min-width: 105px; padding: 6px 24px 6px 8px; }
   .grades-controls { flex-direction: column; }
   .grade-filter    { min-width: auto; }
   .form-row        { grid-template-columns: 1fr; }
