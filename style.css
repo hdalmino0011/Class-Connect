@@ -372,6 +372,7 @@ body.body-scroll-lock {
   margin:          0 auto 24px;
   box-shadow:      0 8px 20px -4px rgba(37, 99, 235, 0.35);
   overflow:        hidden;
+  border:          3px solid var(--primary-blue);
 }
 
 .auth-logo img {
@@ -2737,29 +2738,36 @@ body.body-scroll-lock {
 }
 
 .about-info-grid {
-  display:        flex;
-  flex-direction: column;
-  gap:            10px;
-  text-align:     left;
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   8px 24px;
+  text-align:            left;
 }
 
 .about-info-item {
   display:         flex;
   justify-content: space-between;
   align-items:     center;
-  padding:         6px 0;
-  border-bottom:   none;
+  padding:         8px 0;
+  border-bottom:   1px solid var(--gray-100);
+}
+
+.about-info-item:last-child {
+  border-bottom: none;
 }
 
 .about-label {
   color:     var(--gray-500);
-  font-size: 13px;
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
 .about-value {
   color:       var(--deep-navy);
   font-weight: 700;
-  font-size:   13px;
+  font-size:   13.5px;
+  text-align:  right;
+  max-width:   60%;
 }
 
 .about-footer {
