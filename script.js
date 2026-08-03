@@ -663,6 +663,59 @@ function getRemoteSession() {
     }
   }
 
+  // ===== COMMENTS =====
+  async function getCommentsForPosts(postIds) {
+    if (!postIds || postIds.length === 0) return [];
+    return withAuthCheck(async function () {
+      var result = await withTimeout(
+        supabaseTable("comments")
+          .select("*")
+          .in("post_id", postIds)
+          .order("created_at", { ascending: true }),
+        8000,
+        "Comments load"
+      );
+      if (result.error) throw result.error;
+      return result.data || [];
+    });
+  }
+
+  async function addComment(postId, content) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var comment = {
+        post_id: postId,
+        user_id: user.id,
+        author: user.name || "Student",
+        content: content.trim(),
+        created_at: new Date().toISOString(),
+      };
+      var result = await withTimeout(
+        supabaseTable("comments").insert(comment).select().single(),
+        8000,
+        "Comment add"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function deleteComment(commentId) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("comments")
+          .delete()
+          .eq("id", commentId)
+          .eq("user_id", user.id),
+        8000,
+        "Comment delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
   // ===== SUBJECTS =====
   async function getSubjects() {
     return withAuthCheck(async function () {
@@ -1802,7 +1855,52 @@ function getRemoteSession() {
 
   // ===== LOAD FUNCTIONS =====
 
-  // POSTS LOAD – FIXED: deduplicate posts by id
+  // Render comments for a single post (call after post card is rendered)
+  function renderComments(postId, comments, containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = "";
+    if (!comments || comments.length === 0) {
+      container.innerHTML = '<div class="no-comments">No comments yet.</div>';
+      return;
+    }
+    var user = getCurrentUser();
+    comments.forEach(function (comment) {
+      var div = document.createElement("div");
+      div.className = "post-comment-item";
+      var avatarBg = comment.photo ? 'background-image:url(' + comment.photo + ')' : 'background:' + stringToColor(comment.author);
+      var avatarContent = comment.photo ? '' : escapeHtml(initials(comment.author));
+      var isOwn = user && comment.user_id === user.id;
+      div.innerHTML =
+        '<div class="comment-avatar" style="' + avatarBg + '">' + avatarContent + '</div>' +
+        '<div class="comment-body">' +
+          '<div class="comment-author">' + escapeHtml(comment.author) + '</div>' +
+          '<div class="comment-text">' + escapeHtml(comment.content) + '</div>' +
+          '<div class="comment-meta">' +
+            '<span>' + formatTimestampPHT(comment.created_at) + '</span>' +
+            (isOwn ? '<button class="comment-delete-btn" data-comment-id="' + comment.id + '" title="Delete comment"><i class="fas fa-trash"></i></button>' : '') +
+          '</div>' +
+        '</div>';
+      container.appendChild(div);
+    });
+    // Attach delete event listeners (delegation will also work, but we can attach directly)
+    container.querySelectorAll(".comment-delete-btn").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var commentId = btn.getAttribute("data-comment-id");
+        showConfirm("Delete this comment?", function () {
+          withLoading(function () { return deleteComment(commentId); }).then(function () {
+            // Reload posts to refresh comments
+            loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
+          }).catch(function (err) {
+            showToast(err.message || "Could not delete comment.", "error");
+          });
+        });
+      });
+    });
+  }
+
+  // POSTS LOAD – FIXED: deduplicate posts by id and add comments
   async function loadPosts(searchQuery) {
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
@@ -1833,6 +1931,19 @@ function getRemoteSession() {
         });
       }
 
+      // Fetch comments for all posts
+      var postIds = posts.map(function (p) { return p.id; });
+      var allComments = [];
+      if (postIds.length > 0) {
+        allComments = await getCommentsForPosts(postIds);
+      }
+      // Group comments by post_id
+      var commentsByPost = {};
+      allComments.forEach(function (c) {
+        if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = [];
+        commentsByPost[c.post_id].push(c);
+      });
+
       feed.innerHTML = "";
       if (posts.length === 0) {
         feed.innerHTML =
@@ -1845,6 +1956,7 @@ function getRemoteSession() {
       }
 
       // Keep the same rendering as before
+      var user = getCurrentUser();
       for (var i = 0; i < posts.length; i++) {
         var post = posts[i];
         var card = document.createElement("div");
@@ -1873,6 +1985,13 @@ function getRemoteSession() {
         }
         actionsHtml += '</div>';
         actionsHtml += '<div class="post-footer-right">';
+        // Comments button
+        var commentCount = (commentsByPost[post.id] || []).length;
+        actionsHtml +=
+          '<button class="btn-comments" data-post-id="' + post.id + '">' +
+            '<i class="fas fa-comment"></i> ' +
+            (commentCount > 0 ? '<span class="comment-count-badge">' + commentCount + '</span>' : 'Comment') +
+          '</button>';
         if (canEdt) {
           actionsHtml +=
             '<button class="btn-edit-post" data-id="' + post.id + '">' +
@@ -1887,6 +2006,22 @@ function getRemoteSession() {
         }
         actionsHtml += '</div></div>';
 
+        // Comments section
+        var commentsSectionId = "comments-container-" + post.id;
+        var commentsHtml =
+          '<div class="post-comments-section">' +
+            '<div class="post-comments-list" id="' + commentsSectionId + '">' +
+              '<!-- comments rendered by JS -->' +
+            '</div>' +
+            '<div class="post-comment-form">' +
+              '<div class="comment-avatar-small">' + (user ? initials(user.name) : 'S') + '</div>' +
+              '<div class="comment-input-wrap">' +
+                '<input type="text" class="comment-input" placeholder="Write a comment..." data-post-id="' + post.id + '">' +
+                '<button class="comment-submit-btn" data-post-id="' + post.id + '"><i class="fas fa-paper-plane"></i></button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+
         card.innerHTML =
           tagHtml +
           '<div class="post-header">' +
@@ -1899,8 +2034,16 @@ function getRemoteSession() {
             '</div>' +
           '</div>' +
           '<div class="post-content">' + post.content + imgHtml + '</div>' +
-          actionsHtml;
+          actionsHtml +
+          commentsHtml;
         feed.appendChild(card);
+
+        // Render comments into the container
+        var commentsContainer = document.getElementById(commentsSectionId);
+        if (commentsContainer) {
+          var postComments = commentsByPost[post.id] || [];
+          renderComments(post.id, postComments, commentsSectionId);
+        }
       }
 
       // Attach event listeners
@@ -1940,6 +2083,39 @@ function getRemoteSession() {
         btn.addEventListener("click", function () {
           var postId = btn.getAttribute("data-id");
           showAcknowledgmentsPopup(postId);
+        });
+      });
+
+      // Comments: toggle expand/collapse (optional) but we always show them.
+      // Comment submit
+      feed.querySelectorAll(".comment-submit-btn").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var postId = btn.getAttribute("data-id");
+          var input = btn.parentElement.querySelector(".comment-input");
+          if (!input) return;
+          var content = input.value.trim();
+          if (!content) {
+            showToast("Please write a comment.", "warning");
+            return;
+          }
+          withLoading(function () { return addComment(postId, content); }).then(function () {
+            input.value = "";
+            // Reload posts to refresh comments
+            loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
+          }).catch(function (err) {
+            showToast(err.message || "Could not add comment.", "error");
+          });
+        });
+      });
+      // Also allow Enter key on comment input
+      feed.querySelectorAll(".comment-input").forEach(function (input) {
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            var btn = this.parentElement.querySelector(".comment-submit-btn");
+            if (btn) btn.click();
+          }
         });
       });
 
