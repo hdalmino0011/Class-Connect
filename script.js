@@ -2965,24 +2965,80 @@ function getRemoteSession() {
     var imageInput = document.getElementById("post-image-input");
     if (imageBtn && imageInput) {
       imageBtn.addEventListener("click", function () { imageInput.click(); });
-      imageInput.addEventListener("change", function () {
+      
+      // ===== FIXED IMAGE UPLOAD HANDLER =====
+      imageInput.addEventListener("change", async function () {
         var file = imageInput.files[0];
         if (!file) return;
+        
+        // Validate file size (5MB max)
         if (file.size > 5 * 1024 * 1024) {
           showToast("Image must be smaller than 5 MB.", "error");
           imageInput.value = "";
           return;
         }
-        var reader = new FileReader();
-        reader.onload = function (e) {
-          currentPostImage = e.target.result;
+
+        try {
+          // Get current user
+          var user = getCurrentUser();
+          if (!user) {
+            showToast("You must be logged in to upload images.", "error");
+            imageInput.value = "";
+            return;
+          }
+
+          // Ensure Supabase is ready
+          if (!isSupabaseReady()) {
+            showToast("Supabase is not available. Please check your connection.", "error");
+            imageInput.value = "";
+            return;
+          }
+
+          // Generate a unique filename
+          var fileExt = file.name.split('.').pop();
+          var fileName = `posts/${user.id}/${Date.now()}.${fileExt}`;
+
+          // Upload to Supabase Storage
+          var { data, error } = await supabaseClient
+            .storage
+            .from('post-images')
+            .upload(fileName, file);
+
+          if (error) {
+            console.error("[ClassConnect] Storage upload error:", error);
+            throw new Error(error.message || "Upload failed.");
+          }
+
+          // Get the public URL
+          var { data: urlData } = supabaseClient
+            .storage
+            .from('post-images')
+            .getPublicUrl(fileName);
+
+          if (!urlData || !urlData.publicUrl) {
+            throw new Error("Could not retrieve the uploaded image URL.");
+          }
+
+          // Store the URL for the post
+          currentPostImage = urlData.publicUrl;
+
+          // Show preview
           var preview = document.getElementById("post-image-preview");
           var img = document.getElementById("post-preview-img");
-          if (preview && img) { img.src = currentPostImage; preview.hidden = false; }
+          if (preview && img) {
+            img.src = currentPostImage;
+            preview.hidden = false;
+          }
+
           imageInput.value = "";
-        };
-        reader.readAsDataURL(file);
+          showToast("Image uploaded successfully.", "success");
+        } catch (error) {
+          console.error("[ClassConnect] Image upload error:", error);
+          showToast("Failed to upload image: " + (error.message || "Unknown error"), "error");
+          imageInput.value = "";
+        }
       });
+      // ===== END FIXED IMAGE UPLOAD HANDLER =====
     }
     var removeBtn = document.getElementById("post-remove-image-btn");
     if (removeBtn) {
