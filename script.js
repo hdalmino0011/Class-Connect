@@ -5,17 +5,7 @@ const SUPABASE_URL = "https://uctodqnrwrroppkaggbl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjdG9kcW5yd3Jyb3Bwa2FnZ2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2ODk0NDYsImV4cCI6MjEwMTI2NTQ0Nn0.EwFU5LmczD8PLLeV0jTFvWxnuMzL65xy_zpkZEAV3NA";
 
 /*
- * Supabase bootstrap
- *
- * The Supabase CDN exposes an SDK namespace at window.supabase. Keep the
- * actual client in a different variable. Reusing the name "supabase" for
- * both objects is a common source of:
- *   Cannot read properties of undefined (reading 'getSession')
- *
- * Supabase is the only source of truth for authentication. The app must not
- * silently create local accounts when the SDK or network is unavailable.
- * Never put a Supabase secret/service-role key in this browser file. The
- * publishable/anon key is the only key that belongs in a client-side app.
+ * Supabase bootstrap — same as before
  */
 let supabaseClient = null;
 let supabaseStatus = "not-initialized";
@@ -110,7 +100,6 @@ function initializeSupabase() {
 }
 
 function getSupabaseClient() {
-  // Retry when the SDK was loaded after this file.
   return initializeSupabase();
 }
 
@@ -178,19 +167,11 @@ function getRemoteSession() {
 (function () {
   "use strict";
 
+  // Remove all localStorage data keys for user data; we'll use Supabase for everything.
+  // Only keep settings (localStorage) for font type preference, etc.
   const KEYS = {
-    POSTS: "cc_posts",
-    SUBJECTS: "cc_subjects",
-    SCHEDULE: "cc_schedule",
-    ASSIGNMENTS: "cc_assignments",
-    GRADES: "cc_grades",
-    PROFILE: "cc_profile",
     SETTINGS: "cc_settings",
-    CLASSMATES: "cc_classmates",
-    CURRICULUM_SUBJECTS: "cc_curriculum_subjects",
-    CURRICULUM_PDF: "cc_curriculum_pdf",
-    COR_PDF: "cc_cor_pdf",
-    POST_ACKNOWLEDGMENTS: "cc_post_acknowledgments",
+    // Keep only settings; everything else will be in Supabase
   };
 
   const ADMIN_EMAILS = ["admin@classconnect.com", "admin@hddev.com"];
@@ -254,6 +235,7 @@ function getRemoteSession() {
     return section.trim().toUpperCase();
   }
 
+  // Legacy getData/setData for settings only
   function getData(key, defaultVal) {
     try {
       const raw = localStorage.getItem(key);
@@ -410,13 +392,837 @@ function getRemoteSession() {
     });
   }
 
+  function getCurrentUser() { return remoteUser; }
+
+  function isLoggedIn() {
+    return !!(remoteUser && remoteUser.email && remoteUser.provider === "supabase");
+  }
+
+  // ---------- Supabase data helpers ----------
+  function supabaseTable(tableName) {
+    var client = getSupabaseClient();
+    if (!isSupabaseReady()) {
+      throw new Error("Supabase is not available.");
+    }
+    return client.from(tableName);
+  }
+
+  async function withAuthCheck(fn) {
+    if (!isLoggedIn()) {
+      throw new Error("You must be logged in.");
+    }
+    return fn();
+  }
+
+  // ===== POSTS =====
+  async function getPosts() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("posts")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("timestamp", { ascending: false }),
+        8000,
+        "Posts load"
+      );
+      if (result.error) throw result.error;
+      return result.data || [];
+    });
+  }
+
+  async function createPost(content, imageData) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var post = {
+        user_id: user.id,
+        author: user.name || "Student",
+        content: content.trim(),
+        image: imageData || null,
+        tag: null,
+        timestamp: new Date().toISOString(),
+      };
+      var result = await withTimeout(
+        supabaseTable("posts").insert(post).select().single(),
+        8000,
+        "Post create"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function updatePost(id, content) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("posts")
+          .update({ content: content.trim() })
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .select()
+          .single(),
+        8000,
+        "Post update"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function deletePost(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("posts")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "Post delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  // ===== POST ACKNOWLEDGMENTS =====
+  async function getPostAcknowledgments(postId) {
+    return withAuthCheck(async function () {
+      var result = await withTimeout(
+        supabaseTable("post_acknowledgments")
+          .select("*")
+          .eq("post_id", postId),
+        8000,
+        "Acknowledgments load"
+      );
+      if (result.error) throw result.error;
+      return result.data || [];
+    });
+  }
+
+  async function toggleAcknowledgePost(postId) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      // Check if already acknowledged
+      var existing = await withTimeout(
+        supabaseTable("post_acknowledgments")
+          .select("*")
+          .eq("post_id", postId)
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        8000,
+        "Acknowledgment check"
+      );
+      if (existing.error) throw existing.error;
+      if (existing.data) {
+        // Remove acknowledgment
+        var del = await withTimeout(
+          supabaseTable("post_acknowledgments")
+            .delete()
+            .eq("post_id", postId)
+            .eq("user_id", user.id),
+          8000,
+          "Acknowledgment remove"
+        );
+        if (del.error) throw del.error;
+        return false; // now not acknowledged
+      } else {
+        // Add acknowledgment
+        var newAck = {
+          post_id: postId,
+          user_id: user.id,
+          name: user.name || "Student",
+          email: user.email,
+        };
+        var ins = await withTimeout(
+          supabaseTable("post_acknowledgments").insert(newAck).select().single(),
+          8000,
+          "Acknowledgment add"
+        );
+        if (ins.error) throw ins.error;
+        return true; // now acknowledged
+      }
+    });
+  }
+
+  async function hasAcknowledgedPost(postId) {
+    try {
+      var acks = await getPostAcknowledgments(postId);
+      var user = getCurrentUser();
+      return acks.some(function (a) { return a.user_id === user.id; });
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ===== SUBJECTS =====
+  async function getSubjects() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("subjects")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+        8000,
+        "Subjects load"
+      );
+      if (result.error) throw result.error;
+      return result.data || [];
+    });
+  }
+
+  async function addSubject(name, professor, schedule) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var colors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
+      var existing = await getSubjects();
+      var color = colors[existing.length % colors.length];
+      var newSubject = {
+        user_id: user.id,
+        name: name.trim(),
+        professor: professor.trim(),
+        schedule: schedule.trim(),
+        color: color,
+        tasks: [],
+      };
+      var result = await withTimeout(
+        supabaseTable("subjects").insert(newSubject).select().single(),
+        8000,
+        "Subject add"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function updateSubject(id, data) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("subjects")
+          .update(data)
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .select()
+          .single(),
+        8000,
+        "Subject update"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function deleteSubject(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("subjects")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "Subject delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  async function addSubjectTask(subjectId, text) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      // Fetch current subject
+      var subj = await withTimeout(
+        supabaseTable("subjects")
+          .select("tasks")
+          .eq("id", subjectId)
+          .eq("user_id", user.id)
+          .single(),
+        8000,
+        "Subject fetch"
+      );
+      if (subj.error) throw subj.error;
+      var tasks = subj.data.tasks || [];
+      var newTask = { id: cryptoId(), text: text.trim(), completed: false };
+      tasks.push(newTask);
+      var result = await withTimeout(
+        supabaseTable("subjects")
+          .update({ tasks: tasks })
+          .eq("id", subjectId)
+          .eq("user_id", user.id)
+          .select()
+          .single(),
+        8000,
+        "Subject task add"
+      );
+      if (result.error) throw result.error;
+      return newTask;
+    });
+  }
+
+  async function toggleSubjectTask(subjectId, taskId) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var subj = await withTimeout(
+        supabaseTable("subjects")
+          .select("tasks")
+          .eq("id", subjectId)
+          .eq("user_id", user.id)
+          .single(),
+        8000,
+        "Subject fetch"
+      );
+      if (subj.error) throw subj.error;
+      var tasks = subj.data.tasks || [];
+      var task = tasks.find(function (t) { return t.id === taskId; });
+      if (task) {
+        task.completed = !task.completed;
+        var result = await withTimeout(
+          supabaseTable("subjects")
+            .update({ tasks: tasks })
+            .eq("id", subjectId)
+            .eq("user_id", user.id),
+          8000,
+          "Subject task toggle"
+        );
+        if (result.error) throw result.error;
+        return true;
+      }
+      return false;
+    });
+  }
+
+  async function deleteSubjectTask(subjectId, taskId) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var subj = await withTimeout(
+        supabaseTable("subjects")
+          .select("tasks")
+          .eq("id", subjectId)
+          .eq("user_id", user.id)
+          .single(),
+        8000,
+        "Subject fetch"
+      );
+      if (subj.error) throw subj.error;
+      var tasks = subj.data.tasks || [];
+      var newTasks = tasks.filter(function (t) { return t.id !== taskId; });
+      var result = await withTimeout(
+        supabaseTable("subjects")
+          .update({ tasks: newTasks })
+          .eq("id", subjectId)
+          .eq("user_id", user.id),
+        8000,
+        "Subject task delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  // ===== SCHEDULE =====
+  async function getSchedule() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("schedule")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+        8000,
+        "Schedule load"
+      );
+      if (result.error) throw result.error;
+      return result.data || [];
+    });
+  }
+
+  async function addScheduleItem(subject, day, startTime, endTime, room) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var item = {
+        user_id: user.id,
+        subject: subject.trim(),
+        day: day.trim(),
+        start_time: startTime,
+        end_time: endTime,
+        room: room.trim(),
+      };
+      var result = await withTimeout(
+        supabaseTable("schedule").insert(item).select().single(),
+        8000,
+        "Schedule add"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function updateScheduleItem(id, data) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("schedule")
+          .update(data)
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .select()
+          .single(),
+        8000,
+        "Schedule update"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function deleteScheduleItem(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("schedule")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "Schedule delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  // ===== ASSIGNMENTS =====
+  async function getAssignments() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("assignments")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        8000,
+        "Assignments load"
+      );
+      if (result.error) throw result.error;
+      return result.data || [];
+    });
+  }
+
+  async function addAssignment(text, subject, dueDate) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var item = {
+        user_id: user.id,
+        text: text.trim(),
+        subject: subject.trim(),
+        due_date: dueDate || "",
+        completed: false,
+      };
+      var result = await withTimeout(
+        supabaseTable("assignments").insert(item).select().single(),
+        8000,
+        "Assignment add"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function toggleAssignment(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      // Fetch current status
+      var current = await withTimeout(
+        supabaseTable("assignments")
+          .select("completed")
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .single(),
+        8000,
+        "Assignment fetch"
+      );
+      if (current.error) throw current.error;
+      var newCompleted = !current.data.completed;
+      var result = await withTimeout(
+        supabaseTable("assignments")
+          .update({ completed: newCompleted })
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "Assignment toggle"
+      );
+      if (result.error) throw result.error;
+      return newCompleted;
+    });
+  }
+
+  async function deleteAssignment(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("assignments")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "Assignment delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  // ===== GRADES =====
+  async function getGrades() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("grades")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+        8000,
+        "Grades load"
+      );
+      if (result.error) throw result.error;
+      return result.data || [];
+    });
+  }
+
+  async function addGrade(subject, gradeValue, units, year, semester, exclude) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var item = {
+        user_id: user.id,
+        subject: subject.trim(),
+        grade: parseFloat(gradeValue),
+        units: parseFloat(units) || 3,
+        year: year || "1st Year",
+        semester: semester || "1st Semester",
+        exclude: !!exclude,
+      };
+      var result = await withTimeout(
+        supabaseTable("grades").insert(item).select().single(),
+        8000,
+        "Grade add"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function updateGrade(id, data) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("grades")
+          .update(data)
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .select()
+          .single(),
+        8000,
+        "Grade update"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function deleteGrade(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("grades")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "Grade delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  async function toggleGradeExclude(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var current = await withTimeout(
+        supabaseTable("grades")
+          .select("exclude")
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .single(),
+        8000,
+        "Grade fetch"
+      );
+      if (current.error) throw current.error;
+      var newExclude = !current.data.exclude;
+      var result = await withTimeout(
+        supabaseTable("grades")
+          .update({ exclude: newExclude })
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "Grade exclude toggle"
+      );
+      if (result.error) throw result.error;
+      return newExclude;
+    });
+  }
+
+  // ===== CURRICULUM SUBJECTS =====
+  async function getCurriculumSubjects() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("curriculum_subjects")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+        8000,
+        "Curriculum subjects load"
+      );
+      if (result.error) throw result.error;
+      return result.data || [];
+    });
+  }
+
+  async function addCurriculumSubject(name, code, schedule, year, semester) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var item = {
+        user_id: user.id,
+        name: name.trim(),
+        code: code.trim(),
+        schedule: schedule.trim(),
+        year: year.trim(),
+        semester: semester || "1st Semester",
+      };
+      var result = await withTimeout(
+        supabaseTable("curriculum_subjects").insert(item).select().single(),
+        8000,
+        "Curriculum subject add"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function updateCurriculumSubject(id, data) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("curriculum_subjects")
+          .update(data)
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .select()
+          .single(),
+        8000,
+        "Curriculum subject update"
+      );
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function deleteCurriculumSubject(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("curriculum_subjects")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "Curriculum subject delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  // ===== CURRICULUM PDF =====
+  async function getCurriculumPDF() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("curriculum_pdf")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        8000,
+        "Curriculum PDF load"
+      );
+      if (result.error) throw result.error;
+      return result.data || null;
+    });
+  }
+
+  async function saveCurriculumPDF(name, data) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var existing = await getCurriculumPDF();
+      var payload = {
+        user_id: user.id,
+        name: name.trim(),
+        data: data,
+      };
+      var result;
+      if (existing) {
+        result = await withTimeout(
+          supabaseTable("curriculum_pdf")
+            .update(payload)
+            .eq("id", existing.id)
+            .eq("user_id", user.id)
+            .select()
+            .single(),
+          8000,
+          "Curriculum PDF update"
+        );
+      } else {
+        result = await withTimeout(
+          supabaseTable("curriculum_pdf").insert(payload).select().single(),
+          8000,
+          "Curriculum PDF insert"
+        );
+      }
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function removeCurriculumPDF() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var existing = await getCurriculumPDF();
+      if (!existing) return true;
+      var result = await withTimeout(
+        supabaseTable("curriculum_pdf")
+          .delete()
+          .eq("id", existing.id)
+          .eq("user_id", user.id),
+        8000,
+        "Curriculum PDF delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  // ===== COR PDF =====
+  async function getCORPDF() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var result = await withTimeout(
+        supabaseTable("cor_pdf")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        8000,
+        "COR PDF load"
+      );
+      if (result.error) throw result.error;
+      return result.data || null;
+    });
+  }
+
+  async function saveCORPDF(name, data) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var existing = await getCORPDF();
+      var payload = {
+        user_id: user.id,
+        name: name.trim(),
+        data: data,
+      };
+      var result;
+      if (existing) {
+        result = await withTimeout(
+          supabaseTable("cor_pdf")
+            .update(payload)
+            .eq("id", existing.id)
+            .eq("user_id", user.id)
+            .select()
+            .single(),
+          8000,
+          "COR PDF update"
+        );
+      } else {
+        result = await withTimeout(
+          supabaseTable("cor_pdf").insert(payload).select().single(),
+          8000,
+          "COR PDF insert"
+        );
+      }
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  }
+
+  async function removeCORPDF() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var existing = await getCORPDF();
+      if (!existing) return true;
+      var result = await withTimeout(
+        supabaseTable("cor_pdf")
+          .delete()
+          .eq("id", existing.id)
+          .eq("user_id", user.id),
+        8000,
+        "COR PDF delete"
+      );
+      if (result.error) throw result.error;
+      return true;
+    });
+  }
+
+  // ===== Save profile =====
+  async function saveProfile(data) {
+    const user = getCurrentUser();
+    if (!user || !isSupabaseReady()) {
+      throw new Error("No active Supabase session is available.");
+    }
+    remoteProfile = Object.assign({}, getProfile(), data, {
+      email: user.email.toLowerCase(),
+      section: data.section ? normalizeSection(data.section) : getProfile().section,
+    });
+    var saved = await upsertRemoteProfile(remoteProfile);
+    if (saved && saved.name && remoteUser) remoteUser.name = saved.name;
+    return saved;
+  }
+
+  function getProfile() {
+    const user = getCurrentUser();
+    if (!user) return {};
+    if (remoteProfile) return Object.assign({}, remoteProfile);
+    return { name: user.name, email: user.email, section: "BSIT 3-A" };
+  }
+
+  function getProfilePhoto() {
+    return getProfile().photo || null;
+  }
+
+  async function saveProfilePhoto(base64) {
+    const p = getProfile();
+    p.photo = base64;
+    return saveProfile(p);
+  }
+
+  // Legacy auth functions (now use Supabase)
   function saveRemoteUserSession(authUser) {
     if (!authUser || !authUser.email) {
       console.warn("[ClassConnect] Supabase returned no authenticated user.");
       remoteUser = null;
       return null;
     }
-
     remoteUser = {
       id: authUser.id || cryptoId(),
       name: authUserName(authUser),
@@ -505,6 +1311,7 @@ function getRemoteSession() {
     return remoteProfile;
   }
 
+  // ===== AUTH functions =====
   async function signup(name, email, password) {
     console.log("[ClassConnect] Signup requested for:", email);
 
@@ -647,1555 +1454,53 @@ function getRemoteSession() {
     });
   }
 
-  function getCurrentUser() { return remoteUser; }
-
-  function isLoggedIn() {
-    return !!(remoteUser && remoteUser.email && remoteUser.provider === "supabase");
-  }
-
-  function getProfile() {
-    const user = getCurrentUser();
-    if (!user) return {};
-    if (remoteProfile) return Object.assign({}, remoteProfile);
-    return { name: user.name, email: user.email, section: "BSIT 3-A" };
-  }
-
-  async function saveProfile(data) {
-    const user = getCurrentUser();
-    if (!user || !isSupabaseReady()) {
-      throw new Error("No active Supabase session is available.");
+  // Password change
+  async function changePassword(currentPwd, newPwd, confirmPwd) {
+    if (!currentPwd || !newPwd || !confirmPwd) {
+      return { success: false, message: "Please fill in all password fields." };
     }
-    remoteProfile = Object.assign({}, getProfile(), data, {
-      email: user.email.toLowerCase(),
-      section: data.section ? normalizeSection(data.section) : getProfile().section,
-    });
-    var saved = await upsertRemoteProfile(remoteProfile);
-    if (saved && saved.name && remoteUser) remoteUser.name = saved.name;
-    return saved;
-  }
-
-  function getProfilePhoto() {
-    return getProfile().photo || null;
-  }
-
-  async function saveProfilePhoto(base64) {
-    const p = getProfile();
-    p.photo = base64;
-    return saveProfile(p);
-  }
-
-  function userKey(base) {
-    const user = getCurrentUser();
-    if (!user) return base;
-    return base + "_" + user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
-  }
-
-  /* ===== POSTS & DASHBOARD SEARCH ===== */
-  function getPosts() { return getData(userKey(KEYS.POSTS), []); }
-  function savePosts(posts) { setData(userKey(KEYS.POSTS), posts); }
-
-  function seedDemoPosts() {
-    if (getPosts().length > 0) return;
-    savePosts([
-      {
-        id: cryptoId(),
-        author: "Prof. Santos",
-        content: "<strong>Reminder:</strong> Project proposals are due this Friday, 11:59 PM. Submit through the class portal.",
-        tag: "Web Systems and Technologies",
-        timestamp: Date.now() - 1000 * 60 * 60 * 3,
-        image: null,
-      },
-      {
-        id: cryptoId(),
-        author: "Maria Delacruz",
-        content: "Does anyone have notes from yesterday's lecture on binary trees? I missed the last 20 minutes.",
-        tag: "Data Structures and Algorithms",
-        timestamp: Date.now() - 1000 * 60 * 60 * 20,
-        image: null,
-      },
-      {
-        id: cryptoId(),
-        author: "Prof. Reyes",
-        content: "<strong>Notice:</strong> Class is moved to Room 402 for next week due to maintenance in our usual room.",
-        tag: "Networking II",
-        timestamp: Date.now() - 1000 * 60 * 60 * 30,
-        image: null,
-      },
-    ]);
-  }
-
-  function createPost(content, imageData) {
-    const user = getCurrentUser();
-    const posts = getPosts();
-    const post = {
-      id: cryptoId(),
-      author: user ? user.name : "Student",
-      content: content.trim(),
-      tag: null,
-      timestamp: Date.now(),
-      image: imageData || null,
-    };
-    posts.unshift(post);
-    savePosts(posts);
-    return post;
-  }
-
-  function updatePost(id, content) {
-    const posts = getPosts();
-    const idx = posts.findIndex(function (p) { return p.id === id; });
-    if (idx === -1) return null;
-    posts[idx].content = content.trim();
-    savePosts(posts);
-    return posts[idx];
-  }
-
-  function deletePost(id) {
-    savePosts(getPosts().filter(function (p) { return p.id !== id; }));
-  }
-
-  function canDeletePost(postId) {
+    if (newPwd.length < 6) {
+      return { success: false, message: "New password must be at least 6 characters." };
+    }
+    if (newPwd !== confirmPwd) {
+      return { success: false, message: "New passwords do not match." };
+    }
     var user = getCurrentUser();
-    if (!user) return false;
-    if (isAdmin()) return true;
-    var posts = getPosts();
-    var found = posts.find(function (p) { return p.id === postId; });
-    if (!found) return false;
-    return found.author === user.name;
-  }
-
-  function canEditPost(postId) {
-    var user = getCurrentUser();
-    if (!user) return false;
-    var posts = getPosts();
-    var found = posts.find(function (p) { return p.id === postId; });
-    if (!found) return false;
-    return found.author === user.name;
-  }
-
-  function getPostAcknowledgmentKey(postId) {
-    return userKey(KEYS.POST_ACKNOWLEDGMENTS) + "_" + postId;
-  }
-
-  function getPostAcknowledgments(postId) {
-    return getData(getPostAcknowledgmentKey(postId), []);
-  }
-
-  function savePostAcknowledgments(postId, data) {
-    setData(getPostAcknowledgmentKey(postId), data);
-  }
-
-  function toggleAcknowledgePost(postId) {
-    var user = getCurrentUser();
-    if (!user) return false;
-    var acks = getPostAcknowledgments(postId);
-    var idx = acks.findIndex(function (a) {
-      return a.email.toLowerCase() === user.email.toLowerCase();
-    });
-    if (idx === -1) {
-      acks.push({ name: user.name, email: user.email, timestamp: Date.now() });
-      savePostAcknowledgments(postId, acks);
-      return true;
-    } else {
-      acks.splice(idx, 1);
-      savePostAcknowledgments(postId, acks);
-      return false;
+    if (!user) return { success: false, message: "Not logged in." };
+    if (!isSupabaseReady()) {
+      return { success: false, message: "Supabase is unavailable. Password was not changed." };
     }
-  }
-
-  function hasAcknowledgedPost(postId) {
-    var user = getCurrentUser();
-    if (!user) return false;
-    var acks = getPostAcknowledgments(postId);
-    return acks.some(function (a) {
-      return a.email.toLowerCase() === user.email.toLowerCase();
-    });
-  }
-
-  function loadPosts(searchQuery) {
-    const feed = document.getElementById("posts-feed");
-    if (!feed) return;
-    var posts = getPosts();
-
-    if (searchQuery && searchQuery.trim() !== "") {
-      var q = searchQuery.trim().toLowerCase();
-      posts = posts.filter(function (p) {
-        var matchAuthor = p.author && p.author.toLowerCase().indexOf(q) !== -1;
-        var matchContent = p.content && p.content.toLowerCase().indexOf(q) !== -1;
-        var matchTag = p.tag && p.tag.toLowerCase().indexOf(q) !== -1;
-        var matchDate = timeAgo(p.timestamp).toLowerCase().indexOf(q) !== -1;
-        return matchAuthor || matchContent || matchTag || matchDate;
-      });
-    }
-
-    feed.innerHTML = "";
-    if (posts.length === 0) {
-      feed.innerHTML =
-        '<div class="empty-state">' +
-          '<div class="empty-icon"><i class="fas fa-search"></i></div>' +
-          '<p class="empty-title">' + (searchQuery ? 'No matching posts found' : 'No posts yet') + '</p>' +
-          '<p class="empty-sub">' + (searchQuery ? 'Try searching for another keyword or author.' : 'Be the first to share something with your class.') + '</p>' +
-        '</div>';
-      return;
-    }
-
-    posts.forEach(function (post) {
-      const card = document.createElement("div");
-      card.className = "post-card";
-      var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy"></div>' : "";
-      var tagHtml = post.tag ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>' : "";
-
-      var canDel = canDeletePost(post.id);
-      var canEdt = canEditPost(post.id);
-      var hasAck = hasAcknowledgedPost(post.id);
-      var acks = getPostAcknowledgments(post.id);
-      var ackCount = acks.length;
-
-      var actionsHtml = '<div class="post-footer">';
-      actionsHtml += '<div class="post-footer-left">';
-      actionsHtml +=
-        '<button class="btn-acknowledge ' + (hasAck ? "acknowledged" : "") + '" data-id="' + post.id + '">' +
-          '<i class="fas ' + (hasAck ? "fa-check-circle" : "fa-circle") + '"></i> ' +
-          (hasAck ? "Acknowledged" : "Acknowledge") +
-        '</button>';
-      if (ackCount > 0) {
-        actionsHtml +=
-          '<span class="acknowledge-count" data-id="' + post.id + '" title="View who acknowledged">' +
-            ackCount + ' ' + (ackCount === 1 ? "person" : "people") +
-          '</span>';
+    try {
+      var client = getSupabaseClient();
+      var verify = await withTimeout(
+        client.auth.signInWithPassword({ email: user.email, password: currentPwd }),
+        8000,
+        "Supabase password verification"
+      );
+      if (!verify || verify.error) {
+        return { success: false, message: (verify && verify.error && verify.error.message) || "Current password is incorrect." };
       }
-      actionsHtml += '</div>';
-      actionsHtml += '<div class="post-footer-right">';
-      if (canEdt) {
-        actionsHtml +=
-          '<button class="btn-edit-post" data-id="' + post.id + '">' +
-            '<i class="fas fa-pen"></i> Edit' +
-          '</button>';
+      var response = await withTimeout(
+        client.auth.updateUser({ password: newPwd }),
+        8000,
+        "Supabase password update"
+      );
+      if (response && response.error) {
+        return { success: false, message: response.error.message || "Unable to update your password." };
       }
-      if (canDel) {
-        actionsHtml +=
-          '<button class="btn-delete-post" data-id="' + post.id + '">' +
-            '<i class="fas fa-trash"></i> Delete' +
-          '</button>';
-      }
-      actionsHtml += '</div></div>';
-
-      card.innerHTML =
-        tagHtml +
-        '<div class="post-header">' +
-          '<div class="avatar-circle post-avatar" style="background:' + stringToColor(post.author) + '">' +
-            escapeHtml(initials(post.author)) +
-          '</div>' +
-          '<div class="post-author-info">' +
-            '<span class="post-author-name">' + escapeHtml(post.author) + '</span>' +
-            '<span class="post-timestamp"><i class="fas fa-clock"></i> ' + timeAgo(post.timestamp) + '</span>' +
-          '</div>' +
-        '</div>' +
-        '<div class="post-content">' + post.content + imgHtml + '</div>' +
-        actionsHtml;
-      feed.appendChild(card);
-    });
-
-    feed.querySelectorAll(".btn-delete-post").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        showConfirm("Delete this post?", function () {
-          deletePost(btn.getAttribute("data-id"));
-          loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
-          showToast("Post deleted.", "info");
-        });
-      });
-    });
-
-    feed.querySelectorAll(".btn-edit-post").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var postId = btn.getAttribute("data-id");
-        openEditPostModal(postId);
-      });
-    });
-
-    feed.querySelectorAll(".btn-acknowledge").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var postId = btn.getAttribute("data-id");
-        toggleAcknowledgePost(postId);
-        loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
-      });
-    });
-
-    feed.querySelectorAll(".acknowledge-count").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var postId = btn.getAttribute("data-id");
-        showAcknowledgmentsPopup(postId);
-      });
-    });
-  }
-
-  function showAcknowledgmentsPopup(postId) {
-    var acks = getPostAcknowledgments(postId);
-    var overlay = document.createElement("div");
-    overlay.className = "acknowledgments-popup-overlay active";
-    var popup = document.createElement("div");
-    popup.className = "acknowledgments-popup active";
-    var listHtml = "";
-    if (acks.length === 0) {
-      listHtml = '<p style="text-align:center;color:var(--gray-400);padding:16px 0;">No one has acknowledged this post yet.</p>';
-    } else {
-      listHtml = '<div class="acknowledgments-list">';
-      acks.forEach(function (a) {
-        var color = stringToColor(a.name);
-        listHtml +=
-          '<div class="ack-item">' +
-            '<div class="ack-avatar" style="background:' + color + '">' + escapeHtml(initials(a.name)) + '</div>' +
-            '<span>' + escapeHtml(a.name) + '</span>' +
-          '</div>';
-      });
-      listHtml += '</div>';
-    }
-    popup.innerHTML =
-      '<h4>People who acknowledged</h4>' +
-      listHtml +
-      '<button class="acknowledgments-close">Close</button>';
-    document.body.appendChild(overlay);
-    document.body.appendChild(popup);
-    popup.querySelector(".acknowledgments-close").addEventListener("click", function () {
-      overlay.remove();
-      popup.remove();
-    });
-    overlay.addEventListener("click", function () {
-      overlay.remove();
-      popup.remove();
-    });
-  }
-
-  function openEditPostModal(postId) {
-    var posts = getPosts();
-    var found = posts.find(function (p) { return p.id === postId; });
-    if (!found) { showToast("Post not found.", "error"); return; }
-    var editor = document.getElementById("edit-post-content-editable");
-    var idField = document.getElementById("edit-post-id");
-    if (editor) editor.innerHTML = found.content;
-    if (idField) idField.value = postId;
-    openModal("edit-post-modal-overlay");
-    setTimeout(function () { if (editor) editor.focus(); }, 300);
-  }
-
-  /* ===== SUBJECTS ===== */
-  function getSubjects() { return getData(userKey(KEYS.SUBJECTS), []); }
-  function saveSubjects(subjects) { setData(userKey(KEYS.SUBJECTS), subjects); }
-
-  var SUBJECT_COLORS = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
-
-  function addSubject(name, professor, schedule) {
-    const subjects = getSubjects();
-    const subject = {
-      id: cryptoId(),
-      name: name.trim(),
-      professor: professor.trim(),
-      schedule: schedule.trim(),
-      tasks: [],
-      color: SUBJECT_COLORS[subjects.length % SUBJECT_COLORS.length],
-    };
-    subjects.push(subject);
-    saveSubjects(subjects);
-    return subject;
-  }
-
-  function updateSubject(id, data) {
-    const subjects = getSubjects();
-    const idx = subjects.findIndex(function (s) { return s.id === id; });
-    if (idx === -1) return null;
-    subjects[idx] = Object.assign({}, subjects[idx], data);
-    saveSubjects(subjects);
-    return subjects[idx];
-  }
-
-  function deleteSubject(id) {
-    saveSubjects(getSubjects().filter(function (s) { return s.id !== id; }));
-  }
-
-  function addSubjectTask(subjectId, text) {
-    const subjects = getSubjects();
-    const idx = subjects.findIndex(function (s) { return s.id === subjectId; });
-    if (idx === -1) return null;
-    if (!subjects[idx].tasks) subjects[idx].tasks = [];
-    const task = { id: cryptoId(), text: text.trim(), completed: false };
-    subjects[idx].tasks.push(task);
-    saveSubjects(subjects);
-    return task;
-  }
-
-  function toggleSubjectTask(subjectId, taskId) {
-    const subjects = getSubjects();
-    const idx = subjects.findIndex(function (s) { return s.id === subjectId; });
-    if (idx === -1) return;
-    const tIdx = (subjects[idx].tasks || []).findIndex(function (t) { return t.id === taskId; });
-    if (tIdx === -1) return;
-    subjects[idx].tasks[tIdx].completed = !subjects[idx].tasks[tIdx].completed;
-    saveSubjects(subjects);
-  }
-
-  function deleteSubjectTask(subjectId, taskId) {
-    const subjects = getSubjects();
-    const idx = subjects.findIndex(function (s) { return s.id === subjectId; });
-    if (idx === -1) return;
-    subjects[idx].tasks = (subjects[idx].tasks || []).filter(function (t) { return t.id !== taskId; });
-    saveSubjects(subjects);
-  }
-
-  function loadSubjects() {
-    const list = document.getElementById("subjects-list");
-    if (!list) return;
-    const subjects = getSubjects();
-    list.innerHTML = "";
-    if (subjects.length === 0) {
-      list.innerHTML =
-        '<div class="empty-state">' +
-          '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
-          '<p class="empty-title">No subjects yet</p>' +
-          '<p class="empty-sub">Click "Add Subject" to get started.</p>' +
-        '</div>';
-      return;
-    }
-    subjects.forEach(function (subject) {
-      const card = document.createElement("div");
-      card.className = "subject-card";
-      card.style.borderLeftColor = subject.color || "#2563EB";
-      const tasks = subject.tasks || [];
-      const done = tasks.filter(function (t) { return t.completed; }).length;
-      const total = tasks.length;
-      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-      var progressHtml = total > 0
-        ? '<div class="subject-progress-wrap">' +
-            '<div class="subject-progress-track">' +
-              '<div class="subject-progress-fill" style="width:' + pct + '%;background:' + (subject.color || "#2563EB") + '"></div>' +
-            '</div>' +
-            '<span class="subject-progress-label">' + done + ' / ' + total + ' tasks complete</span>' +
-          '</div>'
-        : "";
-      var tasksHtml = "";
-      if (tasks.length > 0) {
-        tasksHtml += '<p class="subject-tasks-label"><i class="fas fa-list-check"></i> Tasks</p>';
-        tasks.forEach(function (task) {
-          tasksHtml +=
-            '<div class="subject-task-item">' +
-              '<input type="checkbox" class="task-checkbox" ' +
-                'data-subject-id="' + subject.id + '" ' +
-                'data-task-id="' + task.id + '" ' +
-                (task.completed ? "checked" : "") + '>' +
-              '<span class="task-text ' + (task.completed ? "completed" : "") + '">' +
-                escapeHtml(task.text) +
-              '</span>' +
-              '<button class="btn-task-delete" ' +
-                'data-subject-id="' + subject.id + '" ' +
-                'data-task-id="' + task.id + '" ' +
-                'title="Delete task">' +
-                '<i class="fas fa-xmark"></i>' +
-              '</button>' +
-            '</div>';
-        });
-      }
-      card.innerHTML =
-        '<div class="subject-card-header">' +
-          '<div class="subject-card-title">' +
-            '<span class="subject-color-dot" style="background:' + (subject.color || "#2563EB") + '"></span>' +
-            '<h4>' + escapeHtml(subject.name) + '</h4>' +
-          '</div>' +
-          '<div class="subject-actions">' +
-            '<button class="btn-icon btn-edit-subject" data-id="' + subject.id + '" title="Edit subject">' +
-              '<i class="fas fa-pen"></i>' +
-            '</button>' +
-            '<button class="btn-icon btn-delete-subject" data-id="' + subject.id + '" title="Delete subject">' +
-              '<i class="fas fa-trash"></i>' +
-            '</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="subject-meta">' +
-          '<span><i class="fas fa-user-tie"></i> ' + escapeHtml(subject.professor || "No professor assigned") + '</span>' +
-          '<span><i class="fas fa-calendar"></i> ' + escapeHtml(subject.schedule || "No schedule set") + '</span>' +
-        '</div>' +
-        progressHtml +
-        '<div class="subject-tasks">' +
-          tasksHtml +
-          '<button class="subject-add-task-btn" data-subject-id="' + subject.id + '">' +
-            '<i class="fas fa-plus"></i> Add Task' +
-          '</button>' +
-        '</div>';
-      list.appendChild(card);
-    });
-    list.querySelectorAll(".btn-edit-subject").forEach(function (btn) {
-      btn.addEventListener("click", function () { editSubject(btn.getAttribute("data-id")); });
-    });
-    list.querySelectorAll(".btn-delete-subject").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        showConfirm("Delete this subject and all its tasks?", function () {
-          deleteSubject(btn.getAttribute("data-id"));
-          loadSubjects();
-          showToast("Subject deleted.", "info");
-        });
-      });
-    });
-    list.querySelectorAll(".task-checkbox").forEach(function (cb) {
-      cb.addEventListener("change", function () {
-        toggleSubjectTask(cb.getAttribute("data-subject-id"), cb.getAttribute("data-task-id"));
-        loadSubjects();
-      });
-    });
-    list.querySelectorAll(".btn-task-delete").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        showConfirm("Delete this task?", function () {
-          deleteSubjectTask(btn.getAttribute("data-subject-id"), btn.getAttribute("data-task-id"));
-          loadSubjects();
-          showToast("Task deleted.", "info");
-        });
-      });
-    });
-    list.querySelectorAll(".subject-add-task-btn").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        document.getElementById("subject-task-subject-id").value = btn.getAttribute("data-subject-id");
-        document.getElementById("subject-task-text").value = "";
-        openModal("subject-task-modal-overlay");
-      });
-    });
-  }
-
-  function editSubject(id) {
-    const subject = getSubjects().find(function (s) { return s.id === id; });
-    if (!subject) return;
-    document.getElementById("subject-edit-id").value = id;
-    document.getElementById("subject-name").value = subject.name;
-    document.getElementById("subject-professor").value = subject.professor || "";
-    document.getElementById("subject-schedule").value = subject.schedule || "";
-    document.getElementById("subject-modal-title").textContent = "Edit Subject";
-    openModal("subject-modal-overlay");
-  }
-
-  /* ===== SCHEDULE ===== */
-  function getSchedule() { return getData(userKey(KEYS.SCHEDULE), []); }
-  function saveSchedule(schedule) { setData(userKey(KEYS.SCHEDULE), schedule); }
-
-  function addScheduleItem(subject, day, startTime, endTime, room) {
-    const schedule = getSchedule();
-    const item = {
-      id: cryptoId(),
-      subject: subject.trim(),
-      day: day.trim(),
-      startTime: startTime,
-      endTime: endTime,
-      room: room.trim(),
-    };
-    schedule.push(item);
-    saveSchedule(schedule);
-    return item;
-  }
-
-  function updateScheduleItem(id, data) {
-    const schedule = getSchedule();
-    const idx = schedule.findIndex(function (s) { return s.id === id; });
-    if (idx === -1) return null;
-    schedule[idx] = Object.assign({}, schedule[idx], data);
-    saveSchedule(schedule);
-    return schedule[idx];
-  }
-
-  function deleteScheduleItem(id) {
-    saveSchedule(getSchedule().filter(function (s) { return s.id !== id; }));
-  }
-
-  function loadSchedule() {
-    const list = document.getElementById("schedule-list");
-    if (!list) return;
-    const schedule = getSchedule();
-    list.innerHTML = "";
-    if (schedule.length === 0) {
-      list.innerHTML =
-        '<div class="empty-state">' +
-          '<div class="empty-icon"><i class="fas fa-calendar-days"></i></div>' +
-          '<p class="empty-title">No schedule yet</p>' +
-          '<p class="empty-sub">Click "Add Schedule" to get started.</p>' +
-        '</div>';
-      return;
-    }
-    const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
-    const sorted = schedule.slice().sort(function (a, b) {
-      var da = a.day ? a.day.substring(0, 3) : "";
-      var db = b.day ? b.day.substring(0, 3) : "";
-      var od = (dayOrder[da] !== undefined ? dayOrder[da] : 99) - (dayOrder[db] !== undefined ? dayOrder[db] : 99);
-      return od !== 0 ? od : (a.startTime || "").localeCompare(b.startTime || "");
-    });
-    const badgeColors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
-    sorted.forEach(function (item) {
-      const card = document.createElement("div");
-      card.className = "schedule-card";
-      var dayIdx = item.day ? (dayOrder[item.day.substring(0, 3)] || 0) : 0;
-      card.innerHTML =
-        '<div class="schedule-card-top">' +
-          '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
-            escapeHtml(item.day || "N/A") +
-          '</div>' +
-          '<div class="schedule-card-actions">' +
-            '<button class="btn-icon btn-edit-schedule" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
-            '<button class="btn-icon btn-delete-schedule" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="schedule-card-info">' +
-          '<h4>' + escapeHtml(item.subject) + '</h4>' +
-          '<p class="schedule-time"><i class="fas fa-clock"></i> ' +
-            formatTime12h(item.startTime) + ' &ndash; ' + formatTime12h(item.endTime) +
-          '</p>' +
-          '<p class="schedule-room"><i class="fas fa-location-dot"></i> ' +
-            escapeHtml(item.room || "No room assigned") +
-          '</p>' +
-        '</div>';
-      list.appendChild(card);
-    });
-    list.querySelectorAll(".btn-edit-schedule").forEach(function (btn) {
-      btn.addEventListener("click", function () { editScheduleItem(btn.getAttribute("data-id")); });
-    });
-    list.querySelectorAll(".btn-delete-schedule").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        showConfirm("Delete this schedule entry?", function () {
-          deleteScheduleItem(btn.getAttribute("data-id"));
-          loadSchedule();
-          showToast("Schedule entry deleted.", "info");
-        });
-      });
-    });
-  }
-
-  function editScheduleItem(id) {
-    const item = getSchedule().find(function (s) { return s.id === id; });
-    if (!item) return;
-    document.getElementById("schedule-edit-id").value = id;
-    document.getElementById("schedule-subject").value = item.subject;
-    document.getElementById("schedule-day").value = item.day || "";
-    document.getElementById("schedule-start-time").value = item.startTime || "";
-    document.getElementById("schedule-end-time").value = item.endTime || "";
-    document.getElementById("schedule-room").value = item.room || "";
-    document.getElementById("schedule-modal-title").textContent = "Edit Schedule";
-    openModal("schedule-modal-overlay");
-  }
-
-  /* ===== ASSIGNMENTS ===== */
-  function getAssignments() { return getData(userKey(KEYS.ASSIGNMENTS), []); }
-  function saveAssignments(assignments) { setData(userKey(KEYS.ASSIGNMENTS), assignments); }
-
-  function addAssignment(text, subject, dueDate) {
-    const assignments = getAssignments();
-    const item = {
-      id: cryptoId(),
-      text: text.trim(),
-      subject: subject.trim(),
-      dueDate: dueDate || "",
-      completed: false,
-      createdAt: Date.now(),
-    };
-    assignments.unshift(item);
-    saveAssignments(assignments);
-    return item;
-  }
-
-  function toggleAssignment(id) {
-    const assignments = getAssignments();
-    const idx = assignments.findIndex(function (a) { return a.id === id; });
-    if (idx === -1) return;
-    assignments[idx].completed = !assignments[idx].completed;
-    saveAssignments(assignments);
-  }
-
-  function deleteAssignment(id) {
-    saveAssignments(getAssignments().filter(function (a) { return a.id !== id; }));
-  }
-
-  function isDueSoon(dueDate) {
-    if (!dueDate) return false;
-    var diff = (new Date(dueDate) - new Date()) / 86400000;
-    return diff >= 0 && diff <= 3;
-  }
-
-  function isOverdue(dueDate) {
-    if (!dueDate) return false;
-    return new Date(dueDate) < new Date();
-  }
-
-  function loadAssignments() {
-    const list = document.getElementById("assignments-list");
-    if (!list) return;
-    const assignments = getAssignments();
-    list.innerHTML = "";
-    if (assignments.length === 0) {
-      list.innerHTML =
-        '<div class="empty-state">' +
-          '<div class="empty-icon"><i class="fas fa-clipboard-check"></i></div>' +
-          '<p class="empty-title">No assignments yet</p>' +
-          '<p class="empty-sub">Click "Add Task" to get started.</p>' +
-        '</div>';
-      return;
-    }
-    const sorted = assignments.slice().sort(function (a, b) {
-      if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      return 0;
-    });
-    sorted.forEach(function (item) {
-      const div = document.createElement("div");
-      div.className = "assignment-item" + (item.completed ? " assignment-done" : "");
-      var dueCls = "";
-      var dueLabel = "Due";
-      if (item.dueDate && !item.completed) {
-        if (isOverdue(item.dueDate)) { dueCls = "due-overdue"; dueLabel = "Overdue"; }
-        else if (isDueSoon(item.dueDate)) { dueCls = "due-soon"; }
-      }
-      var dueHtml = item.dueDate
-        ? '<span class="assignment-due ' + dueCls + '"><i class="fas fa-calendar-day"></i> ' + dueLabel + ': ' + escapeHtml(item.dueDate) + '</span>'
-        : "";
-      var subjectHtml = item.subject
-        ? '<span class="assignment-subject"><i class="fas fa-book"></i> ' + escapeHtml(item.subject) + '</span>'
-        : "";
-      div.innerHTML =
-        '<label class="assignment-check-wrap" title="Mark complete">' +
-          '<input type="checkbox" class="assignment-checkbox" data-id="' + item.id + '" ' + (item.completed ? "checked" : "") + '>' +
-          '<span class="assignment-checkmark"></span>' +
-        '</label>' +
-        '<div class="assignment-info">' +
-          '<span class="assignment-text ' + (item.completed ? "completed" : "") + '">' + escapeHtml(item.text) + '</span>' +
-          '<div class="assignment-meta">' + subjectHtml + dueHtml + '</div>' +
-        '</div>' +
-        '<button class="btn-assignment-delete" data-id="' + item.id + '" title="Delete task">' +
-          '<i class="fas fa-trash"></i>' +
-        '</button>';
-      list.appendChild(div);
-    });
-    list.querySelectorAll(".assignment-checkbox").forEach(function (cb) {
-      cb.addEventListener("change", function () {
-        toggleAssignment(cb.getAttribute("data-id"));
-        loadAssignments();
-      });
-    });
-    list.querySelectorAll(".btn-assignment-delete").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        showConfirm("Delete this task?", function () {
-          deleteAssignment(btn.getAttribute("data-id"));
-          loadAssignments();
-          showToast("Task deleted.", "info");
-        });
-      });
-    });
-  }
-
-  /* ===== GRADES (FIXED RE-STRUCTURED NO OVERLAP LAYOUT) ===== */
-  function getGrades() { return getData(userKey(KEYS.GRADES), []); }
-  function saveGrades(grades) { setData(userKey(KEYS.GRADES), grades); }
-
-  function seedDemoGrades() {
-    if (getGrades().length > 0) return;
-    saveGrades([
-      {
-        id: cryptoId(),
-        subject: "Web Systems and Technologies",
-        grade: 1.25,
-        units: 3,
-        year: "3rd Year",
-        semester: "1st Semester",
-        exclude: false,
-      },
-      {
-        id: cryptoId(),
-        subject: "Data Structures & Algorithms",
-        grade: 1.50,
-        units: 3,
-        year: "3rd Year",
-        semester: "1st Semester",
-        exclude: false,
-      },
-      {
-        id: cryptoId(),
-        subject: "PE 3 - Physical Fitness",
-        grade: 1.00,
-        units: 2,
-        year: "3rd Year",
-        semester: "1st Semester",
-        exclude: true,
-      },
-      {
-        id: cryptoId(),
-        subject: "Database Management Systems",
-        grade: 1.75,
-        units: 3,
-        year: "3rd Year",
-        semester: "1st Semester",
-        exclude: false,
-      },
-    ]);
-  }
-
-  function addGrade(subject, gradeValue, units, year, semester, exclude) {
-    const grades = getGrades();
-    const item = {
-      id: cryptoId(),
-      subject: subject.trim(),
-      grade: parseFloat(gradeValue),
-      units: parseFloat(units) || 3,
-      year: year || "1st Year",
-      semester: semester || "1st Semester",
-      exclude: !!exclude,
-    };
-    grades.push(item);
-    saveGrades(grades);
-    return item;
-  }
-
-  function updateGrade(id, data) {
-    const grades = getGrades();
-    const idx = grades.findIndex(function (g) { return g.id === id; });
-    if (idx === -1) return null;
-    grades[idx] = Object.assign({}, grades[idx], data);
-    saveGrades(grades);
-    return grades[idx];
-  }
-
-  function deleteGrade(id) {
-    saveGrades(getGrades().filter(function (g) { return g.id !== id; }));
-  }
-
-  function toggleGradeExclude(id) {
-    const grades = getGrades();
-    const idx = grades.findIndex(function (g) { return g.id === id; });
-    if (idx === -1) return;
-    grades[idx].exclude = !grades[idx].exclude;
-    saveGrades(grades);
-  }
-
-  function gradeColor(g) {
-    if (g <= 1.50 && g > 0) return "#10B981";
-    if (g <= 2.00 && g > 0) return "#2563EB";
-    if (g <= 2.50 && g > 0) return "#F59E0B";
-    if (g <= 3.00 && g > 0) return "#8B5CF6";
-    if (g > 5.00) {
-      if (g >= 90) return "#10B981";
-      if (g >= 80) return "#2563EB";
-      if (g >= 75) return "#F59E0B";
-      return "#EF4444";
-    }
-    return "#EF4444";
-  }
-
-  function gradeLabel(g) {
-    if (g <= 1.25 && g > 0) return "Excellent";
-    if (g <= 1.75 && g > 0) return "Very Good";
-    if (g <= 2.25 && g > 0) return "Good";
-    if (g <= 2.75 && g > 0) return "Satisfactory";
-    if (g <= 3.00 && g > 0) return "Passing";
-    if (g > 3.00 && g <= 5.00) return "Failed";
-    if (g >= 90) return "Excellent";
-    if (g >= 80) return "Good";
-    if (g >= 75) return "Satisfactory";
-    return "Below Average";
-  }
-
-  function calculateGWA(grades, year, semester) {
-    const eligible = grades.filter(function (g) {
-      var yearMatch = (year === "all" || !year || g.year === year);
-      var semMatch = (semester === "all" || !semester || g.semester === semester);
-      return yearMatch && semMatch && !g.exclude && !isNaN(g.grade);
-    });
-    if (!eligible.length) return 0;
-    var totalWeighted = 0;
-    var totalUnits = 0;
-    eligible.forEach(function (g) {
-      var u = parseFloat(g.units) || 3;
-      totalWeighted += (parseFloat(g.grade) * u);
-      totalUnits += u;
-    });
-    if (totalUnits === 0) return 0;
-    return totalWeighted / totalUnits;
-  }
-
-  function loadGrades() {
-    const list = document.getElementById("grades-list");
-    const gwaDisplay = document.getElementById("gwa-value");
-    if (!list) return;
-    const yearEl = document.getElementById("grade-year-filter");
-    const semEl = document.getElementById("grade-semester-filter");
-    const year = yearEl ? yearEl.value : "all";
-    const semester = semEl ? semEl.value : "all";
-    const grades = getGrades();
-
-    const filtered = grades.filter(function (g) {
-      var yMatch = (year === "all" || !year || g.year === year);
-      var sMatch = (semester === "all" || !semester || g.semester === semester);
-      return yMatch && sMatch;
-    });
-
-    list.innerHTML = "";
-    if (filtered.length === 0) {
-      list.innerHTML =
-        '<div class="empty-state">' +
-          '<div class="empty-icon"><i class="fas fa-chart-simple"></i></div>' +
-          '<p class="empty-title">No grades found</p>' +
-          '<p class="empty-sub">Click "Add Grade" to record your subjects and compute your GWA.</p>' +
-        '</div>';
-      if (gwaDisplay) { gwaDisplay.textContent = "0.00"; gwaDisplay.style.color = ""; }
-      return;
-    }
-
-    /* RE-STRUCTURED CLEAN VERTICAL BLOCK LAYOUT FOR GRADES */
-    filtered.forEach(function (item) {
-      const div = document.createElement("div");
-      div.className = "grade-item" + (item.exclude ? " grade-excluded" : "");
-      var gc = item.exclude ? "#94A3B8" : gradeColor(item.grade);
-      var gl = item.exclude ? "Excluded from GWA" : gradeLabel(item.grade);
-      var uLabel = (item.units || 3) + " Units";
-
-      div.innerHTML =
-        '<div class="grade-card-main">' +
-          '<div class="grade-card-header-row">' +
-            '<h4 class="grade-subject-title">' + escapeHtml(item.subject) + '</h4>' +
-            '<div class="grade-score-wrap">' +
-              '<span class="grade-score-value" style="color:' + gc + '">' +
-                (item.exclude ? '<s>' + item.grade.toFixed(2) + '</s>' : item.grade.toFixed(2)) +
-              '</span>' +
-            '</div>' +
-          '</div>' +
-          '<div class="grade-meta-tags-row">' +
-            '<span class="grade-badge" style="background:' + gc + '20;color:' + gc + '">' + gl + '</span>' +
-            '<span class="grade-unit-badge"><i class="fas fa-layer-group"></i> ' + uLabel + '</span>' +
-            '<span class="grade-term-badge"><i class="fas fa-calendar"></i> ' + escapeHtml(item.year || "1st Year") + ' &bull; ' + escapeHtml(item.semester || "1st Semester") + '</span>' +
-          '</div>' +
-          '<div class="grade-card-actions-row">' +
-            '<button class="btn-grade-action btn-toggle-exclude" data-id="' + item.id + '" ' +
-              'title="' + (item.exclude ? 'Include in GWA calculation' : 'Exclude from GWA calculation (e.g. PE/NSTP)') + '">' +
-              '<i class="fas ' + (item.exclude ? 'fa-eye' : 'fa-eye-slash') + '"></i> ' +
-              (item.exclude ? 'Include' : 'Exclude') +
-            '</button>' +
-            '<button class="btn-grade-action btn-edit-grade" data-id="' + item.id + '" title="Edit grade">' +
-              '<i class="fas fa-pen"></i> Edit' +
-            '</button>' +
-            '<button class="btn-grade-action btn-delete-grade" data-id="' + item.id + '" title="Delete grade">' +
-              '<i class="fas fa-trash"></i> Delete' +
-            '</button>' +
-          '</div>' +
-        '</div>';
-      list.appendChild(div);
-    });
-
-    list.querySelectorAll(".btn-toggle-exclude").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        toggleGradeExclude(btn.getAttribute("data-id"));
-        loadGrades();
-      });
-    });
-    list.querySelectorAll(".btn-edit-grade").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        editGradeItem(btn.getAttribute("data-id"));
-      });
-    });
-    list.querySelectorAll(".btn-delete-grade").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        showConfirm("Delete this grade?", function () {
-          deleteGrade(btn.getAttribute("data-id"));
-          loadGrades();
-          showToast("Grade deleted.", "info");
-        });
-      });
-    });
-
-    const gwa = calculateGWA(grades, year, semester);
-    if (gwaDisplay) {
-      gwaDisplay.textContent = gwa > 0 ? gwa.toFixed(4).replace(/00$/, '') : "0.00";
-      gwaDisplay.style.color = gwa > 0 ? gradeColor(gwa) : "";
+      return { success: true, message: "Password updated successfully in Supabase." };
+    } catch (error) {
+      console.error("[ClassConnect] Supabase password update failed:", error);
+      return {
+        success: false,
+        message: isTransientSupabaseError(error)
+          ? "Could not reach Supabase. Password was not changed."
+          : error.message || "Unable to update your password.",
+      };
     }
   }
 
-  function editGradeItem(id) {
-    const item = getGrades().find(function (g) { return g.id === id; });
-    if (!item) return;
-    document.getElementById("grade-edit-id").value = id;
-    document.getElementById("grade-subject").value = item.subject;
-    document.getElementById("grade-value").value = item.grade;
-    document.getElementById("grade-units").value = item.units || 3;
-    document.getElementById("grade-year").value = item.year || "1st Year";
-    document.getElementById("grade-semester").value = item.semester || "1st Semester";
-    document.getElementById("grade-exclude").checked = !!item.exclude;
-    document.getElementById("grade-modal-title").textContent = "Edit Grade";
-    openModal("grade-modal-overlay");
-  }
-
-  /* ===== CLASSMATES & CLASSMATE PROFILE VIEW ===== */
-  function getClassmates() { return getData(KEYS.CLASSMATES, []); }
-  function saveClassmates(classmates) { setData(KEYS.CLASSMATES, classmates); }
-
-  function seedDemoClassmates() {
-    if (getClassmates().length > 0) return;
-    saveClassmates(DEMO_CLASSMATES);
-  }
-
-  async function getSectionClassmates() {
-    var userProf = getProfile();
-    var currentUser = getCurrentUser();
-    var mySection = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
-
-    var result = [];
-
-    // 1. Registered users matching section, loaded from Supabase profiles.
-    if (currentUser && isSupabaseReady()) {
-      try {
-        var client = getSupabaseClient();
-        var response = await withTimeout(
-          client
-            .from("profiles")
-            .select("id,email,full_name,course,year,section,bio,student_id,contact,photo")
-            .neq("id", currentUser.id),
-          8000,
-          "Supabase classmates load"
-        );
-        if (response.error) throw response.error;
-        (response.data || []).forEach(function (prof) {
-          var uSec = prof.section ? normalizeSection(prof.section) : "BSIT 3-A";
-          if (uSec === mySection || mySection === "ALL") {
-            result.push({
-              id: prof.id || cryptoId(),
-              name: prof.full_name || prof.email || "Classmate",
-              email: prof.email || "",
-              course: prof.course || "BSIT",
-              year: prof.year || "3rd Year",
-              section: uSec,
-              bio: prof.bio || "Classmate in " + uSec,
-              studentId: prof.student_id || "N/A",
-              contact: prof.contact || "N/A",
-              photo: prof.photo || null
-            });
-          }
-        });
-      } catch (error) {
-        console.error("[ClassConnect] Supabase classmates load failed:", error);
-      }
-    }
-
-    // 2. Demo classmates matching section
-    var demo = getClassmates();
-    demo.forEach(function (cm) {
-      var cmSec = normalizeSection(cm.section);
-      if (cmSec === mySection || mySection === "ALL") {
-        var alreadyAdded = result.some(function (r) { return r.name.toLowerCase() === cm.name.toLowerCase(); });
-        if (!alreadyAdded) {
-          result.push({
-            id: cryptoId(),
-            name: cm.name,
-            email: cm.email || (cm.name.toLowerCase().replace(/\s+/g, '.') + "@ctu.edu.ph"),
-            course: cm.course || "BSIT",
-            year: cm.year || "3rd Year",
-            section: cmSec,
-            bio: cm.bio || "BSIT Student at CTU Main Campus",
-            studentId: "2023-CTU-" + Math.floor(1000 + Math.random() * 9000),
-            contact: "0912-345-6789",
-            photo: null
-          });
-        }
-      }
-    });
-
-    return result;
-  }
-
-  function showClassmateProfileModal(cm) {
-    var avatarEl = document.getElementById("cm-modal-avatar");
-    var nameEl = document.getElementById("cm-modal-name");
-    var sectionEl = document.getElementById("cm-modal-section");
-    var courseYearEl = document.getElementById("cm-modal-course-year");
-    var emailEl = document.getElementById("cm-modal-email");
-    var bioEl = document.getElementById("cm-modal-bio");
-    var studentIdEl = document.getElementById("cm-modal-studentid");
-    var contactEl = document.getElementById("cm-modal-contact");
-
-    if (avatarEl) {
-      if (cm.photo) {
-        avatarEl.style.backgroundImage = "url(" + cm.photo + ")";
-        avatarEl.textContent = "";
-      } else {
-        avatarEl.style.backgroundImage = "";
-        avatarEl.style.backgroundColor = stringToColor(cm.name);
-        avatarEl.textContent = initials(cm.name);
-      }
-    }
-    if (nameEl) nameEl.textContent = cm.name;
-    if (sectionEl) sectionEl.textContent = "Section: " + cm.section;
-    if (courseYearEl) courseYearEl.textContent = (cm.course || "BSIT") + " • " + (cm.year || "3rd Year");
-    if (emailEl) emailEl.textContent = cm.email || "N/A";
-    if (bioEl) bioEl.textContent = cm.bio || "No bio provided.";
-    if (studentIdEl) studentIdEl.textContent = cm.studentId || "N/A";
-    if (contactEl) contactEl.textContent = cm.contact || "N/A";
-
-    openModal("classmate-profile-modal-overlay");
-  }
-
-  async function loadClassmates() {
-    const list = document.getElementById("classmates-list");
-    const mySectionBadge = document.getElementById("my-section-display");
-    if (!list) return;
-
-    var userProf = getProfile();
-    var mySec = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
-    if (mySectionBadge) {
-      mySectionBadge.textContent = "Your Section: " + mySec;
-    }
-
-    const classmates = await getSectionClassmates();
-    list.innerHTML = "";
-    if (classmates.length === 0) {
-      list.innerHTML =
-        '<div class="empty-state">' +
-          '<div class="empty-icon"><i class="fas fa-users"></i></div>' +
-          '<p class="empty-title">No classmates found for section ' + escapeHtml(mySec) + '</p>' +
-          '<p class="empty-sub">Make sure your Section in Profile matches your classmates (e.g. BSIT 3-A).</p>' +
-        '</div>';
-      return;
-    }
-
-    classmates.forEach(function (cm) {
-      const card = document.createElement("div");
-      card.className = "classmate-card clickable-card";
-      var avatarBg = cm.photo ? 'background-image:url(' + cm.photo + ')' : 'background:' + stringToColor(cm.name);
-      var avatarContent = cm.photo ? '' : escapeHtml(initials(cm.name));
-
-      card.innerHTML =
-        '<div class="classmate-avatar" style="' + avatarBg + '">' +
-          avatarContent +
-        '</div>' +
-        '<div class="classmate-info">' +
-          '<h4>' + escapeHtml(cm.name) + '</h4>' +
-          '<p>' +
-            (cm.course ? '<span><i class="fas fa-graduation-cap"></i> ' + escapeHtml(cm.course) + '</span> ' : '') +
-            (cm.year ? '<span>' + escapeHtml(cm.year) + '</span>' : '') +
-          '</p>' +
-          '<p class="classmate-section"><i class="fas fa-users"></i> Section ' + escapeHtml(cm.section) + '</p>' +
-        '</div>' +
-        '<div class="classmate-arrow"><i class="fas fa-chevron-right"></i></div>';
-
-      card.addEventListener("click", function () {
-        showClassmateProfileModal(cm);
-      });
-
-      list.appendChild(card);
-    });
-  }
-
-  /* ===== FAQS ===== */
-  function loadFaqs() {
-    const list = document.getElementById("faqs-list");
-    if (!list) return;
-    list.innerHTML = "";
-    DEMO_FAQS.forEach(function (faq) {
-      const div = document.createElement("div");
-      div.className = "faq-item";
-      div.innerHTML =
-        '<div class="faq-question">' +
-          '<span>' + escapeHtml(faq.question) + '</span>' +
-          '<i class="fas fa-chevron-down faq-chevron"></i>' +
-        '</div>' +
-        '<div class="faq-answer">' + escapeHtml(faq.answer) + '</div>';
-      list.appendChild(div);
-    });
-    list.querySelectorAll(".faq-question").forEach(function (q) {
-      q.addEventListener("click", function () {
-        var parent = q.parentElement;
-        var isOpen = parent.classList.contains("open");
-        list.querySelectorAll(".faq-item.open").forEach(function (item) {
-          item.classList.remove("open");
-        });
-        if (!isOpen) parent.classList.add("open");
-      });
-    });
-  }
-
-  /* ===== CURRICULUM WITH SEMESTER SELECTOR ===== */
-  function getCurriculumSubjects() {
-    return getData(userKey(KEYS.CURRICULUM_SUBJECTS), []);
-  }
-  function saveCurriculumSubjects(subjects) {
-    setData(userKey(KEYS.CURRICULUM_SUBJECTS), subjects);
-  }
-
-  function getCurriculumPDF() {
-    return getData(userKey(KEYS.CURRICULUM_PDF), null);
-  }
-  function saveCurriculumPDF(data) {
-    setData(userKey(KEYS.CURRICULUM_PDF), data);
-  }
-  function removeCurriculumPDF() {
-    localStorage.removeItem(userKey(KEYS.CURRICULUM_PDF));
-  }
-
-  function getCORPDF() {
-    return getData(userKey(KEYS.COR_PDF), null);
-  }
-  function saveCORPDF(data) {
-    setData(userKey(KEYS.COR_PDF), data);
-  }
-  function removeCORPDF() {
-    localStorage.removeItem(userKey(KEYS.COR_PDF));
-  }
-
-  function downloadPDF(pdfData, defaultName) {
-    var a = document.createElement("a");
-    a.href = pdfData.data;
-    a.download = pdfData.name || defaultName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-
-  function seedDemoCurriculum() {
-    if (getCurriculumSubjects().length > 0) return;
-    saveCurriculumSubjects([
-      {
-        id: cryptoId(),
-        code: "IT 301",
-        name: "Web Systems and Technologies",
-        schedule: "MWF 10:00-11:30 AM",
-        year: "3rd Year",
-        semester: "1st Semester"
-      },
-      {
-        id: cryptoId(),
-        code: "IT 302",
-        name: "Database Management Systems II",
-        schedule: "TTH 1:00-2:30 PM",
-        year: "3rd Year",
-        semester: "1st Semester"
-      },
-      {
-        id: cryptoId(),
-        code: "IT 303",
-        name: "Mobile Application Development",
-        schedule: "MWF 2:30-4:00 PM",
-        year: "3rd Year",
-        semester: "2nd Semester"
-      },
-      {
-        id: cryptoId(),
-        code: "IT 201",
-        name: "Data Structures & Algorithms",
-        schedule: "MWF 1:00-2:30 PM",
-        year: "2nd Year",
-        semester: "1st Semester"
-      },
-      {
-        id: cryptoId(),
-        code: "IT 101",
-        name: "Introduction to Computing",
-        schedule: "MWF 8:30-10:00 AM",
-        year: "1st Year",
-        semester: "1st Semester"
-      },
-    ]);
-  }
-
-  function addCurriculumSubject(name, code, schedule, year, semester) {
-    const subjects = getCurriculumSubjects();
-    const item = {
-      id: cryptoId(),
-      name: name.trim(),
-      code: code.trim(),
-      schedule: schedule.trim(),
-      year: year.trim(),
-      semester: (semester || "1st Semester").trim(),
-    };
-    subjects.push(item);
-    saveCurriculumSubjects(subjects);
-    return item;
-  }
-
-  function updateCurriculumSubject(id, data) {
-    const subjects = getCurriculumSubjects();
-    const idx = subjects.findIndex(function (s) { return s.id === id; });
-    if (idx === -1) return null;
-    subjects[idx] = Object.assign({}, subjects[idx], data);
-    saveCurriculumSubjects(subjects);
-    return subjects[idx];
-  }
-
-  function deleteCurriculumSubject(id) {
-    saveCurriculumSubjects(getCurriculumSubjects().filter(function (s) { return s.id !== id; }));
-  }
-
-  function loadCurriculum() {
-    var list = document.getElementById("curriculum-subjects-list");
-    var pdfSection = document.getElementById("curriculum-pdf-section");
-    if (!list) return;
-
-    // Load PDF section
-    if (pdfSection) {
-      var pdfData = getCurriculumPDF();
-      if (pdfData) {
-        pdfSection.innerHTML =
-          '<div class="pdf-upload-area pdf-active-card">' +
-            '<div class="pdf-info">' +
-              '<i class="fas fa-file-pdf pdf-icon"></i>' +
-              '<div>' +
-                '<h4 class="pdf-filename">' + escapeHtml(pdfData.name || "Curriculum PDF") + '</h4>' +
-                '<span class="pdf-subtitle">Uploaded curriculum syllabus</span>' +
-              '</div>' +
-            '</div>' +
-            '<div class="pdf-actions">' +
-              '<button class="btn-pdf-view" onclick="window.open(\'' + pdfData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View PDF</button>' +
-              '<button class="btn-pdf-export" id="export-pdf-btn"><i class="fas fa-download"></i> Export</button>' +
-              '<button class="btn-pdf-remove" id="remove-pdf-btn"><i class="fas fa-trash"></i> Remove</button>' +
-            '</div>' +
-          '</div>';
-        var removeBtn = document.getElementById("remove-pdf-btn");
-        if (removeBtn) {
-          removeBtn.addEventListener("click", function () {
-            showConfirm("Remove the uploaded PDF?", function () {
-              removeCurriculumPDF();
-              loadCurriculum();
-              showToast("PDF removed.", "info");
-            });
-          });
-        }
-        var exportBtn = document.getElementById("export-pdf-btn");
-        if (exportBtn) {
-          exportBtn.addEventListener("click", function () {
-            downloadPDF(pdfData, "curriculum.pdf");
-            showToast("Curriculum PDF download started.", "success");
-          });
-        }
-      } else {
-        pdfSection.innerHTML =
-          '<div class="pdf-upload-area">' +
-            '<div class="no-pdf">' +
-              '<i class="fas fa-file-pdf"></i>' +
-              '<span>No curriculum PDF uploaded yet</span>' +
-            '</div>' +
-            '<div class="pdf-actions">' +
-              '<button class="btn-pdf-upload" id="upload-pdf-btn"><i class="fas fa-upload"></i> Upload PDF Syllabus</button>' +
-              '<input type="file" id="pdf-file-input" accept=".pdf" hidden>' +
-            '</div>' +
-          '</div>';
-        var uploadBtn = document.getElementById("upload-pdf-btn");
-        var fileInput = document.getElementById("pdf-file-input");
-        if (uploadBtn && fileInput) {
-          uploadBtn.addEventListener("click", function () { fileInput.click(); });
-          fileInput.addEventListener("change", function () {
-            var file = fileInput.files[0];
-            if (!file) return;
-            if (file.size > 10 * 1024 * 1024) {
-              showToast("PDF must be smaller than 10 MB.", "error");
-              fileInput.value = "";
-              return;
-            }
-            var reader = new FileReader();
-            reader.onload = function (e) {
-              var base64 = e.target.result;
-              saveCurriculumPDF({ name: file.name, data: base64 });
-              loadCurriculum();
-              showToast("Curriculum PDF uploaded successfully.", "success");
-              fileInput.value = "";
-            };
-            reader.readAsDataURL(file);
-          });
-        }
-      }
-    }
-
-    // Load COR (Certificate of Registration) section
-    var corSection = document.getElementById("cor-pdf-section");
-    if (corSection) {
-      var corData = getCORPDF();
-      if (corData) {
-        corSection.innerHTML =
-          '<div class="pdf-upload-area pdf-active-card cor-active-card">' +
-            '<div class="pdf-info">' +
-              '<i class="fas fa-id-card pdf-icon cor-icon"></i>' +
-              '<div>' +
-                '<h4 class="pdf-filename">' + escapeHtml(corData.name || "Certificate of Registration") + '</h4>' +
-                '<span class="pdf-subtitle">Certificate of Registration (COR)</span>' +
-              '</div>' +
-            '</div>' +
-            '<div class="pdf-actions">' +
-              '<button class="btn-pdf-view" onclick="window.open(\'' + corData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View COR</button>' +
-              '<button class="btn-pdf-export" id="export-cor-btn"><i class="fas fa-download"></i> Export</button>' +
-              '<button class="btn-pdf-remove" id="remove-cor-btn"><i class="fas fa-trash"></i> Remove</button>' +
-            '</div>' +
-          '</div>';
-        var removeCorBtn = document.getElementById("remove-cor-btn");
-        if (removeCorBtn) {
-          removeCorBtn.addEventListener("click", function () {
-            showConfirm("Remove the uploaded Certificate of Registration?", function () {
-              removeCORPDF();
-              loadCurriculum();
-              showToast("Certificate of Registration removed.", "info");
-            });
-          });
-        }
-        var exportCorBtn = document.getElementById("export-cor-btn");
-        if (exportCorBtn) {
-          exportCorBtn.addEventListener("click", function () {
-            downloadPDF(corData, "certificate-of-registration.pdf");
-            showToast("COR download started.", "success");
-          });
-        }
-      } else {
-        corSection.innerHTML =
-          '<div class="pdf-upload-area">' +
-            '<div class="pdf-info">' +
-              '<i class="fas fa-id-card pdf-icon" style="color:var(--slate-blue,#6366f1);font-size:28px;flex-shrink:0;"></i>' +
-              '<div class="no-pdf" style="background:none;padding:0;">' +
-                '<span>No Certificate of Registration uploaded yet</span>' +
-              '</div>' +
-            '</div>' +
-            '<div class="pdf-actions">' +
-              '<button class="btn-pdf-upload" id="upload-cor-btn"><i class="fas fa-upload"></i> Upload COR</button>' +
-              '<input type="file" id="cor-file-input" accept=".pdf,image/*" hidden>' +
-            '</div>' +
-          '</div>';
-        var uploadCorBtn = document.getElementById("upload-cor-btn");
-        var corFileInput = document.getElementById("cor-file-input");
-        if (uploadCorBtn && corFileInput) {
-          uploadCorBtn.addEventListener("click", function () { corFileInput.click(); });
-          corFileInput.addEventListener("change", function () {
-            var file = corFileInput.files[0];
-            if (!file) return;
-            if (file.size > 10 * 1024 * 1024) {
-              showToast("File must be smaller than 10 MB.", "error");
-              corFileInput.value = "";
-              return;
-            }
-            var reader = new FileReader();
-            reader.onload = function (e) {
-              var base64 = e.target.result;
-              saveCORPDF({ name: file.name, data: base64 });
-              loadCurriculum();
-              showToast("Certificate of Registration uploaded successfully.", "success");
-              corFileInput.value = "";
-            };
-            reader.readAsDataURL(file);
-          });
-        }
-      }
-    }
-
-    // Load subjects with filters
-    var subjects = getCurriculumSubjects();
-    var yearFilterBtn = document.querySelector(".curriculum-year-filter.active");
-    var filterYear = yearFilterBtn ? yearFilterBtn.getAttribute("data-year") : "all";
-
-    var semSelect = document.getElementById("curriculum-semester-filter");
-    var filterSem = semSelect ? semSelect.value : "all";
-
-    var filtered = subjects.filter(function (s) {
-      var matchYear = (filterYear === "all" || s.year === filterYear);
-      var matchSem = (filterSem === "all" || !s.semester || s.semester === filterSem);
-      return matchYear && matchSem;
-    });
-
-    list.innerHTML = "";
-    if (filtered.length === 0) {
-      list.innerHTML =
-        '<div class="empty-state">' +
-          '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
-          '<p class="empty-title">No subjects found</p>' +
-          '<p class="empty-sub">Add subjects to your curriculum or select another filter.</p>' +
-        '</div>';
-      return;
-    }
-    filtered.forEach(function (item) {
-      var card = document.createElement("div");
-      card.className = "curriculum-subject-card";
-      card.style.borderLeftColor = stringToColor(item.name);
-      card.innerHTML =
-        '<div class="cs-info">' +
-          '<h4>' + escapeHtml(item.name) + '</h4>' +
-          '<div class="cs-meta">' +
-            '<span><i class="fas fa-hashtag"></i> ' + escapeHtml(item.code) + '</span>' +
-            '<span><i class="fas fa-clock"></i> ' + escapeHtml(item.schedule || "No schedule") + '</span>' +
-            '<span class="cs-year">' + escapeHtml(item.year) + '</span>' +
-            '<span class="cs-sem">' + escapeHtml(item.semester || "1st Semester") + '</span>' +
-          '</div>' +
-        '</div>' +
-        '<div class="cs-actions">' +
-          '<button class="btn-icon btn-edit-curriculum" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
-          '<button class="btn-icon btn-delete-curriculum" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
-        '</div>';
-      list.appendChild(card);
-    });
-    list.querySelectorAll(".btn-edit-curriculum").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        editCurriculumSubject(btn.getAttribute("data-id"));
-      });
-    });
-    list.querySelectorAll(".btn-delete-curriculum").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        showConfirm("Delete this curriculum subject?", function () {
-          deleteCurriculumSubject(btn.getAttribute("data-id"));
-          loadCurriculum();
-          showToast("Subject deleted.", "info");
-        });
-      });
-    });
-  }
-
-  function editCurriculumSubject(id) {
-    var subjects = getCurriculumSubjects();
-    var found = subjects.find(function (s) { return s.id === id; });
-    if (!found) return;
-    document.getElementById("curriculum-subject-edit-id").value = id;
-    document.getElementById("curriculum-subject-name").value = found.name;
-    document.getElementById("curriculum-subject-code").value = found.code;
-    document.getElementById("curriculum-subject-schedule").value = found.schedule || "";
-    document.getElementById("curriculum-subject-year").value = found.year;
-    document.getElementById("curriculum-subject-semester").value = found.semester || "1st Semester";
-    document.getElementById("curriculum-subject-modal-title").textContent = "Edit Subject";
-    openModal("curriculum-subject-modal-overlay");
-  }
-
-  function setupCurriculumFilters() {
-    var filters = document.querySelectorAll(".curriculum-year-filter");
-    filters.forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        filters.forEach(function (b) { b.classList.remove("active"); });
-        btn.classList.add("active");
-        loadCurriculum();
-      });
-    });
-
-    var semFilterSelect = document.getElementById("curriculum-semester-filter");
-    if (semFilterSelect) {
-      semFilterSelect.addEventListener("change", function () {
-        loadCurriculum();
-      });
-    }
-  }
-
-  /* ===== SETTINGS ===== */
-  function getSettings() { return getData(KEYS.SETTINGS, { fontType: "sans-serif" }); }
-  function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
-
-  function applySettings(settings) {
-    if (!settings) settings = getSettings();
-    var fontType = settings.fontType || "sans-serif";
-    document.documentElement.setAttribute("data-font-type", fontType);
-  }
-
-  function updateStorageDisplay() {
-    var total = 0;
-    for (var key in localStorage) {
-      if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
-        total += ((localStorage[key] || "").length) * 2;
-      }
-    }
-    var el = document.getElementById("settings-storage");
-    if (!el) return;
-    if (total < 1024) el.textContent = total + " B";
-    else if (total < 1048576) el.textContent = (total / 1024).toFixed(1) + " KB";
-    else el.textContent = (total / 1048576).toFixed(2) + " MB";
-  }
-
-  function loadSettings() {
-    const settings = getSettings();
-    const fontSelect = document.getElementById("font-type-select");
-    if (fontSelect) fontSelect.value = settings.fontType || "sans-serif";
-    applySettings(settings);
-    updateStorageDisplay();
-  }
-
-  /* ===== UI HELPERS ===== */
+  // ===== UI HELPERS (unchanged) =====
   function showPage(pageId) {
     document.querySelectorAll(".page").forEach(function (p) {
       p.classList.remove("active-page");
@@ -2352,54 +1657,1252 @@ function getRemoteSession() {
     else openDrawer();
   }
 
-  /* ===== LOAD DASHBOARD ===== */
-  function loadDashboard() {
-    if (!isLoggedIn()) {
-      showPage("login-page");
-      showLoginForm();
-      return;
-    }
-    var user = getCurrentUser();
-    var name = user ? user.name : "Student";
-    var email = user ? user.email : "";
-    var dashName = document.getElementById("dash-user-name");
-    var drawerName = document.getElementById("drawer-name");
-    var drawerEmail = document.getElementById("drawer-email");
-    if (dashName) dashName.textContent = name;
-    if (drawerName) drawerName.textContent = name;
-    if (drawerEmail) drawerEmail.textContent = email;
-    var composerAvatar = document.getElementById("composer-avatar");
-    if (composerAvatar) composerAvatar.textContent = initials(name);
-    var drawerAvatar = document.getElementById("drawer-avatar");
-    if (drawerAvatar) {
-      var photo = getProfilePhoto();
-      if (photo) {
-        drawerAvatar.style.backgroundImage = "url(" + photo + ")";
-        drawerAvatar.style.backgroundSize = "cover";
-        drawerAvatar.style.backgroundPosition = "center";
-        drawerAvatar.textContent = "";
-      } else {
-        drawerAvatar.style.backgroundImage = "";
-        drawerAvatar.textContent = initials(name);
-      }
-    }
-    seedDemoPosts();
-    seedDemoGrades();
-    seedDemoClassmates();
-    seedDemoCurriculum();
-    loadProfileForm();
-    loadPosts();
-    loadSubjects();
-    loadSchedule();
-    loadAssignments();
-    loadGrades();
-    loadClassmates();
-    loadFaqs();
-    loadSettings();
-    switchView("view-home");
+  function handleOffline(isOffline) {
+    var banner = document.getElementById("offline-banner");
+    if (banner) banner.hidden = !isOffline;
   }
 
-  /* ===== PROFILE FORM ===== */
+  function lockPortrait() {
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock("portrait").catch(function () {});
+      }
+    } catch (e) {}
+
+    function applyLandscapeLock() {
+      var lock = document.getElementById("landscape-lock");
+      if (!lock) return;
+      var isLandscape = window.innerWidth > window.innerHeight;
+      lock.hidden = !isLandscape;
+    }
+    applyLandscapeLock();
+    window.addEventListener("resize", applyLandscapeLock);
+    window.addEventListener("orientationchange", applyLandscapeLock);
+  }
+
+  function registerServiceWorker() {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(function (err) {
+        console.warn("Service worker registration failed:", err);
+      });
+    }
+  }
+
+  // ===== LOAD FUNCTIONS =====
+
+  // POSTS LOAD
+  async function loadPosts(searchQuery) {
+    const feed = document.getElementById("posts-feed");
+    if (!feed) return;
+    try {
+      var posts = await getPosts();
+
+      if (searchQuery && searchQuery.trim() !== "") {
+        var q = searchQuery.trim().toLowerCase();
+        posts = posts.filter(function (p) {
+          var matchAuthor = p.author && p.author.toLowerCase().indexOf(q) !== -1;
+          var matchContent = p.content && p.content.toLowerCase().indexOf(q) !== -1;
+          var matchTag = p.tag && p.tag.toLowerCase().indexOf(q) !== -1;
+          var matchDate = timeAgo(p.timestamp).toLowerCase().indexOf(q) !== -1;
+          return matchAuthor || matchContent || matchTag || matchDate;
+        });
+      }
+
+      feed.innerHTML = "";
+      if (posts.length === 0) {
+        feed.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-search"></i></div>' +
+            '<p class="empty-title">' + (searchQuery ? 'No matching posts found' : 'No posts yet') + '</p>' +
+            '<p class="empty-sub">' + (searchQuery ? 'Try searching for another keyword or author.' : 'Be the first to share something with your class.') + '</p>' +
+          '</div>';
+        return;
+      }
+
+      // Keep the same rendering as before
+      for (var i = 0; i < posts.length; i++) {
+        var post = posts[i];
+        var card = document.createElement("div");
+        card.className = "post-card";
+        var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy"></div>' : "";
+        var tagHtml = post.tag ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>' : "";
+
+        var canDel = await canDeletePost(post.id);
+        var canEdt = await canEditPost(post.id);
+        var hasAck = await hasAcknowledgedPost(post.id);
+        var acks = await getPostAcknowledgments(post.id);
+        var ackCount = acks.length;
+
+        var actionsHtml = '<div class="post-footer">';
+        actionsHtml += '<div class="post-footer-left">';
+        actionsHtml +=
+          '<button class="btn-acknowledge ' + (hasAck ? "acknowledged" : "") + '" data-id="' + post.id + '">' +
+            '<i class="fas ' + (hasAck ? "fa-check-circle" : "fa-circle") + '"></i> ' +
+            (hasAck ? "Acknowledged" : "Acknowledge") +
+          '</button>';
+        if (ackCount > 0) {
+          actionsHtml +=
+            '<span class="acknowledge-count" data-id="' + post.id + '" title="View who acknowledged">' +
+              ackCount + ' ' + (ackCount === 1 ? "person" : "people") +
+            '</span>';
+        }
+        actionsHtml += '</div>';
+        actionsHtml += '<div class="post-footer-right">';
+        if (canEdt) {
+          actionsHtml +=
+            '<button class="btn-edit-post" data-id="' + post.id + '">' +
+              '<i class="fas fa-pen"></i> Edit' +
+            '</button>';
+        }
+        if (canDel) {
+          actionsHtml +=
+            '<button class="btn-delete-post" data-id="' + post.id + '">' +
+              '<i class="fas fa-trash"></i> Delete' +
+            '</button>';
+        }
+        actionsHtml += '</div></div>';
+
+        card.innerHTML =
+          tagHtml +
+          '<div class="post-header">' +
+            '<div class="avatar-circle post-avatar" style="background:' + stringToColor(post.author) + '">' +
+              escapeHtml(initials(post.author)) +
+            '</div>' +
+            '<div class="post-author-info">' +
+              '<span class="post-author-name">' + escapeHtml(post.author) + '</span>' +
+              '<span class="post-timestamp"><i class="fas fa-clock"></i> ' + timeAgo(post.timestamp) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="post-content">' + post.content + imgHtml + '</div>' +
+          actionsHtml;
+        feed.appendChild(card);
+      }
+
+      // Attach event listeners
+      feed.querySelectorAll(".btn-delete-post").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          showConfirm("Delete this post?", function () {
+            var postId = btn.getAttribute("data-id");
+            deletePost(postId).then(function () {
+              loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
+              showToast("Post deleted.", "info");
+            }).catch(function (err) {
+              showToast(err.message || "Could not delete post.", "error");
+            });
+          });
+        });
+      });
+
+      feed.querySelectorAll(".btn-edit-post").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var postId = btn.getAttribute("data-id");
+          openEditPostModal(postId);
+        });
+      });
+
+      feed.querySelectorAll(".btn-acknowledge").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var postId = btn.getAttribute("data-id");
+          toggleAcknowledgePost(postId).then(function () {
+            loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
+          }).catch(function (err) {
+            showToast(err.message || "Could not toggle acknowledgment.", "error");
+          });
+        });
+      });
+
+      feed.querySelectorAll(".acknowledge-count").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var postId = btn.getAttribute("data-id");
+          showAcknowledgmentsPopup(postId);
+        });
+      });
+
+    } catch (err) {
+      console.error("Error loading posts:", err);
+      feed.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load posts</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
+    }
+  }
+
+  async function canDeletePost(postId) {
+    var user = getCurrentUser();
+    if (!user) return false;
+    if (isAdmin()) return true;
+    try {
+      var posts = await getPosts();
+      var found = posts.find(function (p) { return p.id === postId; });
+      if (!found) return false;
+      return found.author === user.name;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function canEditPost(postId) {
+    var user = getCurrentUser();
+    if (!user) return false;
+    try {
+      var posts = await getPosts();
+      var found = posts.find(function (p) { return p.id === postId; });
+      if (!found) return false;
+      return found.author === user.name;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function showAcknowledgmentsPopup(postId) {
+    getPostAcknowledgments(postId).then(function (acks) {
+      var overlay = document.createElement("div");
+      overlay.className = "acknowledgments-popup-overlay active";
+      var popup = document.createElement("div");
+      popup.className = "acknowledgments-popup active";
+      var listHtml = "";
+      if (acks.length === 0) {
+        listHtml = '<p style="text-align:center;color:var(--gray-400);padding:16px 0;">No one has acknowledged this post yet.</p>';
+      } else {
+        listHtml = '<div class="acknowledgments-list">';
+        acks.forEach(function (a) {
+          var color = stringToColor(a.name);
+          listHtml +=
+            '<div class="ack-item">' +
+              '<div class="ack-avatar" style="background:' + color + '">' + escapeHtml(initials(a.name)) + '</div>' +
+              '<span>' + escapeHtml(a.name) + '</span>' +
+            '</div>';
+        });
+        listHtml += '</div>';
+      }
+      popup.innerHTML =
+        '<h4>People who acknowledged</h4>' +
+        listHtml +
+        '<button class="acknowledgments-close">Close</button>';
+      document.body.appendChild(overlay);
+      document.body.appendChild(popup);
+      popup.querySelector(".acknowledgments-close").addEventListener("click", function () {
+        overlay.remove();
+        popup.remove();
+      });
+      overlay.addEventListener("click", function () {
+        overlay.remove();
+        popup.remove();
+      });
+    }).catch(function (err) {
+      showToast("Could not load acknowledgments.", "error");
+    });
+  }
+
+  function openEditPostModal(postId) {
+    getPosts().then(function (posts) {
+      var found = posts.find(function (p) { return p.id === postId; });
+      if (!found) { showToast("Post not found.", "error"); return; }
+      var editor = document.getElementById("edit-post-content-editable");
+      var idField = document.getElementById("edit-post-id");
+      if (editor) editor.innerHTML = found.content;
+      if (idField) idField.value = postId;
+      openModal("edit-post-modal-overlay");
+      setTimeout(function () { if (editor) editor.focus(); }, 300);
+    }).catch(function (err) {
+      showToast("Could not load post.", "error");
+    });
+  }
+
+  // ===== SUBJECTS LOAD =====
+  async function loadSubjects() {
+    const list = document.getElementById("subjects-list");
+    if (!list) return;
+    try {
+      var subjects = await getSubjects();
+      list.innerHTML = "";
+      if (subjects.length === 0) {
+        list.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
+            '<p class="empty-title">No subjects yet</p>' +
+            '<p class="empty-sub">Click "Add Subject" to get started.</p>' +
+          '</div>';
+        return;
+      }
+      for (var i = 0; i < subjects.length; i++) {
+        var subject = subjects[i];
+        var card = document.createElement("div");
+        card.className = "subject-card";
+        card.style.borderLeftColor = subject.color || "#2563EB";
+        var tasks = subject.tasks || [];
+        var done = tasks.filter(function (t) { return t.completed; }).length;
+        var total = tasks.length;
+        var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        var progressHtml = total > 0
+          ? '<div class="subject-progress-wrap">' +
+              '<div class="subject-progress-track">' +
+                '<div class="subject-progress-fill" style="width:' + pct + '%;background:' + (subject.color || "#2563EB") + '"></div>' +
+              '</div>' +
+              '<span class="subject-progress-label">' + done + ' / ' + total + ' tasks complete</span>' +
+            '</div>'
+          : "";
+        var tasksHtml = "";
+        if (tasks.length > 0) {
+          tasksHtml += '<p class="subject-tasks-label"><i class="fas fa-list-check"></i> Tasks</p>';
+          tasks.forEach(function (task) {
+            tasksHtml +=
+              '<div class="subject-task-item">' +
+                '<input type="checkbox" class="task-checkbox" ' +
+                  'data-subject-id="' + subject.id + '" ' +
+                  'data-task-id="' + task.id + '" ' +
+                  (task.completed ? "checked" : "") + '>' +
+                '<span class="task-text ' + (task.completed ? "completed" : "") + '">' +
+                  escapeHtml(task.text) +
+                '</span>' +
+                '<button class="btn-task-delete" ' +
+                  'data-subject-id="' + subject.id + '" ' +
+                  'data-task-id="' + task.id + '" ' +
+                  'title="Delete task">' +
+                  '<i class="fas fa-xmark"></i>' +
+                '</button>' +
+              '</div>';
+          });
+        }
+        card.innerHTML =
+          '<div class="subject-card-header">' +
+            '<div class="subject-card-title">' +
+              '<span class="subject-color-dot" style="background:' + (subject.color || "#2563EB") + '"></span>' +
+              '<h4>' + escapeHtml(subject.name) + '</h4>' +
+            '</div>' +
+            '<div class="subject-actions">' +
+              '<button class="btn-icon btn-edit-subject" data-id="' + subject.id + '" title="Edit subject">' +
+                '<i class="fas fa-pen"></i>' +
+              '</button>' +
+              '<button class="btn-icon btn-delete-subject" data-id="' + subject.id + '" title="Delete subject">' +
+                '<i class="fas fa-trash"></i>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="subject-meta">' +
+            '<span><i class="fas fa-user-tie"></i> ' + escapeHtml(subject.professor || "No professor assigned") + '</span>' +
+            '<span><i class="fas fa-calendar"></i> ' + escapeHtml(subject.schedule || "No schedule set") + '</span>' +
+          '</div>' +
+          progressHtml +
+          '<div class="subject-tasks">' +
+            tasksHtml +
+            '<button class="subject-add-task-btn" data-subject-id="' + subject.id + '">' +
+              '<i class="fas fa-plus"></i> Add Task' +
+            '</button>' +
+          '</div>';
+        list.appendChild(card);
+      }
+
+      // Attach events
+      list.querySelectorAll(".btn-edit-subject").forEach(function (btn) {
+        btn.addEventListener("click", function () { editSubject(btn.getAttribute("data-id")); });
+      });
+      list.querySelectorAll(".btn-delete-subject").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          showConfirm("Delete this subject and all its tasks?", function () {
+            deleteSubject(btn.getAttribute("data-id")).then(function () {
+              loadSubjects();
+              showToast("Subject deleted.", "info");
+            }).catch(function (err) {
+              showToast(err.message || "Could not delete subject.", "error");
+            });
+          });
+        });
+      });
+      list.querySelectorAll(".task-checkbox").forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          toggleSubjectTask(cb.getAttribute("data-subject-id"), cb.getAttribute("data-task-id")).then(function () {
+            loadSubjects();
+          }).catch(function (err) {
+            showToast(err.message || "Could not update task.", "error");
+          });
+        });
+      });
+      list.querySelectorAll(".btn-task-delete").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          showConfirm("Delete this task?", function () {
+            deleteSubjectTask(btn.getAttribute("data-subject-id"), btn.getAttribute("data-task-id")).then(function () {
+              loadSubjects();
+              showToast("Task deleted.", "info");
+            }).catch(function (err) {
+              showToast(err.message || "Could not delete task.", "error");
+            });
+          });
+        });
+      });
+      list.querySelectorAll(".subject-add-task-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          document.getElementById("subject-task-subject-id").value = btn.getAttribute("data-subject-id");
+          document.getElementById("subject-task-text").value = "";
+          openModal("subject-task-modal-overlay");
+        });
+      });
+
+    } catch (err) {
+      console.error("Error loading subjects:", err);
+      list.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load subjects</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
+    }
+  }
+
+  function editSubject(id) {
+    getSubjects().then(function (subjects) {
+      var subject = subjects.find(function (s) { return s.id === id; });
+      if (!subject) return;
+      document.getElementById("subject-edit-id").value = id;
+      document.getElementById("subject-name").value = subject.name;
+      document.getElementById("subject-professor").value = subject.professor || "";
+      document.getElementById("subject-schedule").value = subject.schedule || "";
+      document.getElementById("subject-modal-title").textContent = "Edit Subject";
+      openModal("subject-modal-overlay");
+    }).catch(function (err) {
+      showToast("Could not load subject.", "error");
+    });
+  }
+
+  // ===== SCHEDULE LOAD =====
+  async function loadSchedule() {
+    const list = document.getElementById("schedule-list");
+    if (!list) return;
+    try {
+      var schedule = await getSchedule();
+      list.innerHTML = "";
+      if (schedule.length === 0) {
+        list.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-calendar-days"></i></div>' +
+            '<p class="empty-title">No schedule yet</p>' +
+            '<p class="empty-sub">Click "Add Schedule" to get started.</p>' +
+          '</div>';
+        return;
+      }
+      const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+      var sorted = schedule.slice().sort(function (a, b) {
+        var da = a.day ? a.day.substring(0, 3) : "";
+        var db = b.day ? b.day.substring(0, 3) : "";
+        var od = (dayOrder[da] !== undefined ? dayOrder[da] : 99) - (dayOrder[db] !== undefined ? dayOrder[db] : 99);
+        return od !== 0 ? od : (a.start_time || "").localeCompare(b.start_time || "");
+      });
+      const badgeColors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
+      sorted.forEach(function (item) {
+        var card = document.createElement("div");
+        card.className = "schedule-card";
+        var dayIdx = item.day ? (dayOrder[item.day.substring(0, 3)] || 0) : 0;
+        card.innerHTML =
+          '<div class="schedule-card-top">' +
+            '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
+              escapeHtml(item.day || "N/A") +
+            '</div>' +
+            '<div class="schedule-card-actions">' +
+              '<button class="btn-icon btn-edit-schedule" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
+              '<button class="btn-icon btn-delete-schedule" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="schedule-card-info">' +
+            '<h4>' + escapeHtml(item.subject) + '</h4>' +
+            '<p class="schedule-time"><i class="fas fa-clock"></i> ' +
+              formatTime12h(item.start_time) + ' &ndash; ' + formatTime12h(item.end_time) +
+            '</p>' +
+            '<p class="schedule-room"><i class="fas fa-location-dot"></i> ' +
+              escapeHtml(item.room || "No room assigned") +
+            '</p>' +
+          '</div>';
+        list.appendChild(card);
+      });
+
+      list.querySelectorAll(".btn-edit-schedule").forEach(function (btn) {
+        btn.addEventListener("click", function () { editScheduleItem(btn.getAttribute("data-id")); });
+      });
+      list.querySelectorAll(".btn-delete-schedule").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          showConfirm("Delete this schedule entry?", function () {
+            deleteScheduleItem(btn.getAttribute("data-id")).then(function () {
+              loadSchedule();
+              showToast("Schedule entry deleted.", "info");
+            }).catch(function (err) {
+              showToast(err.message || "Could not delete schedule entry.", "error");
+            });
+          });
+        });
+      });
+
+    } catch (err) {
+      console.error("Error loading schedule:", err);
+      list.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load schedule</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
+    }
+  }
+
+  function editScheduleItem(id) {
+    getSchedule().then(function (schedule) {
+      var item = schedule.find(function (s) { return s.id === id; });
+      if (!item) return;
+      document.getElementById("schedule-edit-id").value = id;
+      document.getElementById("schedule-subject").value = item.subject;
+      document.getElementById("schedule-day").value = item.day || "";
+      document.getElementById("schedule-start-time").value = item.start_time || "";
+      document.getElementById("schedule-end-time").value = item.end_time || "";
+      document.getElementById("schedule-room").value = item.room || "";
+      document.getElementById("schedule-modal-title").textContent = "Edit Schedule";
+      openModal("schedule-modal-overlay");
+    }).catch(function (err) {
+      showToast("Could not load schedule item.", "error");
+    });
+  }
+
+  // ===== ASSIGNMENTS LOAD =====
+  async function loadAssignments() {
+    const list = document.getElementById("assignments-list");
+    if (!list) return;
+    try {
+      var assignments = await getAssignments();
+      list.innerHTML = "";
+      if (assignments.length === 0) {
+        list.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-clipboard-check"></i></div>' +
+            '<p class="empty-title">No assignments yet</p>' +
+            '<p class="empty-sub">Click "Add Task" to get started.</p>' +
+          '</div>';
+        return;
+      }
+      var sorted = assignments.slice().sort(function (a, b) {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        return 0;
+      });
+      sorted.forEach(function (item) {
+        var div = document.createElement("div");
+        div.className = "assignment-item" + (item.completed ? " assignment-done" : "");
+        var dueCls = "";
+        var dueLabel = "Due";
+        if (item.due_date && !item.completed) {
+          if (isOverdue(item.due_date)) { dueCls = "due-overdue"; dueLabel = "Overdue"; }
+          else if (isDueSoon(item.due_date)) { dueCls = "due-soon"; }
+        }
+        var dueHtml = item.due_date
+          ? '<span class="assignment-due ' + dueCls + '"><i class="fas fa-calendar-day"></i> ' + dueLabel + ': ' + escapeHtml(item.due_date) + '</span>'
+          : "";
+        var subjectHtml = item.subject
+          ? '<span class="assignment-subject"><i class="fas fa-book"></i> ' + escapeHtml(item.subject) + '</span>'
+          : "";
+        div.innerHTML =
+          '<label class="assignment-check-wrap" title="Mark complete">' +
+            '<input type="checkbox" class="assignment-checkbox" data-id="' + item.id + '" ' + (item.completed ? "checked" : "") + '>' +
+            '<span class="assignment-checkmark"></span>' +
+          '</label>' +
+          '<div class="assignment-info">' +
+            '<span class="assignment-text ' + (item.completed ? "completed" : "") + '">' + escapeHtml(item.text) + '</span>' +
+            '<div class="assignment-meta">' + subjectHtml + dueHtml + '</div>' +
+          '</div>' +
+          '<button class="btn-assignment-delete" data-id="' + item.id + '" title="Delete task">' +
+            '<i class="fas fa-trash"></i>' +
+          '</button>';
+        list.appendChild(div);
+      });
+
+      list.querySelectorAll(".assignment-checkbox").forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          toggleAssignment(cb.getAttribute("data-id")).then(function () {
+            loadAssignments();
+          }).catch(function (err) {
+            showToast(err.message || "Could not update task.", "error");
+          });
+        });
+      });
+      list.querySelectorAll(".btn-assignment-delete").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          showConfirm("Delete this task?", function () {
+            deleteAssignment(btn.getAttribute("data-id")).then(function () {
+              loadAssignments();
+              showToast("Task deleted.", "info");
+            }).catch(function (err) {
+              showToast(err.message || "Could not delete task.", "error");
+            });
+          });
+        });
+      });
+
+    } catch (err) {
+      console.error("Error loading assignments:", err);
+      list.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load assignments</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
+    }
+  }
+
+  function isDueSoon(dueDate) {
+    if (!dueDate) return false;
+    var diff = (new Date(dueDate) - new Date()) / 86400000;
+    return diff >= 0 && diff <= 3;
+  }
+
+  function isOverdue(dueDate) {
+    if (!dueDate) return false;
+    return new Date(dueDate) < new Date();
+  }
+
+  // ===== GRADES LOAD =====
+  async function loadGrades() {
+    const list = document.getElementById("grades-list");
+    const gwaDisplay = document.getElementById("gwa-value");
+    if (!list) return;
+    const yearEl = document.getElementById("grade-year-filter");
+    const semEl = document.getElementById("grade-semester-filter");
+    const year = yearEl ? yearEl.value : "all";
+    const semester = semEl ? semEl.value : "all";
+
+    try {
+      var grades = await getGrades();
+      var filtered = grades.filter(function (g) {
+        var yMatch = (year === "all" || !year || g.year === year);
+        var sMatch = (semester === "all" || !semester || g.semester === semester);
+        return yMatch && sMatch;
+      });
+
+      list.innerHTML = "";
+      if (filtered.length === 0) {
+        list.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-chart-simple"></i></div>' +
+            '<p class="empty-title">No grades found</p>' +
+            '<p class="empty-sub">Click "Add Grade" to record your subjects and compute your GWA.</p>' +
+          '</div>';
+        if (gwaDisplay) { gwaDisplay.textContent = "0.00"; gwaDisplay.style.color = ""; }
+        return;
+      }
+
+      filtered.forEach(function (item) {
+        var div = document.createElement("div");
+        div.className = "grade-item" + (item.exclude ? " grade-excluded" : "");
+        var gc = item.exclude ? "#94A3B8" : gradeColor(item.grade);
+        var gl = item.exclude ? "Excluded from GWA" : gradeLabel(item.grade);
+        var uLabel = (item.units || 3) + " Units";
+
+        div.innerHTML =
+          '<div class="grade-card-main">' +
+            '<div class="grade-card-header-row">' +
+              '<h4 class="grade-subject-title">' + escapeHtml(item.subject) + '</h4>' +
+              '<div class="grade-score-wrap">' +
+                '<span class="grade-score-value" style="color:' + gc + '">' +
+                  (item.exclude ? '<s>' + item.grade.toFixed(2) + '</s>' : item.grade.toFixed(2)) +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="grade-meta-tags-row">' +
+              '<span class="grade-badge" style="background:' + gc + '20;color:' + gc + '">' + gl + '</span>' +
+              '<span class="grade-unit-badge"><i class="fas fa-layer-group"></i> ' + uLabel + '</span>' +
+              '<span class="grade-term-badge"><i class="fas fa-calendar"></i> ' + escapeHtml(item.year || "1st Year") + ' &bull; ' + escapeHtml(item.semester || "1st Semester") + '</span>' +
+            '</div>' +
+            '<div class="grade-card-actions-row">' +
+              '<button class="btn-grade-action btn-toggle-exclude" data-id="' + item.id + '" ' +
+                'title="' + (item.exclude ? 'Include in GWA calculation' : 'Exclude from GWA calculation (e.g. PE/NSTP)') + '">' +
+                '<i class="fas ' + (item.exclude ? 'fa-eye' : 'fa-eye-slash') + '"></i> ' +
+                (item.exclude ? 'Include' : 'Exclude') +
+              '</button>' +
+              '<button class="btn-grade-action btn-edit-grade" data-id="' + item.id + '" title="Edit grade">' +
+                '<i class="fas fa-pen"></i> Edit' +
+              '</button>' +
+              '<button class="btn-grade-action btn-delete-grade" data-id="' + item.id + '" title="Delete grade">' +
+                '<i class="fas fa-trash"></i> Delete' +
+              '</button>' +
+            '</div>' +
+          '</div>';
+        list.appendChild(div);
+      });
+
+      // Event listeners
+      list.querySelectorAll(".btn-toggle-exclude").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          toggleGradeExclude(btn.getAttribute("data-id")).then(function () {
+            loadGrades();
+          }).catch(function (err) {
+            showToast(err.message || "Could not update exclude status.", "error");
+          });
+        });
+      });
+      list.querySelectorAll(".btn-edit-grade").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          editGradeItem(btn.getAttribute("data-id"));
+        });
+      });
+      list.querySelectorAll(".btn-delete-grade").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          showConfirm("Delete this grade?", function () {
+            deleteGrade(btn.getAttribute("data-id")).then(function () {
+              loadGrades();
+              showToast("Grade deleted.", "info");
+            }).catch(function (err) {
+              showToast(err.message || "Could not delete grade.", "error");
+            });
+          });
+        });
+      });
+
+      // Calculate GWA
+      var gwa = calculateGWA(grades, year, semester);
+      if (gwaDisplay) {
+        gwaDisplay.textContent = gwa > 0 ? gwa.toFixed(4).replace(/00$/, '') : "0.00";
+        gwaDisplay.style.color = gwa > 0 ? gradeColor(gwa) : "";
+      }
+
+    } catch (err) {
+      console.error("Error loading grades:", err);
+      list.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load grades</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
+    }
+  }
+
+  function gradeColor(g) {
+    if (g <= 1.50 && g > 0) return "#10B981";
+    if (g <= 2.00 && g > 0) return "#2563EB";
+    if (g <= 2.50 && g > 0) return "#F59E0B";
+    if (g <= 3.00 && g > 0) return "#8B5CF6";
+    if (g > 5.00) {
+      if (g >= 90) return "#10B981";
+      if (g >= 80) return "#2563EB";
+      if (g >= 75) return "#F59E0B";
+      return "#EF4444";
+    }
+    return "#EF4444";
+  }
+
+  function gradeLabel(g) {
+    if (g <= 1.25 && g > 0) return "Excellent";
+    if (g <= 1.75 && g > 0) return "Very Good";
+    if (g <= 2.25 && g > 0) return "Good";
+    if (g <= 2.75 && g > 0) return "Satisfactory";
+    if (g <= 3.00 && g > 0) return "Passing";
+    if (g > 3.00 && g <= 5.00) return "Failed";
+    if (g >= 90) return "Excellent";
+    if (g >= 80) return "Good";
+    if (g >= 75) return "Satisfactory";
+    return "Below Average";
+  }
+
+  function calculateGWA(grades, year, semester) {
+    var eligible = grades.filter(function (g) {
+      var yearMatch = (year === "all" || !year || g.year === year);
+      var semMatch = (semester === "all" || !semester || g.semester === semester);
+      return yearMatch && semMatch && !g.exclude && !isNaN(g.grade);
+    });
+    if (!eligible.length) return 0;
+    var totalWeighted = 0;
+    var totalUnits = 0;
+    eligible.forEach(function (g) {
+      var u = parseFloat(g.units) || 3;
+      totalWeighted += (parseFloat(g.grade) * u);
+      totalUnits += u;
+    });
+    if (totalUnits === 0) return 0;
+    return totalWeighted / totalUnits;
+  }
+
+  function editGradeItem(id) {
+    getGrades().then(function (grades) {
+      var item = grades.find(function (g) { return g.id === id; });
+      if (!item) return;
+      document.getElementById("grade-edit-id").value = id;
+      document.getElementById("grade-subject").value = item.subject;
+      document.getElementById("grade-value").value = item.grade;
+      document.getElementById("grade-units").value = item.units || 3;
+      document.getElementById("grade-year").value = item.year || "1st Year";
+      document.getElementById("grade-semester").value = item.semester || "1st Semester";
+      document.getElementById("grade-exclude").checked = !!item.exclude;
+      document.getElementById("grade-modal-title").textContent = "Edit Grade";
+      openModal("grade-modal-overlay");
+    }).catch(function (err) {
+      showToast("Could not load grade.", "error");
+    });
+  }
+
+  // ===== CLASSMATES LOAD =====
+  async function loadClassmates() {
+    const list = document.getElementById("classmates-list");
+    const mySectionBadge = document.getElementById("my-section-display");
+    if (!list) return;
+
+    var userProf = getProfile();
+    var mySec = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
+    if (mySectionBadge) {
+      mySectionBadge.textContent = "Your Section: " + mySec;
+    }
+
+    try {
+      var classmates = await getSectionClassmates();
+      list.innerHTML = "";
+      if (classmates.length === 0) {
+        list.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-users"></i></div>' +
+            '<p class="empty-title">No classmates found for section ' + escapeHtml(mySec) + '</p>' +
+            '<p class="empty-sub">Make sure your Section in Profile matches your classmates (e.g. BSIT 3-A).</p>' +
+          '</div>';
+        return;
+      }
+
+      classmates.forEach(function (cm) {
+        var card = document.createElement("div");
+        card.className = "classmate-card clickable-card";
+        var avatarBg = cm.photo ? 'background-image:url(' + cm.photo + ')' : 'background:' + stringToColor(cm.name);
+        var avatarContent = cm.photo ? '' : escapeHtml(initials(cm.name));
+
+        card.innerHTML =
+          '<div class="classmate-avatar" style="' + avatarBg + '">' +
+            avatarContent +
+          '</div>' +
+          '<div class="classmate-info">' +
+            '<h4>' + escapeHtml(cm.name) + '</h4>' +
+            '<p>' +
+              (cm.course ? '<span><i class="fas fa-graduation-cap"></i> ' + escapeHtml(cm.course) + '</span> ' : '') +
+              (cm.year ? '<span>' + escapeHtml(cm.year) + '</span>' : '') +
+            '</p>' +
+            '<p class="classmate-section"><i class="fas fa-users"></i> Section ' + escapeHtml(cm.section) + '</p>' +
+          '</div>' +
+          '<div class="classmate-arrow"><i class="fas fa-chevron-right"></i></div>';
+
+        card.addEventListener("click", function () {
+          showClassmateProfileModal(cm);
+        });
+
+        list.appendChild(card);
+      });
+
+    } catch (err) {
+      console.error("Error loading classmates:", err);
+      list.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load classmates</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
+    }
+  }
+
+  async function getSectionClassmates() {
+    var userProf = getProfile();
+    var currentUser = getCurrentUser();
+    var mySection = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
+
+    var result = [];
+
+    // 1. Registered users matching section from Supabase
+    if (currentUser && isSupabaseReady()) {
+      try {
+        var client = getSupabaseClient();
+        var response = await withTimeout(
+          client
+            .from("profiles")
+            .select("id,email,full_name,course,year,section,bio,student_id,contact,photo")
+            .neq("id", currentUser.id),
+          8000,
+          "Supabase classmates load"
+        );
+        if (response.error) throw response.error;
+        (response.data || []).forEach(function (prof) {
+          var uSec = prof.section ? normalizeSection(prof.section) : "BSIT 3-A";
+          if (uSec === mySection || mySection === "ALL") {
+            result.push({
+              id: prof.id || cryptoId(),
+              name: prof.full_name || prof.email || "Classmate",
+              email: prof.email || "",
+              course: prof.course || "BSIT",
+              year: prof.year || "3rd Year",
+              section: uSec,
+              bio: prof.bio || "Classmate in " + uSec,
+              studentId: prof.student_id || "N/A",
+              contact: prof.contact || "N/A",
+              photo: prof.photo || null
+            });
+          }
+        });
+      } catch (error) {
+        console.error("[ClassConnect] Supabase classmates load failed:", error);
+      }
+    }
+
+    // 2. Demo classmates matching section
+    var demo = getDemoClassmates();
+    demo.forEach(function (cm) {
+      var cmSec = normalizeSection(cm.section);
+      if (cmSec === mySection || mySection === "ALL") {
+        var alreadyAdded = result.some(function (r) { return r.name.toLowerCase() === cm.name.toLowerCase(); });
+        if (!alreadyAdded) {
+          result.push({
+            id: cryptoId(),
+            name: cm.name,
+            email: cm.email || (cm.name.toLowerCase().replace(/\s+/g, '.') + "@ctu.edu.ph"),
+            course: cm.course || "BSIT",
+            year: cm.year || "3rd Year",
+            section: cmSec,
+            bio: cm.bio || "BSIT Student at CTU Main Campus",
+            studentId: "2023-CTU-" + Math.floor(1000 + Math.random() * 9000),
+            contact: "0912-345-6789",
+            photo: null
+          });
+        }
+      }
+    });
+
+    return result;
+  }
+
+  function getDemoClassmates() {
+    return DEMO_CLASSMATES;
+  }
+
+  function showClassmateProfileModal(cm) {
+    var avatarEl = document.getElementById("cm-modal-avatar");
+    var nameEl = document.getElementById("cm-modal-name");
+    var sectionEl = document.getElementById("cm-modal-section");
+    var courseYearEl = document.getElementById("cm-modal-course-year");
+    var emailEl = document.getElementById("cm-modal-email");
+    var bioEl = document.getElementById("cm-modal-bio");
+    var studentIdEl = document.getElementById("cm-modal-studentid");
+    var contactEl = document.getElementById("cm-modal-contact");
+
+    if (avatarEl) {
+      if (cm.photo) {
+        avatarEl.style.backgroundImage = "url(" + cm.photo + ")";
+        avatarEl.textContent = "";
+      } else {
+        avatarEl.style.backgroundImage = "";
+        avatarEl.style.backgroundColor = stringToColor(cm.name);
+        avatarEl.textContent = initials(cm.name);
+      }
+    }
+    if (nameEl) nameEl.textContent = cm.name;
+    if (sectionEl) sectionEl.textContent = "Section: " + cm.section;
+    if (courseYearEl) courseYearEl.textContent = (cm.course || "BSIT") + " • " + (cm.year || "3rd Year");
+    if (emailEl) emailEl.textContent = cm.email || "N/A";
+    if (bioEl) bioEl.textContent = cm.bio || "No bio provided.";
+    if (studentIdEl) studentIdEl.textContent = cm.studentId || "N/A";
+    if (contactEl) contactEl.textContent = cm.contact || "N/A";
+
+    openModal("classmate-profile-modal-overlay");
+  }
+
+  // ===== FAQS LOAD =====
+  function loadFaqs() {
+    const list = document.getElementById("faqs-list");
+    if (!list) return;
+    list.innerHTML = "";
+    DEMO_FAQS.forEach(function (faq) {
+      var div = document.createElement("div");
+      div.className = "faq-item";
+      div.innerHTML =
+        '<div class="faq-question">' +
+          '<span>' + escapeHtml(faq.question) + '</span>' +
+          '<i class="fas fa-chevron-down faq-chevron"></i>' +
+        '</div>' +
+        '<div class="faq-answer">' + escapeHtml(faq.answer) + '</div>';
+      list.appendChild(div);
+    });
+    list.querySelectorAll(".faq-question").forEach(function (q) {
+      q.addEventListener("click", function () {
+        var parent = q.parentElement;
+        var isOpen = parent.classList.contains("open");
+        list.querySelectorAll(".faq-item.open").forEach(function (item) {
+          item.classList.remove("open");
+        });
+        if (!isOpen) parent.classList.add("open");
+      });
+    });
+  }
+
+  // ===== CURRICULUM LOAD =====
+  async function loadCurriculum() {
+    var list = document.getElementById("curriculum-subjects-list");
+    var pdfSection = document.getElementById("curriculum-pdf-section");
+    var corSection = document.getElementById("cor-pdf-section");
+    if (!list) return;
+
+    try {
+      // Load PDF section
+      if (pdfSection) {
+        var pdfData = await getCurriculumPDF();
+        if (pdfData) {
+          pdfSection.innerHTML =
+            '<div class="pdf-upload-area pdf-active-card">' +
+              '<div class="pdf-info">' +
+                '<i class="fas fa-file-pdf pdf-icon"></i>' +
+                '<div>' +
+                  '<h4 class="pdf-filename">' + escapeHtml(pdfData.name || "Curriculum PDF") + '</h4>' +
+                  '<span class="pdf-subtitle">Uploaded curriculum syllabus</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="pdf-actions">' +
+                '<button class="btn-pdf-view" onclick="window.open(\'' + pdfData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View PDF</button>' +
+                '<button class="btn-pdf-export" id="export-pdf-btn"><i class="fas fa-download"></i> Export</button>' +
+                '<button class="btn-pdf-remove" id="remove-pdf-btn"><i class="fas fa-trash"></i> Remove</button>' +
+              '</div>' +
+            '</div>';
+          var removeBtn = document.getElementById("remove-pdf-btn");
+          if (removeBtn) {
+            removeBtn.addEventListener("click", function () {
+              showConfirm("Remove the uploaded PDF?", function () {
+                removeCurriculumPDF().then(function () {
+                  loadCurriculum();
+                  showToast("PDF removed.", "info");
+                }).catch(function (err) {
+                  showToast(err.message || "Could not remove PDF.", "error");
+                });
+              });
+            });
+          }
+          var exportBtn = document.getElementById("export-pdf-btn");
+          if (exportBtn) {
+            exportBtn.addEventListener("click", function () {
+              downloadPDF(pdfData, "curriculum.pdf");
+              showToast("Curriculum PDF download started.", "success");
+            });
+          }
+        } else {
+          pdfSection.innerHTML =
+            '<div class="pdf-upload-area">' +
+              '<div class="no-pdf">' +
+                '<i class="fas fa-file-pdf"></i>' +
+                '<span>No curriculum PDF uploaded yet</span>' +
+              '</div>' +
+              '<div class="pdf-actions">' +
+                '<button class="btn-pdf-upload" id="upload-pdf-btn"><i class="fas fa-upload"></i> Upload PDF Syllabus</button>' +
+                '<input type="file" id="pdf-file-input" accept=".pdf" hidden>' +
+              '</div>' +
+            '</div>';
+          var uploadBtn = document.getElementById("upload-pdf-btn");
+          var fileInput = document.getElementById("pdf-file-input");
+          if (uploadBtn && fileInput) {
+            uploadBtn.addEventListener("click", function () { fileInput.click(); });
+            fileInput.addEventListener("change", function () {
+              var file = fileInput.files[0];
+              if (!file) return;
+              if (file.size > 10 * 1024 * 1024) {
+                showToast("PDF must be smaller than 10 MB.", "error");
+                fileInput.value = "";
+                return;
+              }
+              var reader = new FileReader();
+              reader.onload = function (e) {
+                var base64 = e.target.result;
+                saveCurriculumPDF(file.name, base64).then(function () {
+                  loadCurriculum();
+                  showToast("Curriculum PDF uploaded successfully.", "success");
+                  fileInput.value = "";
+                }).catch(function (err) {
+                  showToast(err.message || "Could not upload PDF.", "error");
+                });
+              };
+              reader.readAsDataURL(file);
+            });
+          }
+        }
+      }
+
+      // Load COR section
+      if (corSection) {
+        var corData = await getCORPDF();
+        if (corData) {
+          corSection.innerHTML =
+            '<div class="pdf-upload-area pdf-active-card cor-active-card">' +
+              '<div class="pdf-info">' +
+                '<i class="fas fa-id-card pdf-icon cor-icon"></i>' +
+                '<div>' +
+                  '<h4 class="pdf-filename">' + escapeHtml(corData.name || "Certificate of Registration") + '</h4>' +
+                  '<span class="pdf-subtitle">Certificate of Registration (COR)</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="pdf-actions">' +
+                '<button class="btn-pdf-view" onclick="window.open(\'' + corData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View COR</button>' +
+                '<button class="btn-pdf-export" id="export-cor-btn"><i class="fas fa-download"></i> Export</button>' +
+                '<button class="btn-pdf-remove" id="remove-cor-btn"><i class="fas fa-trash"></i> Remove</button>' +
+              '</div>' +
+            '</div>';
+          var removeCorBtn = document.getElementById("remove-cor-btn");
+          if (removeCorBtn) {
+            removeCorBtn.addEventListener("click", function () {
+              showConfirm("Remove the uploaded Certificate of Registration?", function () {
+                removeCORPDF().then(function () {
+                  loadCurriculum();
+                  showToast("Certificate of Registration removed.", "info");
+                }).catch(function (err) {
+                  showToast(err.message || "Could not remove COR.", "error");
+                });
+              });
+            });
+          }
+          var exportCorBtn = document.getElementById("export-cor-btn");
+          if (exportCorBtn) {
+            exportCorBtn.addEventListener("click", function () {
+              downloadPDF(corData, "certificate-of-registration.pdf");
+              showToast("COR download started.", "success");
+            });
+          }
+        } else {
+          corSection.innerHTML =
+            '<div class="pdf-upload-area">' +
+              '<div class="pdf-info">' +
+                '<i class="fas fa-id-card pdf-icon" style="color:var(--slate-blue,#6366f1);font-size:28px;flex-shrink:0;"></i>' +
+                '<div class="no-pdf" style="background:none;padding:0;">' +
+                  '<span>No Certificate of Registration uploaded yet</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="pdf-actions">' +
+                '<button class="btn-pdf-upload" id="upload-cor-btn"><i class="fas fa-upload"></i> Upload COR</button>' +
+                '<input type="file" id="cor-file-input" accept=".pdf,image/*" hidden>' +
+              '</div>' +
+            '</div>';
+          var uploadCorBtn = document.getElementById("upload-cor-btn");
+          var corFileInput = document.getElementById("cor-file-input");
+          if (uploadCorBtn && corFileInput) {
+            uploadCorBtn.addEventListener("click", function () { corFileInput.click(); });
+            corFileInput.addEventListener("change", function () {
+              var file = corFileInput.files[0];
+              if (!file) return;
+              if (file.size > 10 * 1024 * 1024) {
+                showToast("File must be smaller than 10 MB.", "error");
+                corFileInput.value = "";
+                return;
+              }
+              var reader = new FileReader();
+              reader.onload = function (e) {
+                var base64 = e.target.result;
+                saveCORPDF(file.name, base64).then(function () {
+                  loadCurriculum();
+                  showToast("Certificate of Registration uploaded successfully.", "success");
+                  corFileInput.value = "";
+                }).catch(function (err) {
+                  showToast(err.message || "Could not upload COR.", "error");
+                });
+              };
+              reader.readAsDataURL(file);
+            });
+          }
+        }
+      }
+
+      // Load subjects with filters
+      var subjects = await getCurriculumSubjects();
+      var yearFilterBtn = document.querySelector(".curriculum-year-filter.active");
+      var filterYear = yearFilterBtn ? yearFilterBtn.getAttribute("data-year") : "all";
+
+      var semSelect = document.getElementById("curriculum-semester-filter");
+      var filterSem = semSelect ? semSelect.value : "all";
+
+      var filtered = subjects.filter(function (s) {
+        var matchYear = (filterYear === "all" || s.year === filterYear);
+        var matchSem = (filterSem === "all" || !s.semester || s.semester === filterSem);
+        return matchYear && matchSem;
+      });
+
+      list.innerHTML = "";
+      if (filtered.length === 0) {
+        list.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
+            '<p class="empty-title">No subjects found</p>' +
+            '<p class="empty-sub">Add subjects to your curriculum or select another filter.</p>' +
+          '</div>';
+        return;
+      }
+      filtered.forEach(function (item) {
+        var card = document.createElement("div");
+        card.className = "curriculum-subject-card";
+        card.style.borderLeftColor = stringToColor(item.name);
+        card.innerHTML =
+          '<div class="cs-info">' +
+            '<h4>' + escapeHtml(item.name) + '</h4>' +
+            '<div class="cs-meta">' +
+              '<span><i class="fas fa-hashtag"></i> ' + escapeHtml(item.code) + '</span>' +
+              '<span><i class="fas fa-clock"></i> ' + escapeHtml(item.schedule || "No schedule") + '</span>' +
+              '<span class="cs-year">' + escapeHtml(item.year) + '</span>' +
+              '<span class="cs-sem">' + escapeHtml(item.semester || "1st Semester") + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="cs-actions">' +
+            '<button class="btn-icon btn-edit-curriculum" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
+            '<button class="btn-icon btn-delete-curriculum" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
+          '</div>';
+        list.appendChild(card);
+      });
+
+      list.querySelectorAll(".btn-edit-curriculum").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          editCurriculumSubject(btn.getAttribute("data-id"));
+        });
+      });
+      list.querySelectorAll(".btn-delete-curriculum").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          showConfirm("Delete this curriculum subject?", function () {
+            deleteCurriculumSubject(btn.getAttribute("data-id")).then(function () {
+              loadCurriculum();
+              showToast("Subject deleted.", "info");
+            }).catch(function (err) {
+              showToast(err.message || "Could not delete subject.", "error");
+            });
+          });
+        });
+      });
+
+    } catch (err) {
+      console.error("Error loading curriculum:", err);
+      list.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load curriculum</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
+    }
+  }
+
+  function editCurriculumSubject(id) {
+    getCurriculumSubjects().then(function (subjects) {
+      var found = subjects.find(function (s) { return s.id === id; });
+      if (!found) return;
+      document.getElementById("curriculum-subject-edit-id").value = id;
+      document.getElementById("curriculum-subject-name").value = found.name;
+      document.getElementById("curriculum-subject-code").value = found.code;
+      document.getElementById("curriculum-subject-schedule").value = found.schedule || "";
+      document.getElementById("curriculum-subject-year").value = found.year;
+      document.getElementById("curriculum-subject-semester").value = found.semester || "1st Semester";
+      document.getElementById("curriculum-subject-modal-title").textContent = "Edit Subject";
+      openModal("curriculum-subject-modal-overlay");
+    }).catch(function (err) {
+      showToast("Could not load subject.", "error");
+    });
+  }
+
+  function setupCurriculumFilters() {
+    var filters = document.querySelectorAll(".curriculum-year-filter");
+    filters.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        filters.forEach(function (b) { b.classList.remove("active"); });
+        btn.classList.add("active");
+        loadCurriculum();
+      });
+    });
+
+    var semFilterSelect = document.getElementById("curriculum-semester-filter");
+    if (semFilterSelect) {
+      semFilterSelect.addEventListener("change", function () {
+        loadCurriculum();
+      });
+    }
+  }
+
+  // ===== SETTINGS =====
+  function getSettings() { return getData(KEYS.SETTINGS, { fontType: "sans-serif" }); }
+  function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
+
+  function applySettings(settings) {
+    if (!settings) settings = getSettings();
+    var fontType = settings.fontType || "sans-serif";
+    document.documentElement.setAttribute("data-font-type", fontType);
+  }
+
+  function updateStorageDisplay() {
+    var total = 0;
+    for (var key in localStorage) {
+      if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
+        total += ((localStorage[key] || "").length) * 2;
+      }
+    }
+    var el = document.getElementById("settings-storage");
+    if (!el) return;
+    if (total < 1024) el.textContent = total + " B";
+    else if (total < 1048576) el.textContent = (total / 1024).toFixed(1) + " KB";
+    else el.textContent = (total / 1048576).toFixed(2) + " MB";
+  }
+
+  function loadSettings() {
+    const settings = getSettings();
+    const fontSelect = document.getElementById("font-type-select");
+    if (fontSelect) fontSelect.value = settings.fontType || "sans-serif";
+    applySettings(settings);
+    updateStorageDisplay();
+  }
+
+  // ===== PROFILE FORM =====
   function loadProfileForm() {
     var profile = getProfile();
     var user = getCurrentUser();
@@ -2438,7 +2941,7 @@ function getRemoteSession() {
     }
   }
 
-  /* ===== POST TOOLBAR ===== */
+  // ===== POST TOOLBAR =====
   var currentPostImage = null;
 
   function setupPostToolbar() {
@@ -2548,23 +3051,18 @@ function getRemoteSession() {
     if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "";
   }
 
+  // ===== EXPORT / IMPORT DATA (Now mostly for settings and maybe migration) =====
   function exportData() {
     var user = getCurrentUser();
+    // We'll export only what's in Supabase, but that's already in the cloud.
+    // This function can be used to export a local backup of the current state,
+    // but it's not needed for Supabase. We'll keep it for settings.
     var data = {
       version: "1.0.0",
       exportedAt: new Date().toISOString(),
       exportedBy: user ? user.email : "unknown",
-      posts: getPosts(),
-      subjects: getSubjects(),
-      schedule: getSchedule(),
-      assignments: getAssignments(),
-      grades: getGrades(),
-      profile: getProfile(),
       settings: getSettings(),
-      classmates: getClassmates(),
-      curriculumSubjects: getCurriculumSubjects(),
-      curriculumPDF: getCurriculumPDF(),
-      corPDF: getCORPDF(),
+      // We could also fetch all data from Supabase and include it, but that might be large.
     };
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
@@ -2575,7 +3073,7 @@ function getRemoteSession() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast("Data exported successfully.", "success");
+    showToast("Settings exported successfully.", "success");
   }
 
   function importData(file) {
@@ -2584,19 +3082,10 @@ function getRemoteSession() {
       try {
         var data = JSON.parse(e.target.result);
         if (!data.version) { showToast("Invalid backup file.", "error"); return; }
-        showConfirm("This will replace all your current data. Continue?", function () {
-          if (data.posts) savePosts(data.posts);
-          if (data.subjects) saveSubjects(data.subjects);
-          if (data.schedule) saveSchedule(data.schedule);
-          if (data.assignments) saveAssignments(data.assignments);
-          if (data.grades) saveGrades(data.grades);
-          if (data.profile) saveProfile(data.profile);
+        showConfirm("This will replace your settings. Continue?", function () {
           if (data.settings) saveSettings(data.settings);
-          if (data.classmates) saveClassmates(data.classmates);
-          if (data.curriculumSubjects) saveCurriculumSubjects(data.curriculumSubjects);
-          if (data.curriculumPDF) saveCurriculumPDF(data.curriculumPDF);
-          if (data.corPDF) saveCORPDF(data.corPDF);
-          showToast("Data imported. Reloading...", "success");
+          applySettings(getSettings());
+          showToast("Settings imported. Reloading...", "success");
           setTimeout(function () { location.reload(); }, 1500);
         });
       } catch (err) {
@@ -2611,99 +3100,75 @@ function getRemoteSession() {
       showConfirm("This is permanent. Are you absolutely sure?", function () {
         var user = getCurrentUser();
         if (user) {
-          var scope = "_" + user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
-          Object.keys(localStorage).forEach(function (key) {
-            if (key.indexOf(scope) !== -1) localStorage.removeItem(key);
+          // Delete all user data from Supabase tables
+          var tables = ["posts", "subjects", "schedule", "assignments", "grades", "curriculum_subjects", "curriculum_pdf", "cor_pdf"];
+          var promises = tables.map(function (table) {
+            return supabaseTable(table).delete().eq("user_id", user.id);
           });
-          localStorage.removeItem(KEYS.POSTS);
-          localStorage.removeItem(KEYS.SUBJECTS);
-          localStorage.removeItem(KEYS.SCHEDULE);
-          localStorage.removeItem(KEYS.ASSIGNMENTS);
-          localStorage.removeItem(KEYS.GRADES);
+          Promise.all(promises).then(function () {
+            showToast("All data cleared. Reloading...", "info");
+            setTimeout(function () { location.reload(); }, 1500);
+          }).catch(function (err) {
+            showToast("Could not clear all data: " + err.message, "error");
+          });
+        } else {
+          showToast("No user logged in.", "error");
         }
-        showToast("All data cleared. Reloading...", "info");
-        setTimeout(function () { location.reload(); }, 1500);
       });
     });
   }
 
-  async function changePassword(currentPwd, newPwd, confirmPwd) {
-    if (!currentPwd || !newPwd || !confirmPwd) {
-      return { success: false, message: "Please fill in all password fields." };
-    }
-    if (newPwd.length < 6) {
-      return { success: false, message: "New password must be at least 6 characters." };
-    }
-    if (newPwd !== confirmPwd) {
-      return { success: false, message: "New passwords do not match." };
+  // ===== LOAD DASHBOARD =====
+  async function loadDashboard() {
+    if (!isLoggedIn()) {
+      showPage("login-page");
+      showLoginForm();
+      return;
     }
     var user = getCurrentUser();
-    if (!user) return { success: false, message: "Not logged in." };
-    if (!isSupabaseReady()) {
-      return { success: false, message: "Supabase is unavailable. Password was not changed." };
+    var name = user ? user.name : "Student";
+    var email = user ? user.email : "";
+    var dashName = document.getElementById("dash-user-name");
+    var drawerName = document.getElementById("drawer-name");
+    var drawerEmail = document.getElementById("drawer-email");
+    if (dashName) dashName.textContent = name;
+    if (drawerName) drawerName.textContent = name;
+    if (drawerEmail) drawerEmail.textContent = email;
+    var composerAvatar = document.getElementById("composer-avatar");
+    if (composerAvatar) composerAvatar.textContent = initials(name);
+    var drawerAvatar = document.getElementById("drawer-avatar");
+    if (drawerAvatar) {
+      var photo = getProfilePhoto();
+      if (photo) {
+        drawerAvatar.style.backgroundImage = "url(" + photo + ")";
+        drawerAvatar.style.backgroundSize = "cover";
+        drawerAvatar.style.backgroundPosition = "center";
+        drawerAvatar.textContent = "";
+      } else {
+        drawerAvatar.style.backgroundImage = "";
+        drawerAvatar.textContent = initials(name);
+      }
     }
+
+    // Load all data from Supabase
     try {
-      var client = getSupabaseClient();
-      var verify = await withTimeout(
-        client.auth.signInWithPassword({ email: user.email, password: currentPwd }),
-        8000,
-        "Supabase password verification"
-      );
-      if (!verify || verify.error) {
-        return { success: false, message: (verify && verify.error && verify.error.message) || "Current password is incorrect." };
-      }
-      var response = await withTimeout(
-        client.auth.updateUser({ password: newPwd }),
-        8000,
-        "Supabase password update"
-      );
-      if (response && response.error) {
-        return { success: false, message: response.error.message || "Unable to update your password." };
-      }
-      return { success: true, message: "Password updated successfully in Supabase." };
-    } catch (error) {
-      console.error("[ClassConnect] Supabase password update failed:", error);
-      return {
-        success: false,
-        message: isTransientSupabaseError(error)
-          ? "Could not reach Supabase. Password was not changed."
-          : error.message || "Unable to update your password.",
-      };
+      await loadProfileForm();
+      await loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
+      await loadSubjects();
+      await loadSchedule();
+      await loadAssignments();
+      await loadGrades();
+      await loadClassmates();
+      await loadFaqs();
+      await loadSettings();
+      switchView("view-home");
+    } catch (err) {
+      console.error("Error loading dashboard data:", err);
+      showToast("Some data could not be loaded. Please refresh.", "warning");
     }
   }
 
-  function handleOffline(isOffline) {
-    var banner = document.getElementById("offline-banner");
-    if (banner) banner.hidden = !isOffline;
-  }
-
-  function lockPortrait() {
-    try {
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock("portrait").catch(function () {});
-      }
-    } catch (e) {}
-
-    function applyLandscapeLock() {
-      var lock = document.getElementById("landscape-lock");
-      if (!lock) return;
-      var isLandscape = window.innerWidth > window.innerHeight;
-      lock.hidden = !isLandscape;
-    }
-    applyLandscapeLock();
-    window.addEventListener("resize", applyLandscapeLock);
-    window.addEventListener("orientationchange", applyLandscapeLock);
-  }
-
-  function registerServiceWorker() {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(function (err) {
-        console.warn("Service worker registration failed:", err);
-      });
-    }
-  }
-
-  /* ===== EVENT LISTENERS ===== */
+  // ===== INIT EVENT LISTENERS =====
   function initEventListeners() {
     var showSignupLink = document.getElementById("show-signup");
     var showLoginLink = document.getElementById("show-login");
@@ -2853,7 +3318,6 @@ function getRemoteSession() {
       btn.addEventListener("click", function () { switchView(btn.getAttribute("data-view")); });
     });
 
-    /* SEARCH INPUT LISTENER FOR DASHBOARD */
     var dashboardSearchInput = document.getElementById("dashboard-search-input");
     if (dashboardSearchInput) {
       dashboardSearchInput.addEventListener("input", function (e) {
@@ -2985,12 +3449,15 @@ function getRemoteSession() {
           showToast("Please write something before posting.", "warning");
           return;
         }
-        createPost(content, currentPostImage);
-        closeModal("post-modal-overlay");
-        clearPostContent();
-        loadPosts(dashboardSearchInput ? dashboardSearchInput.value : "");
-        switchView("view-home");
-        showToast("Post shared successfully.", "success");
+        createPost(content, currentPostImage).then(function () {
+          closeModal("post-modal-overlay");
+          clearPostContent();
+          loadPosts(dashboardSearchInput ? dashboardSearchInput.value : "");
+          switchView("view-home");
+          showToast("Post shared successfully.", "success");
+        }).catch(function (err) {
+          showToast(err.message || "Could not create post.", "error");
+        });
       });
     }
 
@@ -3017,17 +3484,17 @@ function getRemoteSession() {
           showToast("Please write something.", "warning");
           return;
         }
-        var result = updatePost(id, content);
-        if (result) {
+        updatePost(id, content).then(function () {
           closeModal("edit-post-modal-overlay");
           loadPosts(dashboardSearchInput ? dashboardSearchInput.value : "");
           showToast("Post updated successfully.", "success");
-        } else {
-          showToast("Failed to update post.", "error");
-        }
+        }).catch(function (err) {
+          showToast(err.message || "Failed to update post.", "error");
+        });
       });
     }
 
+    // ----- SUBJECTS -----
     var addSubjectBtn = document.getElementById("add-subject-btn");
     var closeSubjectModal = document.getElementById("close-subject-modal-btn");
     var subjectOverlay = document.getElementById("subject-modal-overlay");
@@ -3057,14 +3524,29 @@ function getRemoteSession() {
         var professor = (document.getElementById("subject-professor").value || "").trim();
         var schedule = (document.getElementById("subject-schedule").value || "").trim();
         if (!name) { showToast("Please enter a subject name.", "warning"); return; }
-        if (id) { updateSubject(id, { name: name, professor: professor, schedule: schedule }); showToast("Subject updated.", "success"); }
-        else { addSubject(name, professor, schedule); showToast("Subject added.", "success"); }
-        closeModal("subject-modal-overlay");
-        subjectForm.reset();
-        loadSubjects();
+        if (id) {
+          updateSubject(id, { name: name, professor: professor, schedule: schedule }).then(function () {
+            closeModal("subject-modal-overlay");
+            subjectForm.reset();
+            loadSubjects();
+            showToast("Subject updated.", "success");
+          }).catch(function (err) {
+            showToast(err.message || "Could not update subject.", "error");
+          });
+        } else {
+          addSubject(name, professor, schedule).then(function () {
+            closeModal("subject-modal-overlay");
+            subjectForm.reset();
+            loadSubjects();
+            showToast("Subject added.", "success");
+          }).catch(function (err) {
+            showToast(err.message || "Could not add subject.", "error");
+          });
+        }
       });
     }
 
+    // ----- SUBJECT TASK -----
     var closeSubjectTaskModal = document.getElementById("close-subject-task-modal-btn");
     var subjectTaskOverlay = document.getElementById("subject-task-modal-overlay");
     var subjectTaskForm = document.getElementById("subject-task-form");
@@ -3081,14 +3563,18 @@ function getRemoteSession() {
         var subjectId = document.getElementById("subject-task-subject-id").value;
         var text = (document.getElementById("subject-task-text").value || "").trim();
         if (!text) { showToast("Please enter a task description.", "warning"); return; }
-        addSubjectTask(subjectId, text);
-        closeModal("subject-task-modal-overlay");
-        subjectTaskForm.reset();
-        loadSubjects();
-        showToast("Task added.", "success");
+        addSubjectTask(subjectId, text).then(function () {
+          closeModal("subject-task-modal-overlay");
+          subjectTaskForm.reset();
+          loadSubjects();
+          showToast("Task added.", "success");
+        }).catch(function (err) {
+          showToast(err.message || "Could not add task.", "error");
+        });
       });
     }
 
+    // ----- SCHEDULE -----
     var addScheduleBtn = document.getElementById("add-schedule-btn");
     var closeScheduleMdl = document.getElementById("close-schedule-modal-btn");
     var scheduleOverlay = document.getElementById("schedule-modal-overlay");
@@ -3124,14 +3610,29 @@ function getRemoteSession() {
         if (!subject || !day || !startTime || !endTime) {
           showToast("Please fill in all required fields.", "warning"); return;
         }
-        if (id) { updateScheduleItem(id, { subject: subject, day: day, startTime: startTime, endTime: endTime, room: room }); showToast("Schedule updated.", "success"); }
-        else { addScheduleItem(subject, day, startTime, endTime, room); showToast("Schedule added.", "success"); }
-        closeModal("schedule-modal-overlay");
-        scheduleForm.reset();
-        loadSchedule();
+        if (id) {
+          updateScheduleItem(id, { subject: subject, day: day, start_time: startTime, end_time: endTime, room: room }).then(function () {
+            closeModal("schedule-modal-overlay");
+            scheduleForm.reset();
+            loadSchedule();
+            showToast("Schedule updated.", "success");
+          }).catch(function (err) {
+            showToast(err.message || "Could not update schedule.", "error");
+          });
+        } else {
+          addScheduleItem(subject, day, startTime, endTime, room).then(function () {
+            closeModal("schedule-modal-overlay");
+            scheduleForm.reset();
+            loadSchedule();
+            showToast("Schedule added.", "success");
+          }).catch(function (err) {
+            showToast(err.message || "Could not add schedule.", "error");
+          });
+        }
       });
     }
 
+    // ----- ASSIGNMENTS -----
     var addAssignmentBtn = document.getElementById("add-assignment-btn");
     var closeAssignmentMdl = document.getElementById("close-assignment-modal-btn");
     var assignmentOverlay = document.getElementById("assignment-modal-overlay");
@@ -3158,15 +3659,18 @@ function getRemoteSession() {
         var subject = (document.getElementById("assignment-subject").value || "").trim();
         var due = document.getElementById("assignment-due-date").value;
         if (!text) { showToast("Please enter a task description.", "warning"); return; }
-        addAssignment(text, subject, due);
-        closeModal("assignment-modal-overlay");
-        assignmentForm.reset();
-        loadAssignments();
-        showToast("Assignment added.", "success");
+        addAssignment(text, subject, due).then(function () {
+          closeModal("assignment-modal-overlay");
+          assignmentForm.reset();
+          loadAssignments();
+          showToast("Assignment added.", "success");
+        }).catch(function (err) {
+          showToast(err.message || "Could not add assignment.", "error");
+        });
       });
     }
 
-    /* GRADES EVENT LISTENERS */
+    // ----- GRADES -----
     var addGradeBtn = document.getElementById("add-grade-btn");
     var closeGradeMdl = document.getElementById("close-grade-modal-btn");
     var gradeOverlay = document.getElementById("grade-modal-overlay");
@@ -3212,15 +3716,24 @@ function getRemoteSession() {
           showToast("Please enter a valid numeric grade.", "warning"); return;
         }
         if (id) {
-          updateGrade(id, { subject: subject, grade: gradeVal, units: unitsVal, year: year, semester: semester, exclude: exclude });
-          showToast("Grade updated.", "success");
+          updateGrade(id, { subject: subject, grade: gradeVal, units: unitsVal, year: year, semester: semester, exclude: exclude }).then(function () {
+            closeModal("grade-modal-overlay");
+            gradeForm.reset();
+            loadGrades();
+            showToast("Grade updated.", "success");
+          }).catch(function (err) {
+            showToast(err.message || "Could not update grade.", "error");
+          });
         } else {
-          addGrade(subject, gradeVal, unitsVal, year, semester, exclude);
-          showToast("Grade added to " + year + ", " + semester + ".", "success");
+          addGrade(subject, gradeVal, unitsVal, year, semester, exclude).then(function () {
+            closeModal("grade-modal-overlay");
+            gradeForm.reset();
+            loadGrades();
+            showToast("Grade added to " + year + ", " + semester + ".", "success");
+          }).catch(function (err) {
+            showToast(err.message || "Could not add grade.", "error");
+          });
         }
-        closeModal("grade-modal-overlay");
-        gradeForm.reset();
-        loadGrades();
       });
     }
 
@@ -3242,9 +3755,10 @@ function getRemoteSession() {
       });
     }
 
+    // ----- PROFILE -----
     var profileForm = document.getElementById("profile-form");
     if (profileForm) {
-        profileForm.addEventListener("submit", async function (e) {
+      profileForm.addEventListener("submit", async function (e) {
         e.preventDefault();
         var rawSec = document.getElementById("profile-section").value;
         var data = {
@@ -3367,6 +3881,7 @@ function getRemoteSession() {
       if (e.key === "Escape") { closeAllModals(); closeDrawer(); }
     });
 
+    // ----- CURRICULUM -----
     var addCurriculumBtn = document.getElementById("add-curriculum-subject-btn");
     if (addCurriculumBtn) {
       addCurriculumBtn.addEventListener("click", function () {
@@ -3409,15 +3924,24 @@ function getRemoteSession() {
           return;
         }
         if (id) {
-          updateCurriculumSubject(id, { name: name, code: code, schedule: schedule, year: year, semester: semester });
-          showToast("Subject updated.", "success");
+          updateCurriculumSubject(id, { name: name, code: code, schedule: schedule, year: year, semester: semester }).then(function () {
+            closeModal("curriculum-subject-modal-overlay");
+            curriculumForm.reset();
+            loadCurriculum();
+            showToast("Subject updated.", "success");
+          }).catch(function (err) {
+            showToast(err.message || "Could not update subject.", "error");
+          });
         } else {
-          addCurriculumSubject(name, code, schedule, year, semester);
-          showToast("Subject added to " + year + ", " + semester + ".", "success");
+          addCurriculumSubject(name, code, schedule, year, semester).then(function () {
+            closeModal("curriculum-subject-modal-overlay");
+            curriculumForm.reset();
+            loadCurriculum();
+            showToast("Subject added to " + year + ", " + semester + ".", "success");
+          }).catch(function (err) {
+            showToast(err.message || "Could not add subject.", "error");
+          });
         }
-        closeModal("curriculum-subject-modal-overlay");
-        curriculumForm.reset();
-        loadCurriculum();
       });
     }
 
@@ -3430,7 +3954,7 @@ function getRemoteSession() {
     }
   }
 
-  /* ===== INIT ===== */
+  // ===== INIT =====
   var hasInitialized = false;
 
   function showLoginFallback(reason) {
@@ -3488,10 +4012,6 @@ function getRemoteSession() {
     hasInitialized = true;
     console.log("[ClassConnect] Initializing ClassConnect...");
 
-    /*
-     * Render the splash and schedule its exit before optional setup work.
-     * If a non-critical feature throws, the auth route still runs.
-     */
     try {
       showPage("splash-page");
       document.body.style.overflow = "hidden";
@@ -3520,7 +4040,6 @@ function getRemoteSession() {
 
     try {
       initializeSupabase();
-      seedDemoClassmates();
       applySettings(getSettings());
       lockPortrait();
 
@@ -3544,7 +4063,6 @@ function getRemoteSession() {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
-    // Handles scripts loaded with async/defer or inserted after DOMContentLoaded.
     init();
   }
 
