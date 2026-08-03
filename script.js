@@ -1,60 +1,174 @@
 /* file: script.js - ClassConnect Complete Application Script */
 
-/* =========================================================
-   GLOBAL ERROR LOGGING
-   Surfaces any uncaught error or unhandled promise rejection to the
-   console immediately, so boot-time failures are visible instead of
-   silently freezing the UI (e.g. on the splash screen).
-   ========================================================= */
-window.addEventListener("error", function (e) {
-  console.error("[ClassConnect] Uncaught error:", e.error || e.message, e);
-});
-window.addEventListener("unhandledrejection", function (e) {
-  console.error("[ClassConnect] Unhandled promise rejection:", e.reason);
-});
-
-/* =========================================================
-   SUPABASE CLIENT (optional / best-effort)
-   NOTE: The app's actual authentication, posts, subjects, grades,
-   etc. all run on localStorage (see signup/login/getUsers/etc.
-   below) and do not depend on Supabase at all. This client is kept
-   available for future cloud-sync work, but its initialization is
-   made fully defensive so it can NEVER throw or block the app from
-   starting — even if the Supabase SDK script tag is missing, blocked,
-   or hasn't loaded yet when this file runs.
-   ========================================================= */
+// Supabase Configuration
 const SUPABASE_URL = "https://uctodqnrwrrorppkgagbl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjdG9kcW5yd3Jyb3Bwa2FnZ2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2ODk0NDYsImV4cCI6MjEwMTI2NTQ0Nn0.EwFU5LmczD8PLLeV0jTFvWxnuMzL65xy_zpkZEAV3NA";
 
+/*
+ * Supabase bootstrap
+ *
+ * The Supabase CDN exposes an SDK namespace at window.supabase. Keep the
+ * actual client in a different variable. Reusing the name "supabase" for
+ * both objects is a common source of:
+ *   Cannot read properties of undefined (reading 'getSession')
+ *
+ * The app is intentionally usable without the SDK or a network connection.
+ * In that case auth falls back to the existing localStorage implementation.
+ * Never put a Supabase secret/service-role key in this browser file. The
+ * publishable/anon key is the only key that belongs in a client-side app.
+ */
+let supabaseClient = null;
+let supabaseStatus = "not-initialized";
+
 function createSupabaseFallback(reason) {
-  console.warn("[ClassConnect] Using Supabase fallback client. Reason:", reason);
+  console.warn("[ClassConnect] Supabase fallback mode:", reason);
   return {
     auth: {
-      getSession: function () { return Promise.resolve({ data: { session: null }, error: null }); },
-      signUp: function () { return Promise.resolve({ data: { user: null }, error: { message: "Supabase not available: " + reason } }); },
-      signInWithPassword: function () { return Promise.resolve({ data: { user: null }, error: { message: "Supabase not available: " + reason } }); },
-      signOut: function () { return Promise.resolve({ error: null }); },
-      resetPasswordForEmail: function () { return Promise.resolve({ data: {}, error: { message: "Supabase not available: " + reason } }); },
-      onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; },
+      getSession: function () {
+        return Promise.resolve({ data: { session: null }, error: null });
+      },
+      signUp: function () {
+        return Promise.resolve({
+          data: { user: null, session: null },
+          error: { message: "Supabase is unavailable." },
+        });
+      },
+      signInWithPassword: function () {
+        return Promise.resolve({
+          data: { user: null, session: null },
+          error: { message: "Supabase is unavailable." },
+        });
+      },
+      signOut: function () {
+        return Promise.resolve({ error: null });
+      },
+      resetPasswordForEmail: function () {
+        return Promise.resolve({
+          data: null,
+          error: { message: "Supabase is unavailable." },
+        });
+      },
+      updateUser: function () {
+        return Promise.resolve({
+          data: { user: null },
+          error: { message: "Supabase is unavailable." },
+        });
+      },
+      onAuthStateChange: function () {
+        return {
+          data: {
+            subscription: {
+              unsubscribe: function () {},
+            },
+          },
+          error: null,
+        };
+      },
     },
   };
 }
 
-let supabase;
-try {
-  if (
-    typeof window !== "undefined" &&
-    window.supabase &&
-    typeof window.supabase.createClient === "function"
-  ) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("[ClassConnect] Supabase client initialized successfully.");
-  } else {
-    supabase = createSupabaseFallback("Supabase SDK (window.supabase) not found at script load time.");
+function initializeSupabase() {
+  if (supabaseClient && supabaseStatus === "ready") {
+    return supabaseClient;
   }
-} catch (e) {
-  console.error("[ClassConnect] Supabase initialization threw an error:", e);
-  supabase = createSupabaseFallback("createClient() threw: " + (e && e.message ? e.message : e));
+
+  try {
+    var sdk = typeof window !== "undefined" ? window.supabase : null;
+    if (!sdk || typeof sdk.createClient !== "function") {
+      supabaseStatus = "fallback";
+      supabaseClient = createSupabaseFallback(
+        "Supabase SDK is not loaded. Check that the Supabase script tag appears before script.js."
+      );
+      return supabaseClient;
+    }
+
+    var client = sdk.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+
+    if (!client || !client.auth || typeof client.auth.getSession !== "function") {
+      throw new Error("Supabase client was created without a working auth API.");
+    }
+
+    supabaseClient = client;
+    supabaseStatus = "ready";
+    console.log("[ClassConnect] Supabase initialized successfully.");
+    return supabaseClient;
+  } catch (error) {
+    supabaseStatus = "fallback";
+    console.error("[ClassConnect] Supabase initialization failed:", error);
+    supabaseClient = createSupabaseFallback(error.message || "Unknown initialization error");
+    return supabaseClient;
+  }
+}
+
+function getSupabaseClient() {
+  // Retry when the SDK was loaded after this file.
+  return initializeSupabase();
+}
+
+function withTimeout(promise, milliseconds, label) {
+  var timeoutId;
+  var timeout = new Promise(function (_, reject) {
+    timeoutId = setTimeout(function () {
+      reject(new Error(label + " timed out after " + milliseconds + "ms."));
+    }, milliseconds);
+  });
+  return Promise.race([promise, timeout]).finally(function () {
+    clearTimeout(timeoutId);
+  });
+}
+
+function isSupabaseReady() {
+  var client = getSupabaseClient();
+  return supabaseStatus === "ready" &&
+    client &&
+    client.auth &&
+    typeof client.auth.getSession === "function";
+}
+
+function isTransientSupabaseError(error) {
+  var message = error && error.message ? String(error.message).toLowerCase() : "";
+  return !navigator.onLine ||
+    message.indexOf("failed to fetch") !== -1 ||
+    message.indexOf("network") !== -1 ||
+    message.indexOf("timeout") !== -1 ||
+    message.indexOf("timed out") !== -1;
+}
+
+function authUserName(authUser) {
+  if (!authUser) return "Student";
+  var metadata = authUser.user_metadata || {};
+  return metadata.full_name || metadata.name || authUser.email || "Student";
+}
+
+function getRemoteSession() {
+  var client = getSupabaseClient();
+  if (!isSupabaseReady()) {
+    console.warn("[ClassConnect] Remote session check skipped; using local fallback.");
+    return Promise.resolve({ session: null, error: null, available: false });
+  }
+
+  console.log("[ClassConnect] Checking Supabase session...");
+  return withTimeout(client.auth.getSession(), 5000, "Supabase session check")
+    .then(function (result) {
+      if (result && result.error) {
+        console.error("[ClassConnect] Supabase session check returned an error:", result.error);
+        return { session: null, error: result.error, available: true };
+      }
+      var session = result && result.data ? result.data.session : null;
+      console.log("[ClassConnect] Supabase session check complete:", session ? "session found" : "no session");
+      return { session: session || null, error: null, available: true };
+    })
+    .catch(function (error) {
+      console.error("[ClassConnect] Supabase session check failed; continuing in fallback mode:", error);
+      return { session: null, error: error, available: true };
+    });
 }
 
 (function () {
@@ -297,7 +411,35 @@ try {
   function getUsers() { return getData(KEYS.USERS, []); }
   function saveUsers(users) { setData(KEYS.USERS, users); }
 
-  function signup(name, email, password) {
+  function saveRemoteUserSession(authUser) {
+    if (!authUser || !authUser.email) {
+      console.warn("[ClassConnect] Supabase returned no authenticated user.");
+      return null;
+    }
+
+    var remoteUser = {
+      id: authUser.id || cryptoId(),
+      name: authUserName(authUser),
+      email: authUser.email.trim().toLowerCase(),
+      provider: "supabase",
+    };
+    var users = getUsers();
+    var existing = users.find(function (u) {
+      return u.email && u.email.toLowerCase() === remoteUser.email;
+    });
+    if (existing) {
+      existing.id = remoteUser.id;
+      existing.name = remoteUser.name;
+      existing.provider = "supabase";
+    } else {
+      users.push(remoteUser);
+    }
+    saveUsers(users);
+    setSession(remoteUser);
+    return remoteUser;
+  }
+
+  function signupLocal(name, email, password) {
     const users = getUsers();
     const exists = users.some(function (u) {
       return u.email.toLowerCase() === email.toLowerCase();
@@ -318,10 +460,77 @@ try {
     return { success: true };
   }
 
-  function login(email, password) {
+  async function signup(name, email, password) {
+    console.log("[ClassConnect] Signup requested for:", email);
+
+    if (isSupabaseReady()) {
+      try {
+        var client = getSupabaseClient();
+        var response = await withTimeout(
+          client.auth.signUp({
+            email: email.trim().toLowerCase(),
+            password: password,
+            options: {
+              data: { full_name: name.trim(), name: name.trim() },
+            },
+          }),
+          8000,
+          "Supabase signup"
+        );
+
+        if (response && response.error) {
+          console.error("[ClassConnect] Supabase signup failed:", response.error);
+          if (!isTransientSupabaseError(response.error)) {
+            return { success: false, message: response.error.message || "Unable to create your account." };
+          }
+          console.warn("[ClassConnect] Signup network failure; using local fallback.");
+        } else if (response && response.data) {
+          var createdUser = response.data.user;
+          if (response.data.session && createdUser) {
+            saveRemoteUserSession(createdUser);
+            saveProfile({
+              name: name.trim(),
+              email: email.trim().toLowerCase(),
+              section: "BSIT 3-A",
+              course: "BSIT",
+              year: "3rd Year",
+            });
+          }
+          console.log(
+            "[ClassConnect] Supabase signup succeeded:",
+            response.data.session ? "signed in" : "email confirmation required"
+          );
+          return {
+            success: true,
+            confirmationRequired: !response.data.session,
+            message: response.data.session
+              ? "Your account has been created successfully!"
+              : "Account created. Check your email to confirm your account, then log in.",
+          };
+        }
+      } catch (error) {
+        console.error("[ClassConnect] Supabase signup exception:", error);
+        if (!isTransientSupabaseError(error)) {
+          return { success: false, message: error.message || "Unable to create your account." };
+        }
+      }
+    }
+
+    console.warn("[ClassConnect] Creating account in local fallback mode.");
+    var localResult = signupLocal(name, email, password);
+    if (localResult.success) {
+      localResult.localFallback = true;
+      localResult.message = "Account created in offline mode. You can log in on this device.";
+    }
+    return localResult;
+  }
+
+  function loginLocal(email, password) {
     const users = getUsers();
     const user = users.find(function (u) {
-      return u.email.toLowerCase() === email.toLowerCase() && u.password === password;
+      return u.email &&
+        u.email.toLowerCase() === email.toLowerCase() &&
+        u.password === password;
     });
     if (!user) {
       return { success: false, message: "Invalid email or password. Please try again." };
@@ -330,19 +539,77 @@ try {
     return { success: true };
   }
 
+  async function login(email, password) {
+    console.log("[ClassConnect] Login requested for:", email);
+
+    if (isSupabaseReady()) {
+      try {
+        var client = getSupabaseClient();
+        var response = await withTimeout(
+          client.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password: password,
+          }),
+          8000,
+          "Supabase login"
+        );
+
+        if (!response || response.error) {
+          var authError = response && response.error
+            ? response.error
+            : new Error("Supabase returned an empty login response.");
+          console.error("[ClassConnect] Supabase login failed:", authError);
+          if (!isTransientSupabaseError(authError)) {
+            return { success: false, message: authError.message || "Invalid email or password." };
+          }
+          console.warn("[ClassConnect] Login network failure; trying local fallback.");
+        } else if (response.data && response.data.user) {
+          saveRemoteUserSession(response.data.user);
+          console.log("[ClassConnect] Supabase login succeeded.");
+          return { success: true, remote: true };
+        }
+      } catch (error) {
+        console.error("[ClassConnect] Supabase login exception:", error);
+        if (!isTransientSupabaseError(error)) {
+          return { success: false, message: error.message || "Unable to sign in." };
+        }
+      }
+    }
+
+    console.warn("[ClassConnect] Trying local login fallback.");
+    var localResult = loginLocal(email, password);
+    if (localResult.success) localResult.localFallback = true;
+    return localResult;
+  }
+
   function setSession(user) {
-    setData(KEYS.SESSION, { name: user.name, email: user.email.toLowerCase() });
+    setData(KEYS.SESSION, {
+      id: user.id || null,
+      name: user.name || "Student",
+      email: user.email.toLowerCase(),
+      provider: user.provider || "local",
+    });
   }
 
   function logout() {
     showConfirm("Are you sure you want to log out?", function () {
-      localStorage.removeItem(KEYS.SESSION);
-      closeDrawer();
-      closeAllModals();
-      switchView("view-home");
-      showPage("login-page");
-      showLoginForm();
-      showToast("You have been logged out.", "info");
+      console.log("[ClassConnect] Logout requested.");
+      var client = getSupabaseClient();
+      var remoteLogout = isSupabaseReady() && client.auth && typeof client.auth.signOut === "function"
+        ? withTimeout(client.auth.signOut(), 5000, "Supabase logout").catch(function (error) {
+            console.warn("[ClassConnect] Supabase logout failed; clearing local session anyway:", error);
+          })
+        : Promise.resolve();
+      remoteLogout.then(function () {
+        localStorage.removeItem(KEYS.SESSION);
+        closeDrawer();
+        closeAllModals();
+        switchView("view-home");
+        showPage("login-page");
+        showLoginForm();
+        console.log("[ClassConnect] Logout complete.");
+        showToast("You have been logged out.", "info");
+      });
     });
   }
 
@@ -351,8 +618,9 @@ try {
   function isLoggedIn() {
     const session = getCurrentUser();
     if (!session || !session.email) return false;
+    if (session.provider === "supabase") return true;
     return getUsers().some(function (u) {
-      return u.email.toLowerCase() === session.email.toLowerCase();
+      return u.email && u.email.toLowerCase() === session.email.toLowerCase();
     });
   }
 
@@ -2412,53 +2680,75 @@ try {
 
     var loginForm = document.getElementById("login-form");
     if (loginForm) {
-      loginForm.addEventListener("submit", function (e) {
+      loginForm.addEventListener("submit", async function (e) {
         e.preventDefault();
         hideError("login-error");
-        var email = (document.getElementById("login-email").value || "").trim();
-        var password = document.getElementById("login-password").value || "";
+        var emailInput = document.getElementById("login-email");
+        var passwordInput = document.getElementById("login-password");
+        var email = emailInput ? (emailInput.value || "").trim() : "";
+        var password = passwordInput ? passwordInput.value || "" : "";
         if (!isValidEmail(email)) { showError("login-error", "Please enter a valid email address."); return; }
         if (!password) { showError("login-error", "Please enter your password."); return; }
         var btn = document.getElementById("login-submit-btn");
         setButtonLoading(btn, true);
-        setTimeout(function () {
-          var result = login(email, password);
+        try {
+          var result = await login(email, password);
           setButtonLoading(btn, false);
           if (!result.success) { showError("login-error", result.message); return; }
           loginForm.reset();
           showPage("dashboard-page");
           loadDashboard();
-          showToast("Welcome back, " + getCurrentUser().name + ".", "success");
-        }, 600);
+          var currentUser = getCurrentUser();
+          showToast(
+            "Welcome back, " + (currentUser ? currentUser.name : "Student") + ".",
+            "success"
+          );
+        } catch (error) {
+          console.error("[ClassConnect] Login form error:", error);
+          showError("login-error", "Unable to sign in right now. Please try again.");
+          setButtonLoading(btn, false);
+        }
       });
     }
 
     var signupForm = document.getElementById("signup-form");
     if (signupForm) {
-      signupForm.addEventListener("submit", function (e) {
+      signupForm.addEventListener("submit", async function (e) {
         e.preventDefault();
         hideError("signup-error");
-        var name = (document.getElementById("signup-name").value || "").trim();
-        var email = (document.getElementById("signup-email").value || "").trim();
-        var password = document.getElementById("signup-password").value || "";
-        var confirm = document.getElementById("signup-confirm").value || "";
+        var nameInput = document.getElementById("signup-name");
+        var emailInput = document.getElementById("signup-email");
+        var passwordInput = document.getElementById("signup-password");
+        var confirmInput = document.getElementById("signup-confirm");
+        var name = nameInput ? (nameInput.value || "").trim() : "";
+        var email = emailInput ? (emailInput.value || "").trim() : "";
+        var password = passwordInput ? passwordInput.value || "" : "";
+        var confirm = confirmInput ? confirmInput.value || "" : "";
         if (name.length < 2) { showError("signup-error", "Please enter your full name."); return; }
         if (!isValidEmail(email)) { showError("signup-error", "Please enter a valid email address."); return; }
         if (password.length < 6) { showError("signup-error", "Password must be at least 6 characters."); return; }
         if (password !== confirm) { showError("signup-error", "Passwords do not match."); return; }
         var btn = document.getElementById("signup-submit-btn");
         setButtonLoading(btn, true);
-        setTimeout(function () {
-          var result = signup(name, email, password);
+        try {
+          var result = await signup(name, email, password);
           setButtonLoading(btn, false);
           if (!result.success) { showError("signup-error", result.message); return; }
           signupForm.reset();
-          showSuccessModal("Your account has been created successfully!", "Back to Login", function () {
+          showSuccessModal(
+            result.message || "Your account has been created successfully!",
+            "Back to Login",
+            function () {
             showPage("login-page");
             showLoginForm();
             showToast("Please log in with your new account.", "info");
-          });
-        }, 600);
+            }
+          );
+        } catch (error) {
+          console.error("[ClassConnect] Signup form error:", error);
+          showError("signup-error", "Unable to create your account right now. Please try again.");
+          setButtonLoading(btn, false);
+        }
       });
     }
 
@@ -2559,25 +2849,55 @@ try {
           showError("forgot-error", "Please enter a valid email address.");
           return;
         }
-        var users = getUsers();
-        var exists = users.some(function (u) {
-          return u.email.toLowerCase() === email.toLowerCase();
-        });
         var btn = forgotForm.querySelector(".btn-primary");
         setButtonLoading(btn, true);
-        setTimeout(function () {
+        var client = getSupabaseClient();
+        var resetPromise = Promise.resolve(null);
+        if (isSupabaseReady() && client.auth && typeof client.auth.resetPasswordForEmail === "function") {
+          console.log("[ClassConnect] Sending Supabase password reset email.");
+          resetPromise = withTimeout(
+            client.auth.resetPasswordForEmail(email, { redirectTo: window.location.href }),
+            8000,
+            "Supabase password reset"
+          );
+        } else {
+          console.warn("[ClassConnect] Supabase unavailable; using local password-reset fallback.");
+        }
+        resetPromise.then(function (response) {
           setButtonLoading(btn, false);
-          if (!exists) {
-            showError("forgot-error", "No account found with this email address.");
-            return;
+          if (response && response.error) {
+            console.error("[ClassConnect] Supabase password reset failed:", response.error);
+            if (!isTransientSupabaseError(response.error)) {
+              showError("forgot-error", response.error.message || "Unable to send reset instructions.");
+              return;
+            }
+          }
+          if (!response) {
+            var users = getUsers();
+            var exists = users.some(function (u) {
+              return u.email && u.email.toLowerCase() === email.toLowerCase();
+            });
+            if (!exists) {
+              showError("forgot-error", "No account found with this email address.");
+              return;
+            }
           }
           if (successEl) {
             successEl.textContent = "Password reset instructions have been sent to " + email + ".";
             successEl.hidden = false;
           }
-          document.getElementById("forgot-email").value = "";
+          var forgotEmailInput = document.getElementById("forgot-email");
+          if (forgotEmailInput) forgotEmailInput.value = "";
           showToast("Password reset link sent to your email.", "success");
-        }, 800);
+        }).catch(function (error) {
+          console.error("[ClassConnect] Password reset form error:", error);
+          setButtonLoading(btn, false);
+          if (isTransientSupabaseError(error)) {
+            showError("forgot-error", "The connection is unavailable. Please try again later.");
+            return;
+          }
+          showError("forgot-error", error.message || "Unable to send reset instructions.");
+        });
       });
     }
 
@@ -3055,105 +3375,120 @@ try {
     }
   }
 
-  /* =========================================================
-     INIT / BOOT SEQUENCE (hardened)
+  /* ===== INIT ===== */
+  var hasInitialized = false;
 
-     The splash-to-app transition is scheduled FIRST, before any
-     other setup work runs. That guarantees the app can never get
-     stuck showing the splash screen forever: even if something in
-     the "best effort" setup below throws an exception, the timer
-     that hides the splash and shows login/dashboard has already
-     been queued and will still fire. Each best-effort setup step is
-     also wrapped individually via safeRun() so one broken feature
-     can't take down the others.
-     ========================================================= */
-  function init() {
-    console.log("[ClassConnect] Initializing...");
+  function showLoginFallback(reason) {
+    console.warn("[ClassConnect] Showing login fallback:", reason || "no active session");
+    try {
+      showPage("login-page");
+      showLoginForm();
+    } catch (error) {
+      console.error("[ClassConnect] Could not render the login page:", error);
+      var loginPage = document.getElementById("login-page");
+      if (loginPage) {
+        loginPage.style.display = "";
+        loginPage.classList.add("active-page");
+      }
+    }
+  }
 
-    // 1) Schedule the splash-to-app transition FIRST, unconditionally.
-    showPage("splash-page");
+  function routeAfterSplash() {
+    console.log("[ClassConnect] Splash timer completed; checking authentication.");
 
-    setTimeout(function () {
-      console.log("[ClassConnect] Splash transition starting...");
-      var splash = document.getElementById("splash-page");
+    // Fail safe first: the login page is always reachable at this point.
+    showLoginFallback("startup fallback");
 
-      function goToApp() {
-        try {
-          var loggedIn = isLoggedIn();
-          console.log("[ClassConnect] isLoggedIn:", loggedIn);
-          if (loggedIn) {
-            console.log("[ClassConnect] Redirecting to dashboard...");
-            showPage("dashboard-page");
-            loadDashboard();
-          } else {
-            console.log("[ClassConnect] Redirecting to login...");
-            showPage("login-page");
-            showLoginForm();
-          }
-        } catch (err) {
-          console.error("[ClassConnect] Error during post-splash navigation, falling back to login page:", err);
-          try {
-            showPage("login-page");
-            showLoginForm();
-          } catch (err2) {
-            console.error("[ClassConnect] Fallback to login page also failed:", err2);
-          }
+    getRemoteSession().then(function (remote) {
+      if (remote.session && remote.session.user) {
+        console.log("[ClassConnect] Restoring Supabase session.");
+        var remoteUser = saveRemoteUserSession(remote.session.user);
+        if (remoteUser) {
+          showPage("dashboard-page");
+          loadDashboard();
+          return;
         }
       }
 
-      if (splash) {
-        splash.style.transition = "opacity 0.4s ease";
-        splash.style.opacity = "0";
-        setTimeout(goToApp, 400);
+      if (isLoggedIn()) {
+        console.log("[ClassConnect] Restoring local session.");
+        showPage("dashboard-page");
+        loadDashboard();
       } else {
-        console.error("[ClassConnect] Splash page element not found in DOM! Skipping fade, going straight to app.");
-        goToApp();
+        console.log("[ClassConnect] No active session; login page is ready.");
+        showLoginFallback(remote.error ? "Supabase session unavailable" : "no active session");
+      }
+    }).catch(function (error) {
+      console.error("[ClassConnect] Startup auth routing failed; login remains available:", error);
+      showLoginFallback("startup auth exception");
+    });
+  }
+
+  function init() {
+    if (hasInitialized) {
+      console.warn("[ClassConnect] Duplicate init call ignored.");
+      return;
+    }
+    hasInitialized = true;
+    console.log("[ClassConnect] Initializing ClassConnect...");
+
+    /*
+     * Render the splash and schedule its exit before optional setup work.
+     * If a non-critical feature throws, the auth route still runs.
+     */
+    try {
+      showPage("splash-page");
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+    } catch (error) {
+      console.error("[ClassConnect] Splash setup failed:", error);
+      showLoginFallback("splash setup exception");
+    }
+
+    setTimeout(function () {
+      console.log("[ClassConnect] Splash screen finished after 1.8 seconds.");
+      var splash = document.getElementById("splash-page");
+      if (splash) {
+        splash.style.transition = "opacity 0.3s ease";
+        splash.style.opacity = "0";
+        setTimeout(function () {
+          if (splash.parentNode) splash.style.display = "none";
+          routeAfterSplash();
+        }, 300);
+      } else {
+        console.warn("[ClassConnect] Splash page not found; routing directly.");
+        routeAfterSplash();
       }
     }, 1800);
 
-    // 2) Best-effort setup. Each step is isolated so a failure in one
-    //    (e.g. lockPortrait on a browser without the Orientation API)
-    //    can never block the others or the splash timer above.
-    function safeRun(label, fn) {
-      try {
-        fn();
-      } catch (err) {
-        console.error("[ClassConnect] Setup step \"" + label + "\" failed:", err);
-      }
-    }
+    try {
+      initializeSupabase();
+      seedDemoClassmates();
+      applySettings(getSettings());
+      lockPortrait();
 
-    safeRun("seedDemoClassmates", seedDemoClassmates);
-    safeRun("applySettings", function () { applySettings(getSettings()); });
-    safeRun("lockPortrait", lockPortrait);
-
-    safeRun("hideBottomNavInitially", function () {
       var bottomNav = document.querySelector(".bottom-nav");
       if (bottomNav) bottomNav.style.display = "none";
-    });
 
-    safeRun("initEventListeners", initEventListeners);
-    safeRun("setupPostToolbar", setupPostToolbar);
-    safeRun("setupEditPostToolbar", setupEditPostToolbar);
-    safeRun("registerServiceWorker", registerServiceWorker);
-    safeRun("handleOffline", function () { handleOffline(!navigator.onLine); });
-
-    console.log("[ClassConnect] init() setup complete; waiting for splash timer.");
+      initEventListeners();
+      setupPostToolbar();
+      setupEditPostToolbar();
+      registerServiceWorker();
+      handleOffline(!navigator.onLine);
+      console.log("[ClassConnect] Optional app setup completed.");
+    } catch (error) {
+      console.error("[ClassConnect] Optional setup failed; startup will continue:", error);
+    }
   }
 
   window.navigateTo = navigateTo;
   window.toggleSettingsGroup = toggleSettingsGroup;
 
-  // Run init() as soon as possible. If the DOM has already finished
-  // loading by the time this script executes (e.g. script injected
-  // dynamically, loaded from cache, or DOMContentLoaded already fired
-  // for any other reason), the "DOMContentLoaded" listener below would
-  // NEVER fire again — which is exactly what causes an app to appear
-  // frozen on the splash screen forever. Checking document.readyState
-  // guarantees init() always runs exactly once, regardless of timing.
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
-    console.log("[ClassConnect] Document already ready — calling init() immediately.");
+    // Handles scripts loaded with async/defer or inserted after DOMContentLoaded.
     init();
   }
 
