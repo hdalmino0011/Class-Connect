@@ -193,8 +193,62 @@ function getRemoteSession() {
     { question: "How do I track my assignments?", answer: "Navigate to the Assignments page, click Add Task to create new tasks, and check them off as you complete them using the checkbox." },
     { question: "How does the Grades page work?", answer: "Enter your grade for each subject along with its units/credits, year level, and semester. The app automatically calculates your General Weighted Average (GWA). You can also exclude PE/NSTP subjects." },
     { question: "How does the Curriculum section work?", answer: "You can organize college subjects by Year Level and Semester, or upload your official curriculum PDF syllabus for instant offline access." },
-    { question: "Is my data safe?", answer: "Authentication and profile information are stored in Supabase and protected by authenticated access policies. Offline app preferences and course tracking data are still cached locally on this device." },
+    { question: "Is my data safe?", answer: "Yes. All your data — profile, subjects, assignments, grades, schedule, curriculum, and posts — is stored in Supabase, a cloud-hosted PostgreSQL database. Supabase enforces Row-Level Security (RLS) on every table, so only your authenticated account can read or modify your records. The only item stored locally on your device is your font preference setting (font family choice)." },
   ];
+
+  // ===== INACTIVITY AUTO-LOGOUT =====
+  var INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  var inactivityTimer = null;
+  var inactivityActive = false;
+
+  function resetInactivityTimer() {
+    if (!inactivityActive) return;
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(triggerInactivityLogout, INACTIVITY_TIMEOUT_MS);
+  }
+
+  function startInactivityTimer() {
+    inactivityActive = true;
+    resetInactivityTimer();
+  }
+
+  function stopInactivityTimer() {
+    inactivityActive = false;
+    clearTimeout(inactivityTimer);
+    inactivityTimer = null;
+  }
+
+  function showInactivityModal() {
+    var overlay = document.getElementById("inactivity-modal-overlay");
+    if (!overlay) return;
+    overlay.classList.add("active");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+
+  function hideInactivityModal() {
+    var overlay = document.getElementById("inactivity-modal-overlay");
+    if (!overlay) return;
+    overlay.classList.remove("active");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  function triggerInactivityLogout() {
+    if (!isLoggedIn()) return;
+    console.log("[ClassConnect] Inactivity timeout — logging out automatically.");
+    stopInactivityTimer();
+    var client = getSupabaseClient();
+    var remoteLogout = isSupabaseReady() && client.auth && typeof client.auth.signOut === "function"
+      ? withTimeout(client.auth.signOut(), 5000, "Supabase inactivity logout").catch(function () {})
+      : Promise.resolve();
+    remoteLogout.then(function () {
+      remoteUser = null;
+      remoteProfile = null;
+      closeDrawer();
+      closeAllModals();
+      switchView("view-home");
+      showInactivityModal();
+    });
+  }
 
   /* UTILITY FUNCTIONS */
   function cryptoId() {
@@ -1494,6 +1548,7 @@ function getRemoteSession() {
           })
         : Promise.resolve();
       remoteLogout.then(function () {
+        stopInactivityTimer();
         remoteUser = null;
         remoteProfile = null;
         closeDrawer();
@@ -1747,6 +1802,8 @@ function getRemoteSession() {
   async function loadPosts(searchQuery) {
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
+    // Clear immediately so rapid/concurrent calls never append duplicate cards
+    feed.innerHTML = "";
     try {
       var posts = await getPosts();
 
@@ -3284,6 +3341,7 @@ function getRemoteSession() {
       loadFaqs();
       loadSettings();
       switchView("view-home");
+      startInactivityTimer();
     } catch (err) {
       console.error("Error loading dashboard data:", err);
       showToast("Some data could not be loaded. Please refresh.", "warning");
@@ -4078,6 +4136,21 @@ function getRemoteSession() {
       uploadPdfBtn.addEventListener("click", function () {
         var fileInput = document.getElementById("pdf-file-input");
         if (fileInput) fileInput.click();
+      });
+    }
+
+    // ----- INACTIVITY: reset timer on any user activity -----
+    ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach(function (evName) {
+      document.addEventListener(evName, resetInactivityTimer, { passive: true });
+    });
+
+    // ----- INACTIVITY MODAL: Back to Login button -----
+    var inactivityBackBtn = document.getElementById("inactivity-back-to-login-btn");
+    if (inactivityBackBtn) {
+      inactivityBackBtn.addEventListener("click", function () {
+        hideInactivityModal();
+        showPage("login-page");
+        showLoginForm();
       });
     }
   }
