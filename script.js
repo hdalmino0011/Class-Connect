@@ -1,39 +1,60 @@
 /* file: script.js - ClassConnect Complete Application Script */
 
-// Supabase Configuration
+/* =========================================================
+   GLOBAL ERROR LOGGING
+   Surfaces any uncaught error or unhandled promise rejection to the
+   console immediately, so boot-time failures are visible instead of
+   silently freezing the UI (e.g. on the splash screen).
+   ========================================================= */
+window.addEventListener("error", function (e) {
+  console.error("[ClassConnect] Uncaught error:", e.error || e.message, e);
+});
+window.addEventListener("unhandledrejection", function (e) {
+  console.error("[ClassConnect] Unhandled promise rejection:", e.reason);
+});
+
+/* =========================================================
+   SUPABASE CLIENT (optional / best-effort)
+   NOTE: The app's actual authentication, posts, subjects, grades,
+   etc. all run on localStorage (see signup/login/getUsers/etc.
+   below) and do not depend on Supabase at all. This client is kept
+   available for future cloud-sync work, but its initialization is
+   made fully defensive so it can NEVER throw or block the app from
+   starting — even if the Supabase SDK script tag is missing, blocked,
+   or hasn't loaded yet when this file runs.
+   ========================================================= */
 const SUPABASE_URL = "https://uctodqnrwrrorppkgagbl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjdG9kcW5yd3Jyb3Bwa2FnZ2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2ODk0NDYsImV4cCI6MjEwMTI2NTQ0Nn0.EwFU5LmczD8PLLeV0jTFvWxnuMzL65xy_zpkZEAV3NA";
 
-// Initialize Supabase client with error handling
+function createSupabaseFallback(reason) {
+  console.warn("[ClassConnect] Using Supabase fallback client. Reason:", reason);
+  return {
+    auth: {
+      getSession: function () { return Promise.resolve({ data: { session: null }, error: null }); },
+      signUp: function () { return Promise.resolve({ data: { user: null }, error: { message: "Supabase not available: " + reason } }); },
+      signInWithPassword: function () { return Promise.resolve({ data: { user: null }, error: { message: "Supabase not available: " + reason } }); },
+      signOut: function () { return Promise.resolve({ error: null }); },
+      resetPasswordForEmail: function () { return Promise.resolve({ data: {}, error: { message: "Supabase not available: " + reason } }); },
+      onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; },
+    },
+  };
+}
+
 let supabase;
 try {
-  if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+  if (
+    typeof window !== "undefined" &&
+    window.supabase &&
+    typeof window.supabase.createClient === "function"
+  ) {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("Supabase initialized successfully.");
+    console.log("[ClassConnect] Supabase client initialized successfully.");
   } else {
-    console.error("Supabase SDK not loaded! Check your HTML script tag.");
-    // Create fallback to prevent crashes
-    supabase = {
-      auth: {
-        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-        signUp: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not loaded" } }),
-        signInWithPassword: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not loaded" } }),
-        signOut: () => Promise.resolve({ error: null }),
-        resetPasswordForEmail: () => Promise.resolve({ data: {}, error: { message: "Supabase not loaded" } }),
-      }
-    };
+    supabase = createSupabaseFallback("Supabase SDK (window.supabase) not found at script load time.");
   }
 } catch (e) {
-  console.error("Supabase initialization error:", e);
-  supabase = {
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-      signUp: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not loaded" } }),
-      signInWithPassword: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not loaded" } }),
-      signOut: () => Promise.resolve({ error: null }),
-      resetPasswordForEmail: () => Promise.resolve({ data: {}, error: { message: "Supabase not loaded" } }),
-    }
-  };
+  console.error("[ClassConnect] Supabase initialization threw an error:", e);
+  supabase = createSupabaseFallback("createClient() threw: " + (e && e.message ? e.message : e));
 }
 
 (function () {
@@ -3034,61 +3055,106 @@ try {
     }
   }
 
-  /* ===== INIT ===== */
+  /* =========================================================
+     INIT / BOOT SEQUENCE (hardened)
+
+     The splash-to-app transition is scheduled FIRST, before any
+     other setup work runs. That guarantees the app can never get
+     stuck showing the splash screen forever: even if something in
+     the "best effort" setup below throws an exception, the timer
+     that hides the splash and shows login/dashboard has already
+     been queued and will still fire. Each best-effort setup step is
+     also wrapped individually via safeRun() so one broken feature
+     can't take down the others.
+     ========================================================= */
   function init() {
-    console.log("ClassConnect initializing...");
+    console.log("[ClassConnect] Initializing...");
 
-    seedDemoClassmates();
-    applySettings(getSettings());
-    lockPortrait();
-
-    var bottomNav = document.querySelector(".bottom-nav");
-    if (bottomNav) bottomNav.style.display = "none";
-
-    initEventListeners();
-    setupPostToolbar();
-    setupEditPostToolbar();
-    registerServiceWorker();
-    handleOffline(!navigator.onLine);
-
+    // 1) Schedule the splash-to-app transition FIRST, unconditionally.
     showPage("splash-page");
 
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.width = "100%";
-
-    console.log("Splash screen shown, waiting 1.8 seconds...");
-
     setTimeout(function () {
-      console.log("Splash transition starting...");
+      console.log("[ClassConnect] Splash transition starting...");
       var splash = document.getElementById("splash-page");
-      if (splash) {
-        splash.style.transition = "opacity 0.4s ease";
-        splash.style.opacity = "0";
-        setTimeout(function () {
-          console.log("isLoggedIn:", isLoggedIn());
-          if (isLoggedIn()) {
-            console.log("Redirecting to dashboard...");
+
+      function goToApp() {
+        try {
+          var loggedIn = isLoggedIn();
+          console.log("[ClassConnect] isLoggedIn:", loggedIn);
+          if (loggedIn) {
+            console.log("[ClassConnect] Redirecting to dashboard...");
             showPage("dashboard-page");
             loadDashboard();
           } else {
-            console.log("Redirecting to login...");
+            console.log("[ClassConnect] Redirecting to login...");
             showPage("login-page");
             showLoginForm();
           }
-        }, 400);
+        } catch (err) {
+          console.error("[ClassConnect] Error during post-splash navigation, falling back to login page:", err);
+          try {
+            showPage("login-page");
+            showLoginForm();
+          } catch (err2) {
+            console.error("[ClassConnect] Fallback to login page also failed:", err2);
+          }
+        }
+      }
+
+      if (splash) {
+        splash.style.transition = "opacity 0.4s ease";
+        splash.style.opacity = "0";
+        setTimeout(goToApp, 400);
       } else {
-        console.error("Splash page not found!");
-        // Fallback - show login directly
-        showPage("login-page");
-        showLoginForm();
+        console.error("[ClassConnect] Splash page element not found in DOM! Skipping fade, going straight to app.");
+        goToApp();
       }
     }, 1800);
+
+    // 2) Best-effort setup. Each step is isolated so a failure in one
+    //    (e.g. lockPortrait on a browser without the Orientation API)
+    //    can never block the others or the splash timer above.
+    function safeRun(label, fn) {
+      try {
+        fn();
+      } catch (err) {
+        console.error("[ClassConnect] Setup step \"" + label + "\" failed:", err);
+      }
+    }
+
+    safeRun("seedDemoClassmates", seedDemoClassmates);
+    safeRun("applySettings", function () { applySettings(getSettings()); });
+    safeRun("lockPortrait", lockPortrait);
+
+    safeRun("hideBottomNavInitially", function () {
+      var bottomNav = document.querySelector(".bottom-nav");
+      if (bottomNav) bottomNav.style.display = "none";
+    });
+
+    safeRun("initEventListeners", initEventListeners);
+    safeRun("setupPostToolbar", setupPostToolbar);
+    safeRun("setupEditPostToolbar", setupEditPostToolbar);
+    safeRun("registerServiceWorker", registerServiceWorker);
+    safeRun("handleOffline", function () { handleOffline(!navigator.onLine); });
+
+    console.log("[ClassConnect] init() setup complete; waiting for splash timer.");
   }
 
   window.navigateTo = navigateTo;
   window.toggleSettingsGroup = toggleSettingsGroup;
 
-  document.addEventListener("DOMContentLoaded", init);
+  // Run init() as soon as possible. If the DOM has already finished
+  // loading by the time this script executes (e.g. script injected
+  // dynamically, loaded from cache, or DOMContentLoaded already fired
+  // for any other reason), the "DOMContentLoaded" listener below would
+  // NEVER fire again — which is exactly what causes an app to appear
+  // frozen on the splash screen forever. Checking document.readyState
+  // guarantees init() always runs exactly once, regardless of timing.
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    console.log("[ClassConnect] Document already ready — calling init() immediately.");
+    init();
+  }
 
 })();
