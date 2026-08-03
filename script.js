@@ -1,7 +1,7 @@
 /* file: script.js - ClassConnect Complete Application Script */
 
 // Supabase Configuration
-const SUPABASE_URL = "https://uctodqnrwrrorppkgagbl.supabase.co";
+const SUPABASE_URL = "https://uctodqnrwrroppkaggbl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjdG9kcW5yd3Jyb3Bwa2FnZ2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2ODk0NDYsImV4cCI6MjEwMTI2NTQ0Nn0.EwFU5LmczD8PLLeV0jTFvWxnuMzL65xy_zpkZEAV3NA";
 
 /*
@@ -12,16 +12,18 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
  * both objects is a common source of:
  *   Cannot read properties of undefined (reading 'getSession')
  *
- * The app is intentionally usable without the SDK or a network connection.
- * In that case auth falls back to the existing localStorage implementation.
+ * Supabase is the only source of truth for authentication. The app must not
+ * silently create local accounts when the SDK or network is unavailable.
  * Never put a Supabase secret/service-role key in this browser file. The
  * publishable/anon key is the only key that belongs in a client-side app.
  */
 let supabaseClient = null;
 let supabaseStatus = "not-initialized";
+let remoteUser = null;
+let remoteProfile = null;
 
 function createSupabaseFallback(reason) {
-  console.warn("[ClassConnect] Supabase fallback mode:", reason);
+  console.warn("[ClassConnect] Supabase unavailable:", reason);
   return {
     auth: {
       getSession: function () {
@@ -150,8 +152,10 @@ function authUserName(authUser) {
 function getRemoteSession() {
   var client = getSupabaseClient();
   if (!isSupabaseReady()) {
-    console.warn("[ClassConnect] Remote session check skipped; using local fallback.");
-    return Promise.resolve({ session: null, error: null, available: false });
+    var unavailable = new Error(
+      "Supabase is unavailable. Check the Supabase project URL, SDK, and network connection."
+    );
+    return Promise.resolve({ session: null, error: unavailable, available: false });
   }
 
   console.log("[ClassConnect] Checking Supabase session...");
@@ -166,7 +170,7 @@ function getRemoteSession() {
       return { session: session || null, error: null, available: true };
     })
     .catch(function (error) {
-      console.error("[ClassConnect] Supabase session check failed; continuing in fallback mode:", error);
+      console.error("[ClassConnect] Supabase session check failed:", error);
       return { session: null, error: error, available: true };
     });
 }
@@ -175,8 +179,6 @@ function getRemoteSession() {
   "use strict";
 
   const KEYS = {
-    USERS: "cc_users",
-    SESSION: "cc_session",
     POSTS: "cc_posts",
     SUBJECTS: "cc_subjects",
     SCHEDULE: "cc_schedule",
@@ -210,7 +212,7 @@ function getRemoteSession() {
     { question: "How do I track my assignments?", answer: "Navigate to the Assignments page, click Add Task to create new tasks, and check them off as you complete them using the checkbox." },
     { question: "How does the Grades page work?", answer: "Enter your grade for each subject along with its units/credits, year level, and semester. The app automatically calculates your General Weighted Average (GWA). You can also exclude PE/NSTP subjects." },
     { question: "How does the Curriculum section work?", answer: "You can organize college subjects by Year Level and Semester, or upload your official curriculum PDF syllabus for instant offline access." },
-    { question: "Is my data safe?", answer: "Your data is stored securely in your browser's local storage and is not shared with third parties." },
+    { question: "Is my data safe?", answer: "Authentication and profile information are stored in Supabase and protected by authenticated access policies. Offline app preferences and course tracking data are still cached locally on this device." },
   ];
 
   /* UTILITY FUNCTIONS */
@@ -408,187 +410,218 @@ function getRemoteSession() {
     });
   }
 
-  function getUsers() { return getData(KEYS.USERS, []); }
-  function saveUsers(users) { setData(KEYS.USERS, users); }
-
   function saveRemoteUserSession(authUser) {
     if (!authUser || !authUser.email) {
       console.warn("[ClassConnect] Supabase returned no authenticated user.");
+      remoteUser = null;
       return null;
     }
 
-    var remoteUser = {
+    remoteUser = {
       id: authUser.id || cryptoId(),
       name: authUserName(authUser),
       email: authUser.email.trim().toLowerCase(),
       provider: "supabase",
     };
-    var users = getUsers();
-    var existing = users.find(function (u) {
-      return u.email && u.email.toLowerCase() === remoteUser.email;
-    });
-    if (existing) {
-      existing.id = remoteUser.id;
-      existing.name = remoteUser.name;
-      existing.provider = "supabase";
-    } else {
-      users.push(remoteUser);
-    }
-    saveUsers(users);
-    setSession(remoteUser);
     return remoteUser;
   }
 
-  function signupLocal(name, email, password) {
-    const users = getUsers();
-    const exists = users.some(function (u) {
-      return u.email.toLowerCase() === email.toLowerCase();
-    });
-    if (exists) {
-      return { success: false, message: "An account with this email already exists." };
-    }
-    const newUser = {
-      id: cryptoId(),
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password: password,
+  function profileToRemoteRow(profile, user) {
+    var source = profile || {};
+    return {
+      id: user.id,
+      email: user.email,
+      full_name: source.name || user.name || "Student",
+      bio: source.bio || "",
+      student_id: source.studentId || "",
+      course: source.course || "",
+      year: source.year || "",
+      section: source.section || "BSIT 3-A",
+      contact: source.contact || "",
+      birthdate: source.birthdate || null,
+      gender: source.gender || "",
+      address: source.address || "",
+      emergency: source.emergency || "",
+      guardian_name: source.guardianName || "",
+      guardian_contact: source.guardianContact || "",
+      photo: source.photo || null,
     };
-    users.push(newUser);
-    saveUsers(users);
-    setSession(newUser);
-    saveProfile({ name: newUser.name, email: newUser.email, section: "BSIT 3-A", course: "BSIT", year: "3rd Year" });
-    return { success: true };
+  }
+
+  function remoteRowToProfile(row, user) {
+    var current = row || {};
+    return {
+      name: current.full_name || (user && user.name) || "Student",
+      email: current.email || (user && user.email) || "",
+      bio: current.bio || "",
+      studentId: current.student_id || "",
+      course: current.course || "",
+      year: current.year || "",
+      section: current.section || "BSIT 3-A",
+      contact: current.contact || "",
+      birthdate: current.birthdate || "",
+      gender: current.gender || "",
+      address: current.address || "",
+      emergency: current.emergency || "",
+      guardianName: current.guardian_name || "",
+      guardianContact: current.guardian_contact || "",
+      photo: current.photo || null,
+    };
+  }
+
+  async function loadRemoteProfile() {
+    var user = getCurrentUser();
+    if (!user || !isSupabaseReady()) return null;
+    var client = getSupabaseClient();
+    var response = await withTimeout(
+      client.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+      8000,
+      "Supabase profile load"
+    );
+    if (response.error) {
+      console.error("[ClassConnect] Supabase profile load failed:", response.error);
+      throw response.error;
+    }
+    remoteProfile = remoteRowToProfile(response.data, user);
+    return remoteProfile;
+  }
+
+  async function upsertRemoteProfile(profile) {
+    var user = getCurrentUser();
+    if (!user || !isSupabaseReady()) {
+      throw new Error("No active Supabase session is available.");
+    }
+    var client = getSupabaseClient();
+    var response = await withTimeout(
+      client.from("profiles").upsert(profileToRemoteRow(profile, user), { onConflict: "id" }).select().single(),
+      8000,
+      "Supabase profile save"
+    );
+    if (response.error) {
+      console.error("[ClassConnect] Supabase profile save failed:", response.error);
+      throw response.error;
+    }
+    remoteProfile = remoteRowToProfile(response.data, user);
+    return remoteProfile;
   }
 
   async function signup(name, email, password) {
     console.log("[ClassConnect] Signup requested for:", email);
 
-    if (isSupabaseReady()) {
-      try {
-        var client = getSupabaseClient();
-        var response = await withTimeout(
-          client.auth.signUp({
-            email: email.trim().toLowerCase(),
-            password: password,
-            options: {
-              data: { full_name: name.trim(), name: name.trim() },
-            },
-          }),
-          8000,
-          "Supabase signup"
-        );
+    if (!isSupabaseReady()) {
+      return {
+        success: false,
+        message: "Supabase is unavailable. Your account was not created. Please check the connection and try again.",
+      };
+    }
 
-        if (response && response.error) {
-          console.error("[ClassConnect] Supabase signup failed:", response.error);
-          if (!isTransientSupabaseError(response.error)) {
-            return { success: false, message: response.error.message || "Unable to create your account." };
-          }
-          console.warn("[ClassConnect] Signup network failure; using local fallback.");
-        } else if (response && response.data) {
-          var createdUser = response.data.user;
-          if (response.data.session && createdUser) {
-            saveRemoteUserSession(createdUser);
-            saveProfile({
-              name: name.trim(),
-              email: email.trim().toLowerCase(),
-              section: "BSIT 3-A",
-              course: "BSIT",
-              year: "3rd Year",
-            });
-          }
-          console.log(
-            "[ClassConnect] Supabase signup succeeded:",
-            response.data.session ? "signed in" : "email confirmation required"
-          );
-          return {
-            success: true,
-            confirmationRequired: !response.data.session,
-            message: response.data.session
-              ? "Your account has been created successfully!"
-              : "Account created. Check your email to confirm your account, then log in.",
-          };
-        }
-      } catch (error) {
-        console.error("[ClassConnect] Supabase signup exception:", error);
-        if (!isTransientSupabaseError(error)) {
-          return { success: false, message: error.message || "Unable to create your account." };
-        }
+    try {
+      var client = getSupabaseClient();
+      var response = await withTimeout(
+        client.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password: password,
+          options: {
+            data: { full_name: name.trim(), name: name.trim() },
+          },
+        }),
+        8000,
+        "Supabase signup"
+      );
+
+      if (!response || response.error) {
+        var signupError = response && response.error
+          ? response.error
+          : new Error("Supabase returned an empty signup response.");
+        console.error("[ClassConnect] Supabase signup failed:", signupError);
+        return { success: false, message: signupError.message || "Unable to create your account." };
       }
-    }
 
-    console.warn("[ClassConnect] Creating account in local fallback mode.");
-    var localResult = signupLocal(name, email, password);
-    if (localResult.success) {
-      localResult.localFallback = true;
-      localResult.message = "Account created in offline mode. You can log in on this device.";
-    }
-    return localResult;
-  }
+      var createdUser = response.data && response.data.user;
+      if (!createdUser) {
+        return { success: false, message: "Supabase did not return a new user. Your account was not created." };
+      }
 
-  function loginLocal(email, password) {
-    const users = getUsers();
-    const user = users.find(function (u) {
-      return u.email &&
-        u.email.toLowerCase() === email.toLowerCase() &&
-        u.password === password;
-    });
-    if (!user) {
-      return { success: false, message: "Invalid email or password. Please try again." };
+      if (response.data.session) {
+        saveRemoteUserSession(createdUser);
+        await upsertRemoteProfile({
+          name: name.trim(),
+          section: "BSIT 3-A",
+          course: "BSIT",
+          year: "3rd Year",
+        });
+      }
+      console.log(
+        "[ClassConnect] Supabase signup succeeded:",
+        response.data.session ? "signed in" : "email confirmation required"
+      );
+      return {
+        success: true,
+        confirmationRequired: !response.data.session,
+        message: response.data.session
+          ? "Your Supabase account has been created successfully!"
+          : "Your Supabase account was created. Check your email to confirm it, then log in.",
+      };
+    } catch (error) {
+      console.error("[ClassConnect] Supabase signup exception:", error);
+      return {
+        success: false,
+        message: isTransientSupabaseError(error)
+          ? "Could not reach Supabase. Your account was not created. Please try again."
+          : error.message || "Unable to create your account.",
+      };
     }
-    setSession(user);
-    return { success: true };
   }
 
   async function login(email, password) {
     console.log("[ClassConnect] Login requested for:", email);
 
-    if (isSupabaseReady()) {
-      try {
-        var client = getSupabaseClient();
-        var response = await withTimeout(
-          client.auth.signInWithPassword({
-            email: email.trim().toLowerCase(),
-            password: password,
-          }),
-          8000,
-          "Supabase login"
-        );
-
-        if (!response || response.error) {
-          var authError = response && response.error
-            ? response.error
-            : new Error("Supabase returned an empty login response.");
-          console.error("[ClassConnect] Supabase login failed:", authError);
-          if (!isTransientSupabaseError(authError)) {
-            return { success: false, message: authError.message || "Invalid email or password." };
-          }
-          console.warn("[ClassConnect] Login network failure; trying local fallback.");
-        } else if (response.data && response.data.user) {
-          saveRemoteUserSession(response.data.user);
-          console.log("[ClassConnect] Supabase login succeeded.");
-          return { success: true, remote: true };
-        }
-      } catch (error) {
-        console.error("[ClassConnect] Supabase login exception:", error);
-        if (!isTransientSupabaseError(error)) {
-          return { success: false, message: error.message || "Unable to sign in." };
-        }
-      }
+    if (!isSupabaseReady()) {
+      return {
+        success: false,
+        message: "Supabase is unavailable. Local login is disabled. Please check the connection and try again.",
+      };
     }
 
-    console.warn("[ClassConnect] Trying local login fallback.");
-    var localResult = loginLocal(email, password);
-    if (localResult.success) localResult.localFallback = true;
-    return localResult;
-  }
+    try {
+      var client = getSupabaseClient();
+      var response = await withTimeout(
+        client.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password: password,
+        }),
+        8000,
+        "Supabase login"
+      );
 
-  function setSession(user) {
-    setData(KEYS.SESSION, {
-      id: user.id || null,
-      name: user.name || "Student",
-      email: user.email.toLowerCase(),
-      provider: user.provider || "local",
-    });
+      if (!response || response.error) {
+        var authError = response && response.error
+          ? response.error
+          : new Error("Supabase returned an empty login response.");
+        console.error("[ClassConnect] Supabase login failed:", authError);
+        return {
+          success: false,
+          message: isTransientSupabaseError(authError)
+            ? "Could not reach Supabase. Local login is disabled. Please try again."
+            : authError.message || "Invalid email or password.",
+        };
+      }
+      if (!response.data || !response.data.user) {
+        return { success: false, message: "Supabase did not return an authenticated user." };
+      }
+      saveRemoteUserSession(response.data.user);
+      await loadRemoteProfile();
+      console.log("[ClassConnect] Supabase login succeeded.");
+      return { success: true, remote: true };
+    } catch (error) {
+      console.error("[ClassConnect] Supabase login exception:", error);
+      return {
+        success: false,
+        message: isTransientSupabaseError(error)
+          ? "Could not reach Supabase. Local login is disabled. Please try again."
+          : error.message || "Unable to sign in.",
+      };
+    }
   }
 
   function logout() {
@@ -601,7 +634,8 @@ function getRemoteSession() {
           })
         : Promise.resolve();
       remoteLogout.then(function () {
-        localStorage.removeItem(KEYS.SESSION);
+        remoteUser = null;
+        remoteProfile = null;
         closeDrawer();
         closeAllModals();
         switchView("view-home");
@@ -613,56 +647,41 @@ function getRemoteSession() {
     });
   }
 
-  function getCurrentUser() { return getData(KEYS.SESSION, null); }
+  function getCurrentUser() { return remoteUser; }
 
   function isLoggedIn() {
-    const session = getCurrentUser();
-    if (!session || !session.email) return false;
-    if (session.provider === "supabase") return true;
-    return getUsers().some(function (u) {
-      return u.email && u.email.toLowerCase() === session.email.toLowerCase();
-    });
+    return !!(remoteUser && remoteUser.email && remoteUser.provider === "supabase");
   }
 
   function getProfile() {
     const user = getCurrentUser();
     if (!user) return {};
-    const all = getData(KEYS.PROFILE + "_all", {});
-    return all[user.email.toLowerCase()] || { name: user.name, email: user.email, section: "BSIT 3-A" };
+    if (remoteProfile) return Object.assign({}, remoteProfile);
+    return { name: user.name, email: user.email, section: "BSIT 3-A" };
   }
 
-  function saveProfile(data) {
+  async function saveProfile(data) {
     const user = getCurrentUser();
-    if (!user) return;
-    const all = getData(KEYS.PROFILE + "_all", {});
-    const existing = all[user.email.toLowerCase()] || {};
-    data.email = user.email.toLowerCase();
-    if (data.section) {
-      data.section = normalizeSection(data.section);
+    if (!user || !isSupabaseReady()) {
+      throw new Error("No active Supabase session is available.");
     }
-    all[user.email.toLowerCase()] = Object.assign({}, existing, data);
-    setData(KEYS.PROFILE + "_all", all);
-    if (data.name && data.name !== user.name) {
-      const users = getUsers();
-      const found = users.find(function (u) {
-        return u.email.toLowerCase() === user.email.toLowerCase();
-      });
-      if (found) {
-        found.name = data.name;
-        saveUsers(users);
-        setSession({ name: data.name, email: user.email });
-      }
-    }
+    remoteProfile = Object.assign({}, getProfile(), data, {
+      email: user.email.toLowerCase(),
+      section: data.section ? normalizeSection(data.section) : getProfile().section,
+    });
+    var saved = await upsertRemoteProfile(remoteProfile);
+    if (saved && saved.name && remoteUser) remoteUser.name = saved.name;
+    return saved;
   }
 
   function getProfilePhoto() {
     return getProfile().photo || null;
   }
 
-  function saveProfilePhoto(base64) {
+  async function saveProfilePhoto(base64) {
     const p = getProfile();
     p.photo = base64;
-    saveProfile(p);
+    return saveProfile(p);
   }
 
   function userKey(base) {
@@ -1607,35 +1626,47 @@ function getRemoteSession() {
     saveClassmates(DEMO_CLASSMATES);
   }
 
-  function getSectionClassmates() {
+  async function getSectionClassmates() {
     var userProf = getProfile();
     var currentUser = getCurrentUser();
     var mySection = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
 
     var result = [];
 
-    // 1. Registered users matching section
-    var users = getUsers();
-    var profileAll = getData(KEYS.PROFILE + "_all", {});
-    users.forEach(function (u) {
-      if (currentUser && u.email.toLowerCase() === currentUser.email.toLowerCase()) return;
-      var prof = profileAll[u.email.toLowerCase()] || {};
-      var uSec = prof.section ? normalizeSection(prof.section) : "BSIT 3-A";
-      if (uSec === mySection || mySection === "ALL") {
-        result.push({
-          id: u.id || cryptoId(),
-          name: prof.name || u.name,
-          email: u.email,
-          course: prof.course || "BSIT",
-          year: prof.year || "3rd Year",
-          section: uSec,
-          bio: prof.bio || "Classmate in " + uSec,
-          studentId: prof.studentId || "2023-CTU-" + Math.floor(1000 + Math.random() * 9000),
-          contact: prof.contact || "0912-345-6789",
-          photo: prof.photo || null
+    // 1. Registered users matching section, loaded from Supabase profiles.
+    if (currentUser && isSupabaseReady()) {
+      try {
+        var client = getSupabaseClient();
+        var response = await withTimeout(
+          client
+            .from("profiles")
+            .select("id,email,full_name,course,year,section,bio,student_id,contact,photo")
+            .neq("id", currentUser.id),
+          8000,
+          "Supabase classmates load"
+        );
+        if (response.error) throw response.error;
+        (response.data || []).forEach(function (prof) {
+          var uSec = prof.section ? normalizeSection(prof.section) : "BSIT 3-A";
+          if (uSec === mySection || mySection === "ALL") {
+            result.push({
+              id: prof.id || cryptoId(),
+              name: prof.full_name || prof.email || "Classmate",
+              email: prof.email || "",
+              course: prof.course || "BSIT",
+              year: prof.year || "3rd Year",
+              section: uSec,
+              bio: prof.bio || "Classmate in " + uSec,
+              studentId: prof.student_id || "N/A",
+              contact: prof.contact || "N/A",
+              photo: prof.photo || null
+            });
+          }
         });
+      } catch (error) {
+        console.error("[ClassConnect] Supabase classmates load failed:", error);
       }
-    });
+    }
 
     // 2. Demo classmates matching section
     var demo = getClassmates();
@@ -1694,7 +1725,7 @@ function getRemoteSession() {
     openModal("classmate-profile-modal-overlay");
   }
 
-  function loadClassmates() {
+  async function loadClassmates() {
     const list = document.getElementById("classmates-list");
     const mySectionBadge = document.getElementById("my-section-display");
     if (!list) return;
@@ -1705,7 +1736,7 @@ function getRemoteSession() {
       mySectionBadge.textContent = "Your Section: " + mySec;
     }
 
-    const classmates = getSectionClassmates();
+    const classmates = await getSectionClassmates();
     list.innerHTML = "";
     if (classmates.length === 0) {
       list.innerHTML =
@@ -2596,7 +2627,7 @@ function getRemoteSession() {
     });
   }
 
-  function changePassword(currentPwd, newPwd, confirmPwd) {
+  async function changePassword(currentPwd, newPwd, confirmPwd) {
     if (!currentPwd || !newPwd || !confirmPwd) {
       return { success: false, message: "Please fill in all password fields." };
     }
@@ -2608,17 +2639,37 @@ function getRemoteSession() {
     }
     var user = getCurrentUser();
     if (!user) return { success: false, message: "Not logged in." };
-    var users = getUsers();
-    var idx = users.findIndex(function (u) {
-      return u.email.toLowerCase() === user.email.toLowerCase();
-    });
-    if (idx === -1) return { success: false, message: "User account not found." };
-    if (users[idx].password !== currentPwd) {
-      return { success: false, message: "Current password is incorrect." };
+    if (!isSupabaseReady()) {
+      return { success: false, message: "Supabase is unavailable. Password was not changed." };
     }
-    users[idx].password = newPwd;
-    saveUsers(users);
-    return { success: true, message: "Password updated successfully." };
+    try {
+      var client = getSupabaseClient();
+      var verify = await withTimeout(
+        client.auth.signInWithPassword({ email: user.email, password: currentPwd }),
+        8000,
+        "Supabase password verification"
+      );
+      if (!verify || verify.error) {
+        return { success: false, message: (verify && verify.error && verify.error.message) || "Current password is incorrect." };
+      }
+      var response = await withTimeout(
+        client.auth.updateUser({ password: newPwd }),
+        8000,
+        "Supabase password update"
+      );
+      if (response && response.error) {
+        return { success: false, message: response.error.message || "Unable to update your password." };
+      }
+      return { success: true, message: "Password updated successfully in Supabase." };
+    } catch (error) {
+      console.error("[ClassConnect] Supabase password update failed:", error);
+      return {
+        success: false,
+        message: isTransientSupabaseError(error)
+          ? "Could not reach Supabase. Password was not changed."
+          : error.message || "Unable to update your password.",
+      };
+    }
   }
 
   function handleOffline(isOffline) {
@@ -2852,38 +2903,31 @@ function getRemoteSession() {
         var btn = forgotForm.querySelector(".btn-primary");
         setButtonLoading(btn, true);
         var client = getSupabaseClient();
-        var resetPromise = Promise.resolve(null);
-        if (isSupabaseReady() && client.auth && typeof client.auth.resetPasswordForEmail === "function") {
-          console.log("[ClassConnect] Sending Supabase password reset email.");
-          resetPromise = withTimeout(
-            client.auth.resetPasswordForEmail(email, { redirectTo: window.location.href }),
-            8000,
-            "Supabase password reset"
-          );
-        } else {
-          console.warn("[ClassConnect] Supabase unavailable; using local password-reset fallback.");
+        if (!isSupabaseReady() || !client.auth || typeof client.auth.resetPasswordForEmail !== "function") {
+          setButtonLoading(btn, false);
+          showError("forgot-error", "Supabase is unavailable. No reset request was sent.");
+          return;
         }
+        console.log("[ClassConnect] Sending Supabase password reset email.");
+        var resetPromise = withTimeout(
+          client.auth.resetPasswordForEmail(email, { redirectTo: window.location.href }),
+          8000,
+          "Supabase password reset"
+        );
         resetPromise.then(function (response) {
           setButtonLoading(btn, false);
           if (response && response.error) {
             console.error("[ClassConnect] Supabase password reset failed:", response.error);
-            if (!isTransientSupabaseError(response.error)) {
-              showError("forgot-error", response.error.message || "Unable to send reset instructions.");
-              return;
-            }
-          }
-          if (!response) {
-            var users = getUsers();
-            var exists = users.some(function (u) {
-              return u.email && u.email.toLowerCase() === email.toLowerCase();
-            });
-            if (!exists) {
-              showError("forgot-error", "No account found with this email address.");
-              return;
-            }
+            showError(
+              "forgot-error",
+              isTransientSupabaseError(response.error)
+                ? "The connection to Supabase is unavailable. Please try again later."
+                : response.error.message || "Unable to send reset instructions."
+            );
+            return;
           }
           if (successEl) {
-            successEl.textContent = "Password reset instructions have been sent to " + email + ".";
+            successEl.textContent = "Supabase password reset instructions have been sent to " + email + ".";
             successEl.hidden = false;
           }
           var forgotEmailInput = document.getElementById("forgot-email");
@@ -3200,7 +3244,7 @@ function getRemoteSession() {
 
     var profileForm = document.getElementById("profile-form");
     if (profileForm) {
-      profileForm.addEventListener("submit", function (e) {
+        profileForm.addEventListener("submit", async function (e) {
         e.preventDefault();
         var rawSec = document.getElementById("profile-section").value;
         var data = {
@@ -3219,9 +3263,14 @@ function getRemoteSession() {
           guardianContact: (document.getElementById("profile-guardian-contact").value || "").trim(),
         };
         if (!data.name) { showToast("Please enter your full name.", "warning"); return; }
-        saveProfile(data);
-        loadDashboard();
-        showToast("Profile saved successfully.", "success");
+        try {
+          await saveProfile(data);
+          loadDashboard();
+          showToast("Profile saved to Supabase successfully.", "success");
+        } catch (error) {
+          console.error("[ClassConnect] Profile form save failed:", error);
+          showToast(error.message || "Profile could not be saved to Supabase.", "error");
+        }
       });
     }
 
@@ -3239,9 +3288,15 @@ function getRemoteSession() {
         }
         var reader = new FileReader();
         reader.onload = function (e) {
-          saveProfilePhoto(e.target.result);
-          loadProfileForm();
-          showToast("Profile photo updated.", "success");
+          saveProfilePhoto(e.target.result)
+            .then(function () {
+              loadProfileForm();
+              showToast("Profile photo saved to Supabase.", "success");
+            })
+            .catch(function (error) {
+              console.error("[ClassConnect] Profile photo save failed:", error);
+              showToast(error.message || "Profile photo could not be saved to Supabase.", "error");
+            });
         };
         reader.readAsDataURL(file);
         photoInput.value = "";
@@ -3261,11 +3316,11 @@ function getRemoteSession() {
 
     var changePwdBtn = document.getElementById("settings-change-password-btn");
     if (changePwdBtn) {
-      changePwdBtn.addEventListener("click", function () {
+      changePwdBtn.addEventListener("click", async function () {
         var current = document.getElementById("settings-current-password").value;
         var newPwd = document.getElementById("settings-new-password").value;
         var confirm = document.getElementById("settings-confirm-password").value;
-        var result = changePassword(current, newPwd, confirm);
+        var result = await changePassword(current, newPwd, confirm);
         if (result.success) {
           showToast(result.message, "success");
           document.getElementById("settings-current-password").value = "";
@@ -3402,22 +3457,23 @@ function getRemoteSession() {
     getRemoteSession().then(function (remote) {
       if (remote.session && remote.session.user) {
         console.log("[ClassConnect] Restoring Supabase session.");
-        var remoteUser = saveRemoteUserSession(remote.session.user);
-        if (remoteUser) {
-          showPage("dashboard-page");
-          loadDashboard();
+        var authenticatedUser = saveRemoteUserSession(remote.session.user);
+        if (authenticatedUser) {
+          loadRemoteProfile()
+            .catch(function (error) {
+              console.error("[ClassConnect] Could not load Supabase profile during startup:", error);
+              remoteProfile = null;
+            })
+            .then(function () {
+              showPage("dashboard-page");
+              loadDashboard();
+            });
           return;
         }
       }
 
-      if (isLoggedIn()) {
-        console.log("[ClassConnect] Restoring local session.");
-        showPage("dashboard-page");
-        loadDashboard();
-      } else {
-        console.log("[ClassConnect] No active session; login page is ready.");
-        showLoginFallback(remote.error ? "Supabase session unavailable" : "no active session");
-      }
+      console.log("[ClassConnect] No active Supabase session; login page is ready.");
+      showLoginFallback(remote.error ? "Supabase session unavailable" : "no active session");
     }).catch(function (error) {
       console.error("[ClassConnect] Startup auth routing failed; login remains available:", error);
       showLoginFallback("startup auth exception");
