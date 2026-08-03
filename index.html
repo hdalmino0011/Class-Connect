@@ -610,7 +610,7 @@
 
           <h4>Data Storage</h4>
           <p>
-            Your data is stored securely in a hosted database and protected by row-level access policies tied to your account. Only you can read and edit your own academic data.
+            All your data — including your profile, subjects, assignments, grades, schedule, curriculum, and posts — is stored securely in <strong>Supabase</strong>, a cloud-hosted PostgreSQL database. Supabase enforces <strong>Row-Level Security (RLS)</strong> policies on every table, which means your authentication token is required to access your records. No other user can read or modify your data. The only item stored locally on your device is your font preference setting (saved in <code>localStorage</code>).
           </p>
         </div>
 
@@ -1180,6 +1180,20 @@
   <div class="landscape-lock-inner">
     <i class="fas fa-mobile-screen-button"></i>
     <p>Please rotate your device back to portrait mode.</p>
+  </div>
+</div>
+
+<!-- ==================== INACTIVITY LOGOUT MODAL ==================== -->
+<div id="inactivity-modal-overlay" class="cc-inactivity-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="inactivity-modal-title">
+  <div class="cc-inactivity-box">
+    <div class="cc-inactivity-icon-wrap">
+      <i class="fas fa-user-clock"></i>
+    </div>
+    <h3 class="cc-inactivity-title" id="inactivity-modal-title">Session Expired</h3>
+    <p class="cc-inactivity-msg">You are not active, we logout your account for protection.</p>
+    <button id="inactivity-back-to-login-btn" class="btn-primary cc-inactivity-btn">
+      <i class="fas fa-right-to-bracket"></i> Back to Login
+    </button>
   </div>
 </div>
 
