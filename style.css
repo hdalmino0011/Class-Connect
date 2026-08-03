@@ -2289,13 +2289,87 @@ body.body-scroll-lock {
   margin-bottom:   20px;
 }
 
-.curriculum-pdf-section {
+.curriculum-pdf-section,
+.cor-pdf-section {
   background:    var(--white);
   border-radius: var(--radius-lg);
   padding:       18px 20px;
   box-shadow:    var(--shadow-sm);
   border:        1px solid var(--gray-200);
   margin-bottom: 20px;
+}
+
+.cor-pdf-section .pdf-upload-area {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             14px;
+  flex-wrap:       wrap;
+}
+
+.cor-pdf-section .pdf-info {
+  display:     flex;
+  align-items: center;
+  gap:         12px;
+  font-size:   14px;
+  font-weight: 500;
+  color:       var(--gray-600);
+  min-width:   0;
+  flex:        1;
+}
+
+.cor-pdf-section .pdf-actions {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-wrap:   wrap;
+  flex-shrink: 0;
+}
+
+.cor-pdf-section .pdf-actions button {
+  padding:       0 14px;
+  min-height:    38px;
+  border-radius: var(--radius-md);
+  font-weight:   600;
+  font-size:     13px;
+  font-family:   var(--font-base);
+  transition:    all var(--transition-fast);
+  white-space:   nowrap;
+}
+
+.cor-pdf-section .pdf-actions .btn-pdf-upload {
+  background: var(--primary-blue);
+  color:      var(--white);
+}
+
+.cor-pdf-section .pdf-actions .btn-pdf-upload:hover {
+  background: var(--bright-blue);
+  transform:  translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.cor-pdf-section .pdf-actions .btn-pdf-remove {
+  background: #FEF2F2;
+  color:      var(--coral-pink);
+  border:     1.5px solid #FECACA;
+}
+
+.cor-pdf-section .pdf-actions .btn-pdf-remove:hover { background: #FEE2E2; }
+
+.cor-pdf-section .pdf-actions .btn-pdf-view {
+  background: var(--gray-100);
+  color:      var(--gray-700);
+}
+
+.cor-pdf-section .pdf-actions .btn-pdf-view:hover { background: var(--gray-200); }
+
+.cor-active-card {
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  background:   rgba(238, 242, 255, 0.6) !important;
+}
+
+.cor-icon {
+  color: #6366f1 !important;
 }
 
 .curriculum-pdf-section .pdf-upload-area {
@@ -2367,6 +2441,18 @@ body.body-scroll-lock {
 }
 
 .curriculum-pdf-section .pdf-actions .btn-pdf-view:hover { background: var(--gray-200); }
+
+.curriculum-pdf-section .pdf-actions .btn-pdf-export,
+.cor-pdf-section .pdf-actions .btn-pdf-export {
+  background: #ECFDF5;
+  color:      #059669;
+  border:     1.5px solid #A7F3D0;
+}
+
+.curriculum-pdf-section .pdf-actions .btn-pdf-export:hover,
+.cor-pdf-section .pdf-actions .btn-pdf-export:hover {
+  background: #D1FAE5;
+}
 
 .curriculum-pdf-section .no-pdf {
   color:       var(--gray-400);
@@ -3773,12 +3859,15 @@ textarea:focus:not(:focus-visible) {
     padding-top:     10px;
     width:           100%;
   }
-  .curriculum-pdf-section .pdf-upload-area {
+  .curriculum-pdf-section .pdf-upload-area,
+  .cor-pdf-section .pdf-upload-area {
     flex-direction: column;
     align-items:    stretch;
   }
-  .curriculum-pdf-section .pdf-actions         { justify-content: stretch; }
-  .curriculum-pdf-section .pdf-actions button  { flex: 1; }
+  .curriculum-pdf-section .pdf-actions,
+  .cor-pdf-section .pdf-actions         { justify-content: stretch; }
+  .curriculum-pdf-section .pdf-actions button,
+  .cor-pdf-section .pdf-actions button  { flex: 1; }
   .pdf-filename  { max-width: 100%; }
   .gwa-display   { flex-direction: column; text-align: center; }
   .gwa-display .gwa-label-wrap { text-align: center; }
