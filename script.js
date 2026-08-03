@@ -4,8 +4,37 @@
 const SUPABASE_URL = "https://uctodqnrwrrorppkgagbl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjdG9kcW5yd3Jyb3Bwa2FnZ2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2ODk0NDYsImV4cCI6MjEwMTI2NTQ0Nn0.EwFU5LmczD8PLLeV0jTFvWxnuMzL65xy_zpkZEAV3NA";
 
-// Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Supabase client with error handling
+let supabase;
+try {
+  if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("Supabase initialized successfully.");
+  } else {
+    console.error("Supabase SDK not loaded! Check your HTML script tag.");
+    // Create fallback to prevent crashes
+    supabase = {
+      auth: {
+        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+        signUp: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not loaded" } }),
+        signInWithPassword: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not loaded" } }),
+        signOut: () => Promise.resolve({ error: null }),
+        resetPasswordForEmail: () => Promise.resolve({ data: {}, error: { message: "Supabase not loaded" } }),
+      }
+    };
+  }
+} catch (e) {
+  console.error("Supabase initialization error:", e);
+  supabase = {
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      signUp: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not loaded" } }),
+      signInWithPassword: () => Promise.resolve({ data: { user: null }, error: { message: "Supabase not loaded" } }),
+      signOut: () => Promise.resolve({ error: null }),
+      resetPasswordForEmail: () => Promise.resolve({ data: {}, error: { message: "Supabase not loaded" } }),
+    }
+  };
+}
 
 (function () {
   "use strict";
@@ -3007,6 +3036,8 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   /* ===== INIT ===== */
   function init() {
+    console.log("ClassConnect initializing...");
+
     seedDemoClassmates();
     applySettings(getSettings());
     lockPortrait();
@@ -3026,20 +3057,31 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     document.body.style.position = "fixed";
     document.body.style.width = "100%";
 
+    console.log("Splash screen shown, waiting 1.8 seconds...");
+
     setTimeout(function () {
+      console.log("Splash transition starting...");
       var splash = document.getElementById("splash-page");
       if (splash) {
         splash.style.transition = "opacity 0.4s ease";
         splash.style.opacity = "0";
         setTimeout(function () {
+          console.log("isLoggedIn:", isLoggedIn());
           if (isLoggedIn()) {
+            console.log("Redirecting to dashboard...");
             showPage("dashboard-page");
             loadDashboard();
           } else {
+            console.log("Redirecting to login...");
             showPage("login-page");
             showLoginForm();
           }
         }, 400);
+      } else {
+        console.error("Splash page not found!");
+        // Fallback - show login directly
+        showPage("login-page");
+        showLoginForm();
       }
     }, 1800);
   }
