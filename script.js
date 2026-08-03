@@ -2086,12 +2086,11 @@ function getRemoteSession() {
         });
       });
 
-      // Comments: toggle expand/collapse (optional) but we always show them.
-      // Comment submit
+      // Comments: submit
       feed.querySelectorAll(".comment-submit-btn").forEach(function (btn) {
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
-          var postId = btn.getAttribute("data-id");
+          var postId = btn.getAttribute("data-post-id");
           var input = btn.parentElement.querySelector(".comment-input");
           if (!input) return;
           var content = input.value.trim();
@@ -2101,7 +2100,6 @@ function getRemoteSession() {
           }
           withLoading(function () { return addComment(postId, content); }).then(function () {
             input.value = "";
-            // Reload posts to refresh comments
             loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
           }).catch(function (err) {
             showToast(err.message || "Could not add comment.", "error");
