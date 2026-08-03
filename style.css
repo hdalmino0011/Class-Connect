@@ -882,6 +882,12 @@ body.body-scroll-lock {
 .drawer-logout:hover i  { color: var(--coral-pink); }
 .drawer-logout:hover::before { background: var(--coral-pink); }
 
+.drawer-clear-cache          { color: #7C3AED; }
+.drawer-clear-cache i        { color: #7C3AED; }
+.drawer-clear-cache:hover    { background: #F5F3FF; color: #7C3AED; }
+.drawer-clear-cache:hover i  { color: #7C3AED; }
+.drawer-clear-cache:hover::before { background: #7C3AED; }
+
 .drawer-footer {
   padding:        14px 18px;
   font-size:      11px;
@@ -3531,6 +3537,51 @@ body.body-scroll-lock {
 }
 
 .remove-image-btn:hover { background: rgba(15, 23, 42, 0.95); }
+
+/* ===== LANDSCAPE LOCK OVERLAY ===== */
+.landscape-lock {
+  position:        fixed;
+  inset:           0;
+  z-index:         9999;
+  background:      var(--deep-navy, #0F172A);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  flex-direction:  column;
+}
+
+.landscape-lock[hidden] { display: none !important; }
+
+.landscape-lock-inner {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            18px;
+  color:          var(--white, #fff);
+  text-align:     center;
+  padding:        32px 24px;
+}
+
+.landscape-lock-inner i {
+  font-size:  52px;
+  opacity:    0.9;
+  animation:  rotate-hint 2s ease-in-out infinite;
+}
+
+.landscape-lock-inner p {
+  font-size:   16px;
+  font-weight: 600;
+  opacity:     0.85;
+  max-width:   260px;
+  line-height: 1.5;
+}
+
+@keyframes rotate-hint {
+  0%   { transform: rotate(0deg);   }
+  30%  { transform: rotate(-90deg); }
+  60%  { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg);   }
+}
 
 /* ===== OFFLINE BANNER ===== */
 .offline-banner {
