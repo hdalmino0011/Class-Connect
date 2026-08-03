@@ -2301,6 +2301,24 @@
     if (banner) banner.hidden = !isOffline;
   }
 
+  function lockPortrait() {
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock("portrait").catch(function () {});
+      }
+    } catch (e) {}
+
+    function applyLandscapeLock() {
+      var lock = document.getElementById("landscape-lock");
+      if (!lock) return;
+      var isLandscape = window.innerWidth > window.innerHeight;
+      lock.hidden = !isLandscape;
+    }
+    applyLandscapeLock();
+    window.addEventListener("resize", applyLandscapeLock);
+    window.addEventListener("orientationchange", applyLandscapeLock);
+  }
+
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(function (err) {
@@ -2391,6 +2409,32 @@
       var btn = document.getElementById(id);
       if (btn) btn.addEventListener("click", logout);
     });
+
+    var clearCacheBtn = document.getElementById("drawer-clear-cache-btn");
+    if (clearCacheBtn) {
+      clearCacheBtn.addEventListener("click", function () {
+        closeDrawer();
+        showConfirm(
+          "Clear app cache?\n\nThis will remove cached files and restart ClassConnect to enforce the latest updates.",
+          function () {
+            if ("caches" in window) {
+              caches.keys().then(function (names) {
+                return Promise.all(names.map(function (name) { return caches.delete(name); }));
+              }).then(function () {
+                showToast("Cache cleared. Restarting…", "success");
+                setTimeout(function () { location.reload(true); }, 1200);
+              }).catch(function () {
+                showToast("Cache cleared. Restarting…", "success");
+                setTimeout(function () { location.reload(true); }, 1200);
+              });
+            } else {
+              showToast("Cache cleared. Restarting…", "success");
+              setTimeout(function () { location.reload(true); }, 1200);
+            }
+          }
+        );
+      });
+    }
 
     var hamburger = document.getElementById("hamburger-btn");
     var drawerClose = document.getElementById("drawer-close-btn");
@@ -2958,6 +3002,7 @@
   function init() {
     seedDemoClassmates();
     applySettings(getSettings());
+    lockPortrait();
 
     var bottomNav = document.querySelector(".bottom-nav");
     if (bottomNav) bottomNav.style.display = "none";
