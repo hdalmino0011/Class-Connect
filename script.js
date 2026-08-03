@@ -1743,12 +1743,23 @@ function getRemoteSession() {
 
   // ===== LOAD FUNCTIONS =====
 
-  // POSTS LOAD
+  // POSTS LOAD – FIXED: deduplicate posts by id
   async function loadPosts(searchQuery) {
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
     try {
       var posts = await getPosts();
+
+      // ===== FIX: Deduplicate posts by id =====
+      var seenIds = new Set();
+      posts = posts.filter(function(post) {
+        if (seenIds.has(post.id)) {
+          return false;
+        }
+        seenIds.add(post.id);
+        return true;
+      });
+      // =======================================
 
       if (searchQuery && searchQuery.trim() !== "") {
         var q = searchQuery.trim().toLowerCase();
@@ -1815,7 +1826,6 @@ function getRemoteSession() {
         }
         actionsHtml += '</div></div>';
 
-        // ===== CHANGED: Philippine timezone display + time ago =====
         card.innerHTML =
           tagHtml +
           '<div class="post-header">' +
