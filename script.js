@@ -16,6 +16,7 @@
     CLASSMATES: "cc_classmates",
     CURRICULUM_SUBJECTS: "cc_curriculum_subjects",
     CURRICULUM_PDF: "cc_curriculum_pdf",
+    COR_PDF: "cc_cor_pdf",
     POST_ACKNOWLEDGMENTS: "cc_post_acknowledgments",
   };
 
@@ -1465,6 +1466,25 @@
     localStorage.removeItem(userKey(KEYS.CURRICULUM_PDF));
   }
 
+  function getCORPDF() {
+    return getData(userKey(KEYS.COR_PDF), null);
+  }
+  function saveCORPDF(data) {
+    setData(userKey(KEYS.COR_PDF), data);
+  }
+  function removeCORPDF() {
+    localStorage.removeItem(userKey(KEYS.COR_PDF));
+  }
+
+  function downloadPDF(pdfData, defaultName) {
+    var a = document.createElement("a");
+    a.href = pdfData.data;
+    a.download = pdfData.name || defaultName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   function seedDemoCurriculum() {
     if (getCurriculumSubjects().length > 0) return;
     saveCurriculumSubjects([
@@ -1559,6 +1579,7 @@
             '</div>' +
             '<div class="pdf-actions">' +
               '<button class="btn-pdf-view" onclick="window.open(\'' + pdfData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View PDF</button>' +
+              '<button class="btn-pdf-export" id="export-pdf-btn"><i class="fas fa-download"></i> Export</button>' +
               '<button class="btn-pdf-remove" id="remove-pdf-btn"><i class="fas fa-trash"></i> Remove</button>' +
             '</div>' +
           '</div>';
@@ -1570,6 +1591,13 @@
               loadCurriculum();
               showToast("PDF removed.", "info");
             });
+          });
+        }
+        var exportBtn = document.getElementById("export-pdf-btn");
+        if (exportBtn) {
+          exportBtn.addEventListener("click", function () {
+            downloadPDF(pdfData, "curriculum.pdf");
+            showToast("Curriculum PDF download started.", "success");
           });
         }
       } else {
@@ -1603,6 +1631,83 @@
               loadCurriculum();
               showToast("Curriculum PDF uploaded successfully.", "success");
               fileInput.value = "";
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+      }
+    }
+
+    // Load COR (Certificate of Registration) section
+    var corSection = document.getElementById("cor-pdf-section");
+    if (corSection) {
+      var corData = getCORPDF();
+      if (corData) {
+        corSection.innerHTML =
+          '<div class="pdf-upload-area pdf-active-card cor-active-card">' +
+            '<div class="pdf-info">' +
+              '<i class="fas fa-id-card pdf-icon cor-icon"></i>' +
+              '<div>' +
+                '<h4 class="pdf-filename">' + escapeHtml(corData.name || "Certificate of Registration") + '</h4>' +
+                '<span class="pdf-subtitle">Certificate of Registration (COR)</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="pdf-actions">' +
+              '<button class="btn-pdf-view" onclick="window.open(\'' + corData.data + '\',\'_blank\')"><i class="fas fa-eye"></i> View COR</button>' +
+              '<button class="btn-pdf-export" id="export-cor-btn"><i class="fas fa-download"></i> Export</button>' +
+              '<button class="btn-pdf-remove" id="remove-cor-btn"><i class="fas fa-trash"></i> Remove</button>' +
+            '</div>' +
+          '</div>';
+        var removeCorBtn = document.getElementById("remove-cor-btn");
+        if (removeCorBtn) {
+          removeCorBtn.addEventListener("click", function () {
+            showConfirm("Remove the uploaded Certificate of Registration?", function () {
+              removeCORPDF();
+              loadCurriculum();
+              showToast("Certificate of Registration removed.", "info");
+            });
+          });
+        }
+        var exportCorBtn = document.getElementById("export-cor-btn");
+        if (exportCorBtn) {
+          exportCorBtn.addEventListener("click", function () {
+            downloadPDF(corData, "certificate-of-registration.pdf");
+            showToast("COR download started.", "success");
+          });
+        }
+      } else {
+        corSection.innerHTML =
+          '<div class="pdf-upload-area">' +
+            '<div class="pdf-info">' +
+              '<i class="fas fa-id-card pdf-icon" style="color:var(--slate-blue,#6366f1);font-size:28px;flex-shrink:0;"></i>' +
+              '<div class="no-pdf" style="background:none;padding:0;">' +
+                '<span>No Certificate of Registration uploaded yet</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="pdf-actions">' +
+              '<button class="btn-pdf-upload" id="upload-cor-btn"><i class="fas fa-upload"></i> Upload COR</button>' +
+              '<input type="file" id="cor-file-input" accept=".pdf,image/*" hidden>' +
+            '</div>' +
+          '</div>';
+        var uploadCorBtn = document.getElementById("upload-cor-btn");
+        var corFileInput = document.getElementById("cor-file-input");
+        if (uploadCorBtn && corFileInput) {
+          uploadCorBtn.addEventListener("click", function () { corFileInput.click(); });
+          corFileInput.addEventListener("change", function () {
+            var file = corFileInput.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) {
+              showToast("File must be smaller than 10 MB.", "error");
+              corFileInput.value = "";
+              return;
+            }
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              var base64 = e.target.result;
+              saveCORPDF({ name: file.name, data: base64 });
+              loadCurriculum();
+              showToast("Certificate of Registration uploaded successfully.", "success");
+              corFileInput.value = "";
             };
             reader.readAsDataURL(file);
           });
@@ -2103,6 +2208,7 @@
       classmates: getClassmates(),
       curriculumSubjects: getCurriculumSubjects(),
       curriculumPDF: getCurriculumPDF(),
+      corPDF: getCORPDF(),
     };
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
@@ -2133,6 +2239,7 @@
           if (data.classmates) saveClassmates(data.classmates);
           if (data.curriculumSubjects) saveCurriculumSubjects(data.curriculumSubjects);
           if (data.curriculumPDF) saveCurriculumPDF(data.curriculumPDF);
+          if (data.corPDF) saveCORPDF(data.corPDF);
           showToast("Data imported. Reloading...", "success");
           setTimeout(function () { location.reload(); }, 1500);
         });
