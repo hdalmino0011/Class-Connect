@@ -10,6 +10,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="format-detection" content="telephone=no">
+  <!-- Force portrait on iOS -->
+  <meta name="screen-orientation" content="portrait">
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -311,9 +313,7 @@
           <i class="fas fa-plus"></i> Add Subject
         </button>
       </div>
-      <div id="subjects-list" class="subjects-list">
-        <!-- subjects rendered by script.js -->
-      </div>
+      <div id="subjects-list" class="subjects-list"></div>
     </div>
 
     <!-- ===== VIEW: SCHEDULE ===== -->
@@ -324,9 +324,7 @@
           <i class="fas fa-plus"></i> Add Schedule
         </button>
       </div>
-      <div id="schedule-list" class="schedule-list">
-        <!-- schedule rendered by script.js -->
-      </div>
+      <div id="schedule-list" class="schedule-list"></div>
     </div>
 
     <!-- ===== VIEW: ASSIGNMENTS ===== -->
@@ -337,9 +335,7 @@
           <i class="fas fa-plus"></i> Add Task
         </button>
       </div>
-      <div id="assignments-list" class="assignments-list">
-        <!-- assignments rendered by script.js -->
-      </div>
+      <div id="assignments-list" class="assignments-list"></div>
     </div>
 
     <!-- ===== VIEW: GRADES ===== -->
@@ -372,9 +368,7 @@
           </select>
         </div>
       </div>
-      <div id="grades-list" class="grades-list">
-        <!-- grades rendered by script.js -->
-      </div>
+      <div id="grades-list" class="grades-list"></div>
       <div class="gwa-display" id="gwa-display">
         <div class="gwa-label-wrap">
           <span>General Weighted Average (GWA)</span>
@@ -392,9 +386,7 @@
       <div id="my-section-display" class="classmate-section-badge">
         Your Section: BSIT 3-A
       </div>
-      <div id="classmates-list" class="classmates-list">
-        <!-- classmates rendered by script.js -->
-      </div>
+      <div id="classmates-list" class="classmates-list"></div>
     </div>
 
     <!-- ===== VIEW: CURRICULUM ===== -->
@@ -410,25 +402,14 @@
           </button>
         </div>
       </div>
-
-      <!-- PDF Upload Section -->
-      <div id="curriculum-pdf-section" class="curriculum-pdf-section">
-        <!-- rendered by script.js -->
-      </div>
-
-      <!-- Certificate of Registration (COR) Section -->
-      <div id="cor-pdf-section" class="cor-pdf-section">
-        <!-- rendered by script.js -->
-      </div>
-
-      <!-- Year Level & Semester Filters -->
+      <div id="curriculum-pdf-section" class="curriculum-pdf-section"></div>
+      <div id="cor-pdf-section" class="cor-pdf-section"></div>
       <div class="curriculum-filters">
         <button class="curriculum-year-filter active" data-year="all">All Years</button>
         <button class="curriculum-year-filter" data-year="1st Year">1st Year</button>
         <button class="curriculum-year-filter" data-year="2nd Year">2nd Year</button>
         <button class="curriculum-year-filter" data-year="3rd Year">3rd Year</button>
         <button class="curriculum-year-filter" data-year="4th Year">4th Year</button>
-
         <select id="curriculum-semester-filter" class="curriculum-semester-filter" aria-label="Select Semester">
           <option value="all">All Semesters</option>
           <option value="1st Semester">1st Semester</option>
@@ -436,10 +417,7 @@
           <option value="Summer / Midyear">Summer / Midyear</option>
         </select>
       </div>
-
-      <div id="curriculum-subjects-list" class="curriculum-subjects-list">
-        <!-- curriculum subjects rendered by script.js -->
-      </div>
+      <div id="curriculum-subjects-list" class="curriculum-subjects-list"></div>
     </div>
 
     <!-- ===== VIEW: PROFILE ===== -->
@@ -541,9 +519,7 @@
     <!-- ===== VIEW: FAQs ===== -->
     <div id="view-faqs" class="dashboard-view">
       <h2 class="view-heading"><i class="fas fa-circle-question"></i> Frequently Asked Questions</h2>
-      <div class="faqs-list" id="faqs-list">
-        <!-- FAQs rendered by script.js -->
-      </div>
+      <div class="faqs-list" id="faqs-list"></div>
     </div>
 
     <!-- ===== VIEW: ABOUT ===== -->
@@ -603,15 +579,47 @@
 
           <h4>Information We Collect</h4>
           <ul>
-            <li>Name, email address, and section details</li>
-            <li>Academic information (subjects, grades, assignments)</li>
-            <li>Profile photo and bio (optional)</li>
+            <li>Full name, email address, and section details provided during sign-up</li>
+            <li>Academic information: subjects, grades, assignments, schedule, and curriculum subjects</li>
+            <li>Profile photo and bio (optional, stored as Base64 in your profile record)</li>
+            <li>Uploaded PDF files (Curriculum Syllabus and Certificate of Registration)</li>
           </ul>
 
-          <h4>Data Storage</h4>
+          <h4>Data Storage &amp; Backend</h4>
           <p>
-            Your data is stored securely in a hosted database and protected by row-level access policies tied to your account. Only you can read and edit your own academic data.
+            All user data — including your profile, posts, subjects, grades, assignments, schedule,
+            curriculum subjects, and uploaded PDFs — is stored exclusively in
+            <strong>Supabase</strong>, a hosted PostgreSQL database service. There is no local
+            storage used for academic data; all records are saved to and retrieved from the
+            Supabase cloud database in real time.
           </p>
+          <p>
+            Supabase enforces <strong>Row Level Security (RLS)</strong> on every table, ensuring
+            that each user can only read, create, update, or delete their own records.
+            Authentication is handled entirely by Supabase Auth using secure email and
+            password credentials.
+          </p>
+
+          <h4>App Preferences</h4>
+          <p>
+            Only your display preferences (such as font type) are stored locally on your device
+            using your browser's local storage. No academic or personal data is kept locally.
+          </p>
+
+          <h4>Security &amp; Session Protection</h4>
+          <p>
+            Supabase sessions are persisted securely and automatically refreshed. As an added
+            security measure, ClassConnect will automatically log you out after
+            <strong>5 minutes of inactivity</strong> to protect your account if you leave the
+            app unattended.
+          </p>
+
+          <h4>Your Rights</h4>
+          <ul>
+            <li>You may update or delete your profile data at any time from the Profile page</li>
+            <li>You may delete individual records (posts, grades, subjects, etc.) from within the app</li>
+            <li>You may clear all your data at once from the Settings page</li>
+          </ul>
         </div>
 
         <div class="policy-divider"></div>
@@ -619,7 +627,27 @@
         <div class="policy-section">
           <h3><i class="fas fa-file-signature"></i> Terms of Service</h3>
           <p>
-            By using ClassConnect, you agree to these Terms of Service. Always back up your academic information.
+            By using ClassConnect, you agree to these Terms of Service. Please read them carefully.
+          </p>
+
+          <h4>Acceptable Use</h4>
+          <ul>
+            <li>ClassConnect is intended for legitimate academic use by enrolled students</li>
+            <li>Do not post inappropriate, harmful, or misleading content in announcements</li>
+            <li>You are responsible for keeping your account credentials secure</li>
+          </ul>
+
+          <h4>Data Responsibility</h4>
+          <p>
+            While ClassConnect uses Supabase to reliably store your data, we recommend keeping
+            your own backup of important academic records. You can export your settings data
+            at any time from the Settings page.
+          </p>
+
+          <h4>Limitation of Liability</h4>
+          <p>
+            ClassConnect is provided as-is for educational purposes. The developer is not liable
+            for any academic decisions made based on data within the app.
           </p>
         </div>
       </div>
@@ -694,7 +722,7 @@
             <i class="fas fa-file-export"></i>
             <div>
               <span class="settings-label">Export Data</span>
-              <span class="settings-desc">Download your data as a JSON file</span>
+              <span class="settings-desc">Download your settings as a JSON file</span>
             </div>
           </div>
           <button type="button" id="settings-export-btn" class="btn-secondary">Export</button>
@@ -706,7 +734,7 @@
             <i class="fas fa-file-import"></i>
             <div>
               <span class="settings-label">Import Data</span>
-              <span class="settings-desc">Restore data from a backup file</span>
+              <span class="settings-desc">Restore settings from a backup file</span>
             </div>
           </div>
           <button type="button" id="settings-import-btn" class="btn-secondary">Import</button>
@@ -730,8 +758,8 @@
           <div class="settings-item-left">
             <i class="fas fa-database"></i>
             <div>
-              <span class="settings-label">Storage Used</span>
-              <span class="settings-desc">Local storage usage</span>
+              <span class="settings-label">Local Storage Used</span>
+              <span class="settings-desc">Browser storage usage (preferences only)</span>
             </div>
           </div>
           <span class="settings-version" id="settings-storage">0 KB</span>
@@ -786,6 +814,20 @@
 
 <!-- ==================== MODALS ==================== -->
 
+<!-- INACTIVITY AUTO-LOGOUT MODAL -->
+<div id="inactivity-modal-overlay" class="inactivity-modal-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="inactivity-modal-title">
+  <div class="inactivity-modal-box">
+    <div class="inactivity-icon-wrap">
+      <i class="fas fa-shield-halved"></i>
+    </div>
+    <h3 id="inactivity-modal-title">Session Ended</h3>
+    <p>You were inactive for 5 minutes. We logged you out automatically to protect your account.</p>
+    <button id="inactivity-back-btn" class="btn-primary inactivity-btn">
+      <i class="fas fa-arrow-left"></i> Back to Login
+    </button>
+  </div>
+</div>
+
 <!-- CLASSMATE PROFILE MODAL -->
 <div id="classmate-profile-modal-overlay" class="modal-overlay" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cm-modal-title">
@@ -799,11 +841,10 @@
       <div id="cm-modal-avatar" class="cm-profile-avatar">S</div>
       <h3 id="cm-modal-name" style="font-size:20px;font-weight:800;color:var(--deep-navy);">Classmate Name</h3>
       <div id="cm-modal-section" class="classmate-section-badge">Section: BSIT 3-A</div>
-
       <div class="cm-profile-details">
         <div class="cm-detail-item">
-          <span class="cm-detail-label">Program & Year:</span>
-          <span class="cm-detail-val" id="cm-modal-course-year">BSIT • 3rd Year</span>
+          <span class="cm-detail-label">Program &amp; Year:</span>
+          <span class="cm-detail-val" id="cm-modal-course-year">BSIT &bull; 3rd Year</span>
         </div>
         <div class="cm-detail-item">
           <span class="cm-detail-label">Email:</span>
@@ -835,8 +876,6 @@
         <i class="fas fa-xmark"></i>
       </button>
     </div>
-
-    <!-- Rich Text Toolbar -->
     <div class="post-toolbar" role="toolbar" aria-label="Text formatting">
       <button type="button" class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
       <button type="button" class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
@@ -852,7 +891,6 @@
       <button type="button" class="toolbar-btn" id="post-image-btn" title="Upload Image"><i class="fas fa-image"></i></button>
       <input type="file" id="post-image-input" accept="image/*" hidden>
     </div>
-
     <div class="post-content-wrapper">
       <div
         id="post-content-editable"
@@ -862,14 +900,12 @@
         placeholder="Share an announcement or update with your classmates..."
       ></div>
     </div>
-
     <div id="post-image-preview" class="post-image-preview" hidden>
       <img id="post-preview-img" src="#" alt="Image preview">
       <button type="button" id="post-remove-image-btn" class="remove-image-btn" aria-label="Remove image">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
-
     <button type="button" id="submit-post-btn" class="btn-primary">
       <i class="fas fa-paper-plane"></i> Post
     </button>
@@ -885,7 +921,6 @@
         <i class="fas fa-xmark"></i>
       </button>
     </div>
-
     <div class="post-toolbar" role="toolbar" aria-label="Text formatting">
       <button type="button" class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
       <button type="button" class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
@@ -899,7 +934,6 @@
         <option value="Trebuchet MS, sans-serif">Trebuchet</option>
       </select>
     </div>
-
     <div class="post-content-wrapper">
       <div
         id="edit-post-content-editable"
@@ -908,9 +942,7 @@
         role="textbox"
       ></div>
     </div>
-
     <input type="hidden" id="edit-post-id">
-
     <button type="button" id="save-edit-post-btn" class="btn-primary">
       <i class="fas fa-check"></i> Save Changes
     </button>
