@@ -4047,3 +4047,68 @@ body.cc-global-loading .bottom-nav {
   from { transform: scale(0.7); opacity: 0; }
   to   { transform: scale(1);   opacity: 1; }
 }
+
+/* ===== INACTIVITY LOGOUT MODAL ===== */
+.cc-inactivity-overlay {
+  display:                 none;
+  position:                fixed;
+  inset:                   0;
+  background:              rgba(15, 23, 42, 0.72);
+  z-index:                 10001;
+  align-items:             center;
+  justify-content:         center;
+  padding:                 20px;
+  backdrop-filter:         blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.cc-inactivity-overlay.active {
+  display:   flex;
+  animation: fadeIn 0.25s ease both;
+}
+
+.cc-inactivity-box {
+  background:    var(--white);
+  border-radius: var(--radius-xl);
+  padding:       36px 28px;
+  max-width:     340px;
+  width:         100%;
+  box-shadow:    var(--shadow-lg);
+  text-align:    center;
+  animation:     ccLoadingPop 0.28s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+.cc-inactivity-icon-wrap {
+  width:           64px;
+  height:          64px;
+  border-radius:   50%;
+  background:      #FEF3C7;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  margin:          0 auto 16px;
+}
+
+.cc-inactivity-icon-wrap i {
+  font-size: 28px;
+  color:     var(--vibrant-orange);
+}
+
+.cc-inactivity-title {
+  font-size:      22px;
+  font-weight:    800;
+  color:          var(--deep-navy);
+  margin-bottom:  10px;
+  letter-spacing: -0.3px;
+}
+
+.cc-inactivity-msg {
+  font-size:     14px;
+  color:         var(--gray-600);
+  line-height:   1.6;
+  margin-bottom: 24px;
+}
+
+.cc-inactivity-btn {
+  width: 100%;
+}
