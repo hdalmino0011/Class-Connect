@@ -1780,8 +1780,12 @@ function getRemoteSession() {
     function applyLandscapeLock() {
       var lock = document.getElementById("landscape-lock");
       if (!lock) return;
+      // Only enforce portrait on mobile phones (touch device with a small screen).
+      // Desktop monitors are always wider than tall — never show the overlay there.
+      var isMobilePhone = navigator.maxTouchPoints > 0 &&
+        Math.min(screen.width, screen.height) <= 480;
       var isLandscape = window.innerWidth > window.innerHeight;
-      lock.hidden = !isLandscape;
+      lock.hidden = !(isMobilePhone && isLandscape);
     }
     applyLandscapeLock();
     window.addEventListener("resize", applyLandscapeLock);
