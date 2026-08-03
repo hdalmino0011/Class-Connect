@@ -417,11 +417,9 @@ function getRemoteSession() {
   // ===== POSTS =====
   async function getPosts() {
     return withAuthCheck(async function () {
-      var user = getCurrentUser();
       var result = await withTimeout(
         supabaseTable("posts")
           .select("*")
-          .eq("user_id", user.id)
           .order("timestamp", { ascending: false }),
         8000,
         "Posts load"
