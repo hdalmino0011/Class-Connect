@@ -3710,6 +3710,7 @@ body.body-scroll-lock {
   color:         var(--gray-700);
   line-height:   1.6;
   margin-bottom: 22px;
+  white-space:   pre-line;
 }
 
 .cc-confirm-btns {
@@ -3987,4 +3988,62 @@ textarea:focus:not(:focus-visible) {
   height:       100%;
   border-radius: 50%;
   object-fit:   cover;
+}
+
+/* =========================================================
+   GLOBAL LOADING OVERLAY
+   Centered spinner + slight blur on everything behind it.
+   Shown whenever an async operation is in progress
+   (login, signup, forgot password, loading posts, saving, etc.)
+   ========================================================= */
+.global-loading-overlay {
+  position:          fixed;
+  inset:             0;
+  z-index:           10000;
+  display:           flex;
+  align-items:       center;
+  justify-content:   center;
+  background:        rgba(15, 23, 42, 0.12);
+  backdrop-filter:   blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity:           0;
+  visibility:        hidden;
+  transition:        opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events:    none;
+}
+
+.global-loading-overlay.active {
+  opacity:        1;
+  visibility:     visible;
+  pointer-events: auto;
+}
+
+/* Slight blur applied to the page content behind the overlay */
+body.cc-global-loading .page.active-page,
+body.cc-global-loading .dashboard-topnav,
+body.cc-global-loading .bottom-nav {
+  filter: blur(2px);
+  transition: filter 0.2s ease;
+}
+
+.global-loading-spinner {
+  width:            72px;
+  height:           72px;
+  border-radius:    50%;
+  background:       var(--white);
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  box-shadow:       0 12px 32px rgba(15, 23, 42, 0.25);
+  animation:        ccLoadingPop 0.22s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.global-loading-spinner i {
+  font-size:    32px;
+  color:        var(--primary-blue);
+}
+
+@keyframes ccLoadingPop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
 }
