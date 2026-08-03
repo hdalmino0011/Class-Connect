@@ -214,16 +214,37 @@ function getRemoteSession() {
     return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0][0].toUpperCase();
   }
 
+  // ===== FIXED: timeAgo now handles ISO string timestamps from Supabase =====
   function timeAgo(timestamp) {
-    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (!timestamp) return "Just now";
+    var date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Just now";
+    var seconds = Math.floor((Date.now() - date.getTime()) / 1000);
     if (seconds < 60) return "Just now";
-    const minutes = Math.floor(seconds / 60);
+    var minutes = Math.floor(seconds / 60);
     if (minutes < 60) return minutes + "m ago";
-    const hours = Math.floor(minutes / 60);
+    var hours = Math.floor(minutes / 60);
     if (hours < 24) return hours + "h ago";
-    const days = Math.floor(hours / 24);
+    var days = Math.floor(hours / 24);
     if (days < 7) return days + "d ago";
     return Math.floor(days / 7) + "w ago";
+  }
+
+  // ===== NEW: Format timestamp in Philippine time (Asia/Manila, UTC+8) =====
+  function formatTimestampPHT(timestamp) {
+    if (!timestamp) return "Just now";
+    var date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Just now";
+    try {
+      var opts = {
+        timeZone: "Asia/Manila",
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: true,
+      };
+      return date.toLocaleString("en-PH", opts) + " PHT";
+    } catch (e) {
+      return date.toLocaleString();
+    }
   }
 
   function isValidEmail(email) {
@@ -279,6 +300,40 @@ function getRemoteSession() {
     return ADMIN_EMAILS.some(function (email) {
       return user.email.toLowerCase() === email.toLowerCase();
     });
+  }
+
+  /* ===== NEW: GLOBAL LOADING OVERLAY ===== */
+  var loadingDepth = 0;
+
+  function showGlobalLoading() {
+    loadingDepth++;
+    var overlay = document.getElementById("global-loading-overlay");
+    if (overlay) {
+      overlay.classList.add("active");
+      overlay.setAttribute("aria-hidden", "false");
+    }
+    document.body.classList.add("cc-global-loading");
+  }
+
+  function hideGlobalLoading() {
+    if (loadingDepth > 0) loadingDepth--;
+    if (loadingDepth === 0) {
+      var overlay = document.getElementById("global-loading-overlay");
+      if (overlay) {
+        overlay.classList.remove("active");
+        overlay.setAttribute("aria-hidden", "true");
+      }
+      document.body.classList.remove("cc-global-loading");
+    }
+  }
+
+  // Run an async function with the global loading overlay shown around it
+  function withLoading(fn) {
+    showGlobalLoading();
+    return Promise.resolve()
+      .then(fn)
+      .then(function (result) { hideGlobalLoading(); return result; })
+      .catch(function (err) { hideGlobalLoading(); throw err; });
   }
 
   function showToast(message, type) {
@@ -1701,7 +1756,7 @@ function getRemoteSession() {
           var matchAuthor = p.author && p.author.toLowerCase().indexOf(q) !== -1;
           var matchContent = p.content && p.content.toLowerCase().indexOf(q) !== -1;
           var matchTag = p.tag && p.tag.toLowerCase().indexOf(q) !== -1;
-          var matchDate = timeAgo(p.timestamp).toLowerCase().indexOf(q) !== -1;
+          var matchDate = formatTimestampPHT(p.timestamp).toLowerCase().indexOf(q) !== -1 || timeAgo(p.timestamp).toLowerCase().indexOf(q) !== -1;
           return matchAuthor || matchContent || matchTag || matchDate;
         });
       }
@@ -1760,6 +1815,7 @@ function getRemoteSession() {
         }
         actionsHtml += '</div></div>';
 
+        // ===== CHANGED: Philippine timezone display + time ago =====
         card.innerHTML =
           tagHtml +
           '<div class="post-header">' +
@@ -1768,7 +1824,7 @@ function getRemoteSession() {
             '</div>' +
             '<div class="post-author-info">' +
               '<span class="post-author-name">' + escapeHtml(post.author) + '</span>' +
-              '<span class="post-timestamp"><i class="fas fa-clock"></i> ' + timeAgo(post.timestamp) + '</span>' +
+              '<span class="post-timestamp"><i class="fas fa-clock"></i> ' + formatTimestampPHT(post.timestamp) + ' &middot; ' + timeAgo(post.timestamp) + '</span>' +
             '</div>' +
           '</div>' +
           '<div class="post-content">' + post.content + imgHtml + '</div>' +
@@ -1781,7 +1837,7 @@ function getRemoteSession() {
         btn.addEventListener("click", function () {
           showConfirm("Delete this post?", function () {
             var postId = btn.getAttribute("data-id");
-            deletePost(postId).then(function () {
+            withLoading(function () { return deletePost(postId); }).then(function () {
               loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
               showToast("Post deleted.", "info");
             }).catch(function (err) {
@@ -1801,7 +1857,7 @@ function getRemoteSession() {
       feed.querySelectorAll(".btn-acknowledge").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var postId = btn.getAttribute("data-id");
-          toggleAcknowledgePost(postId).then(function () {
+          withLoading(function () { return toggleAcknowledgePost(postId); }).then(function () {
             loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
           }).catch(function (err) {
             showToast(err.message || "Could not toggle acknowledgment.", "error");
@@ -1995,7 +2051,7 @@ function getRemoteSession() {
       list.querySelectorAll(".btn-delete-subject").forEach(function (btn) {
         btn.addEventListener("click", function () {
           showConfirm("Delete this subject and all its tasks?", function () {
-            deleteSubject(btn.getAttribute("data-id")).then(function () {
+            withLoading(function () { return deleteSubject(btn.getAttribute("data-id")); }).then(function () {
               loadSubjects();
               showToast("Subject deleted.", "info");
             }).catch(function (err) {
@@ -2006,7 +2062,7 @@ function getRemoteSession() {
       });
       list.querySelectorAll(".task-checkbox").forEach(function (cb) {
         cb.addEventListener("change", function () {
-          toggleSubjectTask(cb.getAttribute("data-subject-id"), cb.getAttribute("data-task-id")).then(function () {
+          withLoading(function () { return toggleSubjectTask(cb.getAttribute("data-subject-id"), cb.getAttribute("data-task-id")); }).then(function () {
             loadSubjects();
           }).catch(function (err) {
             showToast(err.message || "Could not update task.", "error");
@@ -2016,7 +2072,7 @@ function getRemoteSession() {
       list.querySelectorAll(".btn-task-delete").forEach(function (btn) {
         btn.addEventListener("click", function () {
           showConfirm("Delete this task?", function () {
-            deleteSubjectTask(btn.getAttribute("data-subject-id"), btn.getAttribute("data-task-id")).then(function () {
+            withLoading(function () { return deleteSubjectTask(btn.getAttribute("data-subject-id"), btn.getAttribute("data-task-id")); }).then(function () {
               loadSubjects();
               showToast("Task deleted.", "info");
             }).catch(function (err) {
@@ -2110,7 +2166,7 @@ function getRemoteSession() {
       list.querySelectorAll(".btn-delete-schedule").forEach(function (btn) {
         btn.addEventListener("click", function () {
           showConfirm("Delete this schedule entry?", function () {
-            deleteScheduleItem(btn.getAttribute("data-id")).then(function () {
+            withLoading(function () { return deleteScheduleItem(btn.getAttribute("data-id")); }).then(function () {
               loadSchedule();
               showToast("Schedule entry deleted.", "info");
             }).catch(function (err) {
@@ -2195,7 +2251,7 @@ function getRemoteSession() {
 
       list.querySelectorAll(".assignment-checkbox").forEach(function (cb) {
         cb.addEventListener("change", function () {
-          toggleAssignment(cb.getAttribute("data-id")).then(function () {
+          withLoading(function () { return toggleAssignment(cb.getAttribute("data-id")); }).then(function () {
             loadAssignments();
           }).catch(function (err) {
             showToast(err.message || "Could not update task.", "error");
@@ -2205,7 +2261,7 @@ function getRemoteSession() {
       list.querySelectorAll(".btn-assignment-delete").forEach(function (btn) {
         btn.addEventListener("click", function () {
           showConfirm("Delete this task?", function () {
-            deleteAssignment(btn.getAttribute("data-id")).then(function () {
+            withLoading(function () { return deleteAssignment(btn.getAttribute("data-id")); }).then(function () {
               loadAssignments();
               showToast("Task deleted.", "info");
             }).catch(function (err) {
@@ -2304,7 +2360,7 @@ function getRemoteSession() {
       // Event listeners
       list.querySelectorAll(".btn-toggle-exclude").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          toggleGradeExclude(btn.getAttribute("data-id")).then(function () {
+          withLoading(function () { return toggleGradeExclude(btn.getAttribute("data-id")); }).then(function () {
             loadGrades();
           }).catch(function (err) {
             showToast(err.message || "Could not update exclude status.", "error");
@@ -2319,7 +2375,7 @@ function getRemoteSession() {
       list.querySelectorAll(".btn-delete-grade").forEach(function (btn) {
         btn.addEventListener("click", function () {
           showConfirm("Delete this grade?", function () {
-            deleteGrade(btn.getAttribute("data-id")).then(function () {
+            withLoading(function () { return deleteGrade(btn.getAttribute("data-id")); }).then(function () {
               loadGrades();
               showToast("Grade deleted.", "info");
             }).catch(function (err) {
@@ -2625,7 +2681,7 @@ function getRemoteSession() {
           if (removeBtn) {
             removeBtn.addEventListener("click", function () {
               showConfirm("Remove the uploaded PDF?", function () {
-                removeCurriculumPDF().then(function () {
+                withLoading(function () { return removeCurriculumPDF(); }).then(function () {
                   loadCurriculum();
                   showToast("PDF removed.", "info");
                 }).catch(function (err) {
@@ -2668,7 +2724,7 @@ function getRemoteSession() {
               var reader = new FileReader();
               reader.onload = function (e) {
                 var base64 = e.target.result;
-                saveCurriculumPDF(file.name, base64).then(function () {
+                withLoading(function () { return saveCurriculumPDF(file.name, base64); }).then(function () {
                   loadCurriculum();
                   showToast("Curriculum PDF uploaded successfully.", "success");
                   fileInput.value = "";
@@ -2705,7 +2761,7 @@ function getRemoteSession() {
           if (removeCorBtn) {
             removeCorBtn.addEventListener("click", function () {
               showConfirm("Remove the uploaded Certificate of Registration?", function () {
-                removeCORPDF().then(function () {
+                withLoading(function () { return removeCORPDF(); }).then(function () {
                   loadCurriculum();
                   showToast("Certificate of Registration removed.", "info");
                 }).catch(function (err) {
@@ -2750,7 +2806,7 @@ function getRemoteSession() {
               var reader = new FileReader();
               reader.onload = function (e) {
                 var base64 = e.target.result;
-                saveCORPDF(file.name, base64).then(function () {
+                withLoading(function () { return saveCORPDF(file.name, base64); }).then(function () {
                   loadCurriculum();
                   showToast("Certificate of Registration uploaded successfully.", "success");
                   corFileInput.value = "";
@@ -2817,7 +2873,7 @@ function getRemoteSession() {
       list.querySelectorAll(".btn-delete-curriculum").forEach(function (btn) {
         btn.addEventListener("click", function () {
           showConfirm("Delete this curriculum subject?", function () {
-            deleteCurriculumSubject(btn.getAttribute("data-id")).then(function () {
+            withLoading(function () { return deleteCurriculumSubject(btn.getAttribute("data-id")); }).then(function () {
               loadCurriculum();
               showToast("Subject deleted.", "info");
             }).catch(function (err) {
@@ -2831,6 +2887,15 @@ function getRemoteSession() {
       console.error("Error loading curriculum:", err);
       list.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load curriculum</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
     }
+  }
+
+  function downloadPDF(pdfData, defaultName) {
+    var a = document.createElement("a");
+    a.href = pdfData.data;
+    a.download = pdfData.name || defaultName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function editCurriculumSubject(id) {
@@ -2853,15 +2918,19 @@ function getRemoteSession() {
   function setupCurriculumFilters() {
     var filters = document.querySelectorAll(".curriculum-year-filter");
     filters.forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        filters.forEach(function (b) { b.classList.remove("active"); });
-        btn.classList.add("active");
-        loadCurriculum();
-      });
+      if (!btn._ccBound) {
+        btn._ccBound = true;
+        btn.addEventListener("click", function () {
+          filters.forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          loadCurriculum();
+        });
+      }
     });
 
     var semFilterSelect = document.getElementById("curriculum-semester-filter");
-    if (semFilterSelect) {
+    if (semFilterSelect && !semFilterSelect._ccBound) {
+      semFilterSelect._ccBound = true;
       semFilterSelect.addEventListener("change", function () {
         loadCurriculum();
       });
@@ -2945,7 +3014,7 @@ function getRemoteSession() {
   function setupPostToolbar() {
     var editor = document.getElementById("post-content-editable");
     if (!editor) return;
-    document.querySelectorAll(".toolbar-btn[data-command]").forEach(function (btn) {
+    document.querySelectorAll("#post-modal-overlay .toolbar-btn[data-command]").forEach(function (btn) {
       btn.addEventListener("mousedown", function (e) {
         e.preventDefault();
         document.execCommand(btn.getAttribute("data-command"), false, null);
@@ -2963,12 +3032,12 @@ function getRemoteSession() {
     var imageInput = document.getElementById("post-image-input");
     if (imageBtn && imageInput) {
       imageBtn.addEventListener("click", function () { imageInput.click(); });
-      
+
       // ===== FIXED IMAGE UPLOAD HANDLER =====
       imageInput.addEventListener("change", async function () {
         var file = imageInput.files[0];
         if (!file) return;
-        
+
         // Validate file size (5MB max)
         if (file.size > 5 * 1024 * 1024) {
           showToast("Image must be smaller than 5 MB.", "error");
@@ -2994,25 +3063,19 @@ function getRemoteSession() {
 
           // Generate a unique filename
           var fileExt = file.name.split('.').pop();
-          var fileName = `posts/${user.id}/${Date.now()}.${fileExt}`;
+          var fileName = "posts/" + user.id + "/" + Date.now() + "." + fileExt;
 
           // Upload to Supabase Storage
-          var { data, error } = await supabaseClient
-            .storage
-            .from('post-images')
-            .upload(fileName, file);
-
-          if (error) {
-            console.error("[ClassConnect] Storage upload error:", error);
-            throw new Error(error.message || "Upload failed.");
+          var uploadResult = await withLoading(function () {
+            return withTimeout(supabaseClient.storage.from('post-images').upload(fileName, file), 8000, "Image upload");
+          });
+          if (uploadResult.error) {
+            console.error("[ClassConnect] Storage upload error:", uploadResult.error);
+            throw new Error(uploadResult.error.message || "Upload failed.");
           }
 
           // Get the public URL
-          var { data: urlData } = supabaseClient
-            .storage
-            .from('post-images')
-            .getPublicUrl(fileName);
-
+          var urlData = supabaseClient.storage.from('post-images').getPublicUrl(fileName);
           if (!urlData || !urlData.publicUrl) {
             throw new Error("Could not retrieve the uploaded image URL.");
           }
@@ -3108,15 +3171,11 @@ function getRemoteSession() {
   // ===== EXPORT / IMPORT DATA (Now mostly for settings and maybe migration) =====
   function exportData() {
     var user = getCurrentUser();
-    // We'll export only what's in Supabase, but that's already in the cloud.
-    // This function can be used to export a local backup of the current state,
-    // but it's not needed for Supabase. We'll keep it for settings.
     var data = {
       version: "1.0.0",
       exportedAt: new Date().toISOString(),
       exportedBy: user ? user.email : "unknown",
       settings: getSettings(),
-      // We could also fetch all data from Supabase and include it, but that might be large.
     };
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
@@ -3154,12 +3213,10 @@ function getRemoteSession() {
       showConfirm("This is permanent. Are you absolutely sure?", function () {
         var user = getCurrentUser();
         if (user) {
-          // Delete all user data from Supabase tables
           var tables = ["posts", "subjects", "schedule", "assignments", "grades", "curriculum_subjects", "curriculum_pdf", "cor_pdf"];
-          var promises = tables.map(function (table) {
-            return supabaseTable(table).delete().eq("user_id", user.id);
-          });
-          Promise.all(promises).then(function () {
+          withLoading(function () {
+            return Promise.all(tables.map(function (table) { return supabaseTable(table).delete().eq("user_id", user.id); }));
+          }).then(function () {
             showToast("All data cleared. Reloading...", "info");
             setTimeout(function () { location.reload(); }, 1500);
           }).catch(function (err) {
@@ -3206,19 +3263,22 @@ function getRemoteSession() {
 
     // Load all data from Supabase
     try {
-      await loadProfileForm();
+      showGlobalLoading();
+      loadProfileForm();
       await loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
       await loadSubjects();
       await loadSchedule();
       await loadAssignments();
       await loadGrades();
       await loadClassmates();
-      await loadFaqs();
-      await loadSettings();
+      loadFaqs();
+      loadSettings();
       switchView("view-home");
     } catch (err) {
       console.error("Error loading dashboard data:", err);
       showToast("Some data could not be loaded. Please refresh.", "warning");
+    } finally {
+      hideGlobalLoading();
     }
   }
 
@@ -3262,7 +3322,7 @@ function getRemoteSession() {
         var btn = document.getElementById("login-submit-btn");
         setButtonLoading(btn, true);
         try {
-          var result = await login(email, password);
+          var result = await withLoading(function () { return login(email, password); });
           setButtonLoading(btn, false);
           if (!result.success) { showError("login-error", result.message); return; }
           loginForm.reset();
@@ -3293,7 +3353,7 @@ function getRemoteSession() {
         var name = nameInput ? (nameInput.value || "").trim() : "";
         var email = emailInput ? (emailInput.value || "").trim() : "";
         var password = passwordInput ? passwordInput.value || "" : "";
-        var confirm = confirmInput ? confirmInput.value || "" : "";
+        var confirm = confirmInput ? (confirmInput.value || "" ) : "";
         if (name.length < 2) { showError("signup-error", "Please enter your full name."); return; }
         if (!isValidEmail(email)) { showError("signup-error", "Please enter a valid email address."); return; }
         if (password.length < 6) { showError("signup-error", "Password must be at least 6 characters."); return; }
@@ -3301,7 +3361,7 @@ function getRemoteSession() {
         var btn = document.getElementById("signup-submit-btn");
         setButtonLoading(btn, true);
         try {
-          var result = await signup(name, email, password);
+          var result = await withLoading(function () { return signup(name, email, password); });
           setButtonLoading(btn, false);
           if (!result.success) { showError("signup-error", result.message); return; }
           signupForm.reset();
@@ -3374,8 +3434,11 @@ function getRemoteSession() {
 
     var dashboardSearchInput = document.getElementById("dashboard-search-input");
     if (dashboardSearchInput) {
+      var searchTimer;
       dashboardSearchInput.addEventListener("input", function (e) {
-        loadPosts(e.target.value);
+        clearTimeout(searchTimer);
+        var val = e.target.value;
+        searchTimer = setTimeout(function () { loadPosts(val); }, 250);
       });
     }
 
@@ -3427,12 +3490,13 @@ function getRemoteSession() {
           return;
         }
         console.log("[ClassConnect] Sending Supabase password reset email.");
-        var resetPromise = withTimeout(
-          client.auth.resetPasswordForEmail(email, { redirectTo: window.location.href }),
-          8000,
-          "Supabase password reset"
-        );
-        resetPromise.then(function (response) {
+        withLoading(function () {
+          return withTimeout(
+            client.auth.resetPasswordForEmail(email, { redirectTo: window.location.href }),
+            8000,
+            "Supabase password reset"
+          );
+        }).then(function (response) {
           setButtonLoading(btn, false);
           if (response && response.error) {
             console.error("[ClassConnect] Supabase password reset failed:", response.error);
@@ -3503,7 +3567,7 @@ function getRemoteSession() {
           showToast("Please write something before posting.", "warning");
           return;
         }
-        createPost(content, currentPostImage).then(function () {
+        withLoading(function () { return createPost(content, currentPostImage); }).then(function () {
           closeModal("post-modal-overlay");
           clearPostContent();
           loadPosts(dashboardSearchInput ? dashboardSearchInput.value : "");
@@ -3538,7 +3602,7 @@ function getRemoteSession() {
           showToast("Please write something.", "warning");
           return;
         }
-        updatePost(id, content).then(function () {
+        withLoading(function () { return updatePost(id, content); }).then(function () {
           closeModal("edit-post-modal-overlay");
           loadPosts(dashboardSearchInput ? dashboardSearchInput.value : "");
           showToast("Post updated successfully.", "success");
@@ -3579,7 +3643,7 @@ function getRemoteSession() {
         var schedule = (document.getElementById("subject-schedule").value || "").trim();
         if (!name) { showToast("Please enter a subject name.", "warning"); return; }
         if (id) {
-          updateSubject(id, { name: name, professor: professor, schedule: schedule }).then(function () {
+          withLoading(function () { return updateSubject(id, { name: name, professor: professor, schedule: schedule }); }).then(function () {
             closeModal("subject-modal-overlay");
             subjectForm.reset();
             loadSubjects();
@@ -3588,7 +3652,7 @@ function getRemoteSession() {
             showToast(err.message || "Could not update subject.", "error");
           });
         } else {
-          addSubject(name, professor, schedule).then(function () {
+          withLoading(function () { return addSubject(name, professor, schedule); }).then(function () {
             closeModal("subject-modal-overlay");
             subjectForm.reset();
             loadSubjects();
@@ -3617,7 +3681,7 @@ function getRemoteSession() {
         var subjectId = document.getElementById("subject-task-subject-id").value;
         var text = (document.getElementById("subject-task-text").value || "").trim();
         if (!text) { showToast("Please enter a task description.", "warning"); return; }
-        addSubjectTask(subjectId, text).then(function () {
+        withLoading(function () { return addSubjectTask(subjectId, text); }).then(function () {
           closeModal("subject-task-modal-overlay");
           subjectTaskForm.reset();
           loadSubjects();
@@ -3665,7 +3729,7 @@ function getRemoteSession() {
           showToast("Please fill in all required fields.", "warning"); return;
         }
         if (id) {
-          updateScheduleItem(id, { subject: subject, day: day, start_time: startTime, end_time: endTime, room: room }).then(function () {
+          withLoading(function () { return updateScheduleItem(id, { subject: subject, day: day, start_time: startTime, end_time: endTime, room: room }); }).then(function () {
             closeModal("schedule-modal-overlay");
             scheduleForm.reset();
             loadSchedule();
@@ -3674,7 +3738,7 @@ function getRemoteSession() {
             showToast(err.message || "Could not update schedule.", "error");
           });
         } else {
-          addScheduleItem(subject, day, startTime, endTime, room).then(function () {
+          withLoading(function () { return addScheduleItem(subject, day, startTime, endTime, room); }).then(function () {
             closeModal("schedule-modal-overlay");
             scheduleForm.reset();
             loadSchedule();
@@ -3713,7 +3777,7 @@ function getRemoteSession() {
         var subject = (document.getElementById("assignment-subject").value || "").trim();
         var due = document.getElementById("assignment-due-date").value;
         if (!text) { showToast("Please enter a task description.", "warning"); return; }
-        addAssignment(text, subject, due).then(function () {
+        withLoading(function () { return addAssignment(text, subject, due); }).then(function () {
           closeModal("assignment-modal-overlay");
           assignmentForm.reset();
           loadAssignments();
@@ -3770,7 +3834,7 @@ function getRemoteSession() {
           showToast("Please enter a valid numeric grade.", "warning"); return;
         }
         if (id) {
-          updateGrade(id, { subject: subject, grade: gradeVal, units: unitsVal, year: year, semester: semester, exclude: exclude }).then(function () {
+          withLoading(function () { return updateGrade(id, { subject: subject, grade: gradeVal, units: unitsVal, year: year, semester: semester, exclude: exclude }); }).then(function () {
             closeModal("grade-modal-overlay");
             gradeForm.reset();
             loadGrades();
@@ -3779,7 +3843,7 @@ function getRemoteSession() {
             showToast(err.message || "Could not update grade.", "error");
           });
         } else {
-          addGrade(subject, gradeVal, unitsVal, year, semester, exclude).then(function () {
+          withLoading(function () { return addGrade(subject, gradeVal, unitsVal, year, semester, exclude); }).then(function () {
             closeModal("grade-modal-overlay");
             gradeForm.reset();
             loadGrades();
@@ -3832,7 +3896,7 @@ function getRemoteSession() {
         };
         if (!data.name) { showToast("Please enter your full name.", "warning"); return; }
         try {
-          await saveProfile(data);
+          await withLoading(function () { return saveProfile(data); });
           loadDashboard();
           showToast("Profile saved to Supabase successfully.", "success");
         } catch (error) {
@@ -3856,7 +3920,7 @@ function getRemoteSession() {
         }
         var reader = new FileReader();
         reader.onload = function (e) {
-          saveProfilePhoto(e.target.result)
+          withLoading(function () { return saveProfilePhoto(e.target.result); })
             .then(function () {
               loadProfileForm();
               showToast("Profile photo saved to Supabase.", "success");
@@ -3888,7 +3952,7 @@ function getRemoteSession() {
         var current = document.getElementById("settings-current-password").value;
         var newPwd = document.getElementById("settings-new-password").value;
         var confirm = document.getElementById("settings-confirm-password").value;
-        var result = await changePassword(current, newPwd, confirm);
+        var result = await withLoading(function () { return changePassword(current, newPwd, confirm); });
         if (result.success) {
           showToast(result.message, "success");
           document.getElementById("settings-current-password").value = "";
@@ -3978,7 +4042,7 @@ function getRemoteSession() {
           return;
         }
         if (id) {
-          updateCurriculumSubject(id, { name: name, code: code, schedule: schedule, year: year, semester: semester }).then(function () {
+          withLoading(function () { return updateCurriculumSubject(id, { name: name, code: code, schedule: schedule, year: year, semester: semester }); }).then(function () {
             closeModal("curriculum-subject-modal-overlay");
             curriculumForm.reset();
             loadCurriculum();
@@ -3987,7 +4051,7 @@ function getRemoteSession() {
             showToast(err.message || "Could not update subject.", "error");
           });
         } else {
-          addCurriculumSubject(name, code, schedule, year, semester).then(function () {
+          withLoading(function () { return addCurriculumSubject(name, code, schedule, year, semester); }).then(function () {
             closeModal("curriculum-subject-modal-overlay");
             curriculumForm.reset();
             loadCurriculum();
