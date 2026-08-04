@@ -1608,17 +1608,20 @@ function getRemoteSession() {
       saveRemoteUserSession(response.data.user);
       await loadRemoteProfile();
 
-      // Bootstrap profile from auth metadata when no profile row exists yet
-      // (happens when email confirmation was required at signup time)
-      if (remoteProfile && !remoteProfile.section) {
-        var meta = (response.data.user.user_metadata) || {};
-        if (meta.section) {
+      // Bootstrap profile from auth metadata when:
+      // (a) no section was ever saved, OR
+      // (b) section is still the old hardcoded default "BSIT 3-A" but signup metadata has the real value
+      var meta = (response.data.user.user_metadata) || {};
+      if (meta.section && remoteProfile) {
+        var profileSec = normalizeSection(remoteProfile.section || "");
+        var isStuckOnDefault = profileSec === "BSIT 3-A" || profileSec === "BSIT III-A";
+        if (!remoteProfile.section || isStuckOnDefault) {
           try {
             await upsertRemoteProfile({
               name: meta.full_name || meta.name || remoteProfile.name,
-              studentId: meta.student_id || "",
-              year: meta.year || "",
-              section: meta.section || "",
+              studentId: meta.student_id || remoteProfile.studentId || "",
+              year: meta.year || remoteProfile.year || "",
+              section: meta.section,
             });
             console.log("[ClassConnect] Profile bootstrapped from signup metadata.");
           } catch (e) {
