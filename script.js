@@ -3719,6 +3719,14 @@ function getRemoteSession() {
         if (img) openImageViewer(img.getAttribute("data-viewer-src") || img.src);
       });
     }
+    // Delegate clicks on QR code images in Support HDDev view
+    var supportView = document.getElementById("view-support");
+    if (supportView) {
+      supportView.addEventListener("click", function (e) {
+        var img = e.target.closest(".support-qr-zoomable");
+        if (img) openImageViewer(img.src);
+      });
+    }
     if (imgViewerClose) imgViewerClose.addEventListener("click", closeImageViewer);
     if (imgViewerOverlay) {
       imgViewerOverlay.addEventListener("click", function (e) {
