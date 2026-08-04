@@ -4540,3 +4540,144 @@ body.cc-global-loading .bottom-nav {
     max-height:   85vh;
   }
 }
+/* =========================================================
+   SUPPORT HDDEV VIEW
+   ========================================================= */
+
+/* Pure-CSS heart icon used in drawer and view heading */
+.drawer-heart-icon,
+.support-heart-icon {
+  display:        inline-block;
+  position:       relative;
+  width:          16px;
+  height:         14px;
+  vertical-align: middle;
+  margin-right:   2px;
+}
+
+.drawer-heart-icon::before,
+.drawer-heart-icon::after,
+.support-heart-icon::before,
+.support-heart-icon::after {
+  content:        "";
+  position:       absolute;
+  top:            0;
+  width:          8px;
+  height:         12px;
+  border-radius:  8px 8px 0 0;
+  background:     #e8445a;
+}
+
+.drawer-heart-icon::before,
+.support-heart-icon::before {
+  left:           8px;
+  transform-origin: 0 100%;
+  transform:      rotate(-45deg);
+}
+
+.drawer-heart-icon::after,
+.support-heart-icon::after {
+  left:           0;
+  transform-origin: 100% 100%;
+  transform:      rotate(45deg);
+}
+
+/* Support intro blurb */
+.support-intro {
+  background:     var(--very-light-blue);
+  border:         1.5px solid var(--sky-blue);
+  border-radius:  var(--radius-lg);
+  padding:        16px 20px;
+  margin-bottom:  20px;
+  font-size:      14px;
+  color:          var(--gray-700);
+  line-height:    1.65;
+}
+
+.support-intro strong {
+  color:          var(--primary-blue);
+}
+
+/* QR grid: 3 columns on wide screens, 1 on narrow */
+.support-qr-grid {
+  display:        grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:            16px;
+}
+
+@media (max-width: 700px) {
+  .support-qr-grid {
+    grid-template-columns: 1fr;
+    max-width:    320px;
+    margin:       0 auto;
+  }
+}
+
+/* Each QR card */
+.support-qr-card {
+  background:     var(--white);
+  border:         1.5px solid var(--gray-200);
+  border-radius:  var(--radius-lg);
+  padding:        16px;
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            12px;
+  box-shadow:     var(--shadow-sm);
+  transition:     box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.support-qr-card:hover {
+  box-shadow:     var(--shadow-md);
+  transform:      translateY(-2px);
+}
+
+.support-qr-img {
+  width:          100%;
+  max-width:      180px;
+  aspect-ratio:   1;
+  object-fit:     contain;
+  border-radius:  var(--radius-md);
+  border:         1px solid var(--gray-100);
+}
+
+/* Labels under each QR */
+.support-qr-info {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            3px;
+  text-align:     center;
+}
+
+.support-qr-service {
+  font-size:      13px;
+  font-weight:    700;
+  color:          var(--primary-blue);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.support-qr-name {
+  font-size:      13px;
+  font-weight:    600;
+  color:          var(--deep-navy);
+  line-height:    1.4;
+}
+
+.support-qr-number {
+  font-size:      13px;
+  color:          var(--gray-500);
+  font-family:    monospace;
+  letter-spacing: 0.5px;
+}
+
+/* Zoomable post images — show a pointer so users know they're clickable */
+.post-img-zoomable {
+  cursor:         zoom-in;
+  transition:     opacity var(--transition-fast);
+}
+
+.post-img-zoomable:hover {
+  opacity:        0.92;
+}
