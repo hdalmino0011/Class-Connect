@@ -505,6 +505,34 @@ body.body-scroll-lock {
 
 .input-group input::placeholder { color: var(--gray-400); }
 
+/* Select inside an auth input-group (signup year-level picker) */
+.input-group select {
+  width:            100%;
+  border:           1.5px solid var(--gray-200);
+  border-radius:    var(--radius-md);
+  padding:          14px 14px 14px 44px;
+  font-size:        15px;
+  color:            var(--text-primary);
+  background:       var(--gray-50);
+  transition:       border-color var(--transition-fast), box-shadow var(--transition-fast);
+  appearance:       none;
+  -webkit-appearance: none;
+  cursor:           pointer;
+  outline:          none;
+  font-family:      inherit;
+}
+.input-group select:focus {
+  border-color:     var(--primary-blue);
+  background:       var(--white);
+  box-shadow:       0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline:          none;
+}
+/* Placeholder colour for the disabled "Year Level" option */
+.input-group select:invalid,
+.input-group select option[value=""] {
+  color: var(--gray-400);
+}
+
 .input-group input:focus {
   outline:      none;
   border-color: var(--primary-blue);
