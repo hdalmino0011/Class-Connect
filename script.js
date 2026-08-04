@@ -2762,7 +2762,7 @@ function getRemoteSession() {
     if (!list) return;
 
     var userProf = getProfile();
-    var mySec = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
+    var mySec = userProf.section ? normalizeSection(userProf.section) : "";
     if (mySectionBadge) {
       mySectionBadge.textContent = "Your Section: " + mySec;
     }
@@ -2816,7 +2816,7 @@ function getRemoteSession() {
   async function getSectionClassmates() {
     var userProf = getProfile();
     var currentUser = getCurrentUser();
-    var mySection = userProf.section ? normalizeSection(userProf.section) : "BSIT 3-A";
+    var mySection = userProf.section ? normalizeSection(userProf.section) : "";
 
     var result = [];
 
@@ -2834,7 +2834,7 @@ function getRemoteSession() {
         );
         if (response.error) throw response.error;
         (response.data || []).forEach(function (prof) {
-          var uSec = prof.section ? normalizeSection(prof.section) : "BSIT 3-A";
+          var uSec = prof.section ? normalizeSection(prof.section) : "";
           if (uSec === mySection || mySection === "ALL") {
             result.push({
               id: prof.id || cryptoId(),
@@ -3561,6 +3561,61 @@ function getRemoteSession() {
       }
     };
     reader.readAsText(file);
+  }
+
+  // ===== DELETE ACCOUNT =====
+  async function deleteAccount(password) {
+    var user = getCurrentUser();
+    if (!user) throw new Error("No user logged in.");
+    if (!isSupabaseReady()) throw new Error("Supabase is not available. Please check your connection.");
+    var client = getSupabaseClient();
+
+    // Step 1: Re-authenticate to verify the password
+    var authResult = await withTimeout(
+      client.auth.signInWithPassword({ email: user.email, password: password }),
+      10000,
+      "Re-authentication"
+    );
+    if (authResult.error) {
+      throw new Error(
+        authResult.error.message && authResult.error.message.toLowerCase().includes("invalid")
+          ? "Incorrect password. Please try again."
+          : (authResult.error.message || "Authentication failed. Please try again.")
+      );
+    }
+
+    // Step 2: Delete all user data from every table
+    // These tables all use user_id
+    var userIdTables = [
+      "post_acknowledgments",
+      "comments",
+      "posts",
+      "assignments",
+      "grades",
+      "schedule",
+      "subjects",
+      "curriculum_subjects",
+      "curriculum_pdf",
+      "cor_pdf"
+    ];
+    await Promise.all(userIdTables.map(function (table) {
+      return withTimeout(
+        supabaseTable(table).delete().eq("user_id", user.id),
+        10000,
+        "Delete " + table
+      );
+    }));
+
+    // profiles table uses `id` as its primary key (= auth user id)
+    await withTimeout(
+      supabaseTable("profiles").delete().eq("id", user.id),
+      10000,
+      "Delete profile"
+    );
+
+    // Step 3: Sign out (auth record remains — full deletion requires a Supabase Edge Function)
+    try { localStorage.clear(); } catch (e) {}
+    await client.auth.signOut();
   }
 
   function clearAllData() {
@@ -4308,7 +4363,7 @@ function getRemoteSession() {
           studentId: (document.getElementById("profile-student-id").value || "").trim(),
           course: (document.getElementById("profile-course").value || "").trim(),
           year: document.getElementById("profile-year").value,
-          section: normalizeSection(rawSec || "BSIT 3-A"),
+          section: normalizeSection(rawSec || ""),
           contact: (document.getElementById("profile-contact").value || "").trim(),
           birthdate: document.getElementById("profile-birthdate").value,
           gender: document.getElementById("profile-gender").value,
@@ -4384,6 +4439,62 @@ function getRemoteSession() {
           toggleSettingsGroup("password-group");
         } else {
           showToast(result.message, "error");
+        }
+      });
+    }
+
+    // ----- DELETE ACCOUNT -----
+    var deleteAccountSettingsBtn = document.getElementById("settings-delete-account-btn");
+    if (deleteAccountSettingsBtn) {
+      deleteAccountSettingsBtn.addEventListener("click", function () {
+        var pwdInput = document.getElementById("delete-account-password");
+        if (pwdInput) pwdInput.value = "";
+        hideError("delete-account-error");
+        openModal("delete-account-modal-overlay");
+      });
+    }
+
+    var closeDeleteAccountModal = document.getElementById("close-delete-account-modal-btn");
+    if (closeDeleteAccountModal) {
+      closeDeleteAccountModal.addEventListener("click", function () {
+        closeModal("delete-account-modal-overlay");
+      });
+    }
+
+    var deleteAccountCancelBtn = document.getElementById("delete-account-cancel-btn");
+    if (deleteAccountCancelBtn) {
+      deleteAccountCancelBtn.addEventListener("click", function () {
+        closeModal("delete-account-modal-overlay");
+      });
+    }
+
+    var deleteAccountOverlay = document.getElementById("delete-account-modal-overlay");
+    if (deleteAccountOverlay) {
+      deleteAccountOverlay.addEventListener("click", function (e) {
+        if (e.target === deleteAccountOverlay) closeModal("delete-account-modal-overlay");
+      });
+    }
+
+    var deleteAccountConfirmBtn = document.getElementById("delete-account-confirm-btn");
+    if (deleteAccountConfirmBtn) {
+      deleteAccountConfirmBtn.addEventListener("click", async function () {
+        hideError("delete-account-error");
+        var pwdInput = document.getElementById("delete-account-password");
+        var password = pwdInput ? (pwdInput.value || "").trim() : "";
+        if (!password) {
+          showError("delete-account-error", "Please enter your password to confirm.");
+          return;
+        }
+        setButtonLoading(deleteAccountConfirmBtn, true);
+        try {
+          await withLoading(function () { return deleteAccount(password); });
+          closeModal("delete-account-modal-overlay");
+          showPage("login-page");
+          showLoginForm();
+          showToast("Your account and all data have been deleted.", "info");
+        } catch (err) {
+          setButtonLoading(deleteAccountConfirmBtn, false);
+          showError("delete-account-error", err.message || "Could not delete account. Please try again.");
         }
       });
     }
