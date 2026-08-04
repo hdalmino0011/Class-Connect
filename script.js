@@ -532,8 +532,10 @@ function getRemoteSession() {
       var query = supabaseTable("posts")
         .select("*")
         .order("timestamp", { ascending: false });
-      if (section && year) {
-        query = query.eq("section", section).eq("year", year);
+      if (section || year) {
+        // Apply whichever identifiers the profile has; existing posts may have a null year
+        if (section) query = query.eq("section", section);
+        if (year)    query = query.eq("year", year);
       } else {
         // Profile not fully set up — show only own posts to avoid leaking cross-section data
         query = query.eq("user_id", user.id);
