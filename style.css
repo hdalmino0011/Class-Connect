@@ -4598,18 +4598,16 @@ body.cc-global-loading .bottom-nav {
   color:          var(--primary-blue);
 }
 
-/* QR grid: 3 columns on wide screens, 1 on narrow */
+/* QR grid: single column by default (mobile-first), up to 3 columns on wide screens */
 .support-qr-grid {
   display:        grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap:            16px;
 }
 
-@media (max-width: 700px) {
+@media (min-width: 700px) {
   .support-qr-grid {
-    grid-template-columns: 1fr;
-    max-width:    320px;
-    margin:       0 auto;
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -4632,13 +4630,14 @@ body.cc-global-loading .bottom-nav {
   transform:      translateY(-2px);
 }
 
+/* Full-width QR image — fills the card so it's easy to scan */
 .support-qr-img {
   width:          100%;
-  max-width:      180px;
-  aspect-ratio:   1;
+  max-width:      100%;
   object-fit:     contain;
   border-radius:  var(--radius-md);
   border:         1px solid var(--gray-100);
+  display:        block;
 }
 
 /* Labels under each QR */
@@ -4648,6 +4647,7 @@ body.cc-global-loading .bottom-nav {
   align-items:    center;
   gap:            3px;
   text-align:     center;
+  width:          100%;
 }
 
 .support-qr-service {
@@ -4680,4 +4680,14 @@ body.cc-global-loading .bottom-nav {
 
 .post-img-zoomable:hover {
   opacity:        0.92;
+}
+
+/* Zoomable QR images */
+.support-qr-zoomable {
+  cursor:         zoom-in;
+  transition:     opacity var(--transition-fast);
+}
+
+.support-qr-zoomable:hover {
+  opacity:        0.88;
 }
