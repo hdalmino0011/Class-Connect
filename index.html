@@ -1175,11 +1175,13 @@
   </div>
 </div>
 
-<!-- ==================== LANDSCAPE LOCK ==================== -->
-<div id="landscape-lock" class="landscape-lock" aria-live="polite" hidden>
-  <div class="landscape-lock-inner">
-    <i class="fas fa-mobile-screen-button"></i>
-    <p>Please rotate your device back to portrait mode.</p>
+<!-- ==================== IMAGE VIEWER ==================== -->
+<div id="image-viewer-overlay" class="image-viewer-overlay" aria-hidden="true">
+  <div class="image-viewer-content">
+    <button class="image-viewer-close" aria-label="Close image viewer">
+      <i class="fas fa-times"></i>
+    </button>
+    <img id="image-viewer-img" src="" alt="Zoomed image">
   </div>
 </div>
 
@@ -1194,6 +1196,14 @@
     <button id="inactivity-back-to-login-btn" class="btn-primary cc-inactivity-btn">
       <i class="fas fa-right-to-bracket"></i> Back to Login
     </button>
+  </div>
+</div>
+
+<!-- ==================== LANDSCAPE LOCK ==================== -->
+<div id="landscape-lock" class="landscape-lock" aria-live="polite" hidden>
+  <div class="landscape-lock-inner">
+    <i class="fas fa-mobile-screen-button"></i>
+    <p>Please rotate your device back to portrait mode.</p>
   </div>
 </div>
 
