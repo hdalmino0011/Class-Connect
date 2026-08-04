@@ -532,10 +532,14 @@ function getRemoteSession() {
       var query = supabaseTable("posts")
         .select("*")
         .order("timestamp", { ascending: false });
-      if (section || year) {
-        // Apply whichever identifiers the profile has; existing posts may have a null year
-        if (section) query = query.eq("section", section);
-        if (year)    query = query.eq("year", year);
+      if (section) {
+        // Always filter by section first to separate feeds between sections
+        query = query.eq("section", section);
+        // For year: match posts with the same year OR posts where year is NULL
+        // (older posts may not have year set yet — include them so they don't disappear)
+        if (year) {
+          query = query.or("year.eq." + year + ",year.is.null");
+        }
       } else {
         // Profile not fully set up — show only own posts to avoid leaking cross-section data
         query = query.eq("user_id", user.id);
@@ -3279,19 +3283,41 @@ function getRemoteSession() {
   // ===== POST TOOLBAR =====
   var currentPostImage = null;
 
+  function updateToolbarState(modalSelector) {
+    document.querySelectorAll(modalSelector + " .toolbar-btn[data-command]").forEach(function (btn) {
+      var cmd = btn.getAttribute("data-command");
+      try {
+        var active = document.queryCommandState(cmd);
+        btn.classList.toggle("active-toolbar", active);
+      } catch (e) {}
+    });
+  }
+
   function setupPostToolbar() {
     var editor = document.getElementById("post-content-editable");
     if (!editor) return;
     document.querySelectorAll("#post-modal-overlay .toolbar-btn[data-command]").forEach(function (btn) {
       btn.addEventListener("mousedown", function (e) {
-        e.preventDefault();
-        document.execCommand(btn.getAttribute("data-command"), false, null);
-        btn.classList.toggle("active-toolbar");
+        e.preventDefault(); // keep focus on editor
+        var cmd = btn.getAttribute("data-command");
+        document.execCommand(cmd, false, null);
+        // Update all toolbar button states after the command
+        setTimeout(function () { updateToolbarState("#post-modal-overlay"); }, 0);
       });
     });
+    // Update toolbar state whenever the cursor moves or selection changes
+    editor.addEventListener("keyup", function () { updateToolbarState("#post-modal-overlay"); });
+    editor.addEventListener("mouseup", function () { updateToolbarState("#post-modal-overlay"); });
+    editor.addEventListener("focus", function () { updateToolbarState("#post-modal-overlay"); });
     var fontSelect = document.getElementById("post-font-select");
     if (fontSelect) {
+      fontSelect.addEventListener("mousedown", function () {
+        // Save the current selection before the select steals focus
+        fontSelect._savedRange = saveSelection();
+      });
       fontSelect.addEventListener("change", function () {
+        // Restore selection then apply font
+        if (fontSelect._savedRange) restoreSelection(fontSelect._savedRange);
         document.execCommand("fontName", false, fontSelect.value);
         editor.focus();
       });
@@ -3381,19 +3407,46 @@ function getRemoteSession() {
     }
   }
 
+  function saveSelection() {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      return sel.getRangeAt(0).cloneRange();
+    }
+    return null;
+  }
+
+  function restoreSelection(range) {
+    if (!range) return;
+    var sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
+
   function setupEditPostToolbar() {
     var editor = document.getElementById("edit-post-content-editable");
     if (!editor) return;
     document.querySelectorAll("#edit-post-modal-overlay .toolbar-btn[data-command]").forEach(function (btn) {
       btn.addEventListener("mousedown", function (e) {
-        e.preventDefault();
-        document.execCommand(btn.getAttribute("data-command"), false, null);
-        btn.classList.toggle("active-toolbar");
+        e.preventDefault(); // keep focus on editor
+        var cmd = btn.getAttribute("data-command");
+        document.execCommand(cmd, false, null);
+        // Update all toolbar button states after the command
+        setTimeout(function () { updateToolbarState("#edit-post-modal-overlay"); }, 0);
       });
     });
+    // Update toolbar state whenever cursor moves or selection changes
+    editor.addEventListener("keyup", function () { updateToolbarState("#edit-post-modal-overlay"); });
+    editor.addEventListener("mouseup", function () { updateToolbarState("#edit-post-modal-overlay"); });
+    editor.addEventListener("focus", function () { updateToolbarState("#edit-post-modal-overlay"); });
     var fontSelect = document.getElementById("edit-post-font-select");
     if (fontSelect) {
+      fontSelect.addEventListener("mousedown", function () {
+        fontSelect._savedRange = saveSelection();
+      });
       fontSelect.addEventListener("change", function () {
+        if (fontSelect._savedRange) restoreSelection(fontSelect._savedRange);
         document.execCommand("fontName", false, fontSelect.value);
         editor.focus();
       });
@@ -3415,7 +3468,8 @@ function getRemoteSession() {
     if (img) img.src = "#";
     var fontSel = document.getElementById("post-font-select");
     if (fontSel) fontSel.selectedIndex = 0;
-    document.querySelectorAll(".toolbar-btn.active-toolbar").forEach(function (b) {
+    // Only clear active state on the create-post toolbar buttons (not edit toolbar)
+    document.querySelectorAll("#post-modal-overlay .toolbar-btn.active-toolbar").forEach(function (b) {
       b.classList.remove("active-toolbar");
     });
   }
@@ -3694,7 +3748,6 @@ function getRemoteSession() {
     // ===== IMAGE VIEWER =====
     var imgViewerOverlay = document.getElementById("image-viewer-overlay");
     var imgViewerImg    = document.getElementById("image-viewer-img");
-    var imgViewerClose  = document.querySelector(".image-viewer-close");
 
     function openImageViewer(src) {
       if (!imgViewerOverlay || !imgViewerImg) return;
@@ -3727,11 +3780,9 @@ function getRemoteSession() {
         if (img) openImageViewer(img.src);
       });
     }
-    if (imgViewerClose) imgViewerClose.addEventListener("click", closeImageViewer);
+    // Close by clicking anywhere on the overlay (tap outside / tap image)
     if (imgViewerOverlay) {
-      imgViewerOverlay.addEventListener("click", function (e) {
-        if (e.target === imgViewerOverlay) closeImageViewer();
-      });
+      imgViewerOverlay.addEventListener("click", closeImageViewer);
     }
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && imgViewerOverlay && imgViewerOverlay.classList.contains("active")) {
