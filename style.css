@@ -3129,13 +3129,22 @@ body.body-scroll-lock {
   flex-shrink: 0;
 }
 
+/* ===== FIXED: Change Password Section Spacing ===== */
 .settings-group {
-  padding:        8px 18px 20px;
+  padding:        16px 18px 22px;
   background:     var(--gray-50);
   border-bottom:  1px solid var(--gray-100);
   display:        flex;
   flex-direction: column;
-  gap:            14px;
+  gap:            16px;
+}
+
+.settings-group .form-group {
+  margin-bottom: 4px;
+}
+
+.settings-group .form-group:last-child {
+  margin-bottom: 0;
 }
 
 .settings-group .form-group label {
@@ -3148,6 +3157,10 @@ body.body-scroll-lock {
   font-size:  14px;
   background: var(--white);
 }
+
+/* ========================================================= */
+/* The rest of the file remains unchanged from here onward    */
+/* ========================================================= */
 
 .btn-secondary {
   padding:       0 14px;
