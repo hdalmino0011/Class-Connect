@@ -3129,18 +3129,21 @@ body.body-scroll-lock {
   flex-shrink: 0;
 }
 
-/* ===== FIXED: Change Password Section Spacing ===== */
+/* ===== Change Password Section Spacing ===== */
 .settings-group {
   padding:        20px 18px 28px;
   background:     var(--gray-50);
   border-bottom:  1px solid var(--gray-100);
-  display:        flex;
+  display:        none;      /* shown via JS as flex */
   flex-direction: column;
   gap:            22px;
 }
 
 .settings-group .form-group {
-  margin-bottom: 0;
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  margin-bottom:  0;
 }
 
 .settings-group .form-group:last-child {
@@ -3153,10 +3156,41 @@ body.body-scroll-lock {
 }
 
 .settings-group .form-group input {
-  padding:    10px 14px;
+  padding:    11px 14px;
   font-size:  14px;
+  min-height: 46px;
   background: var(--white);
+  border:     1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
 }
+
+.settings-group .form-group input:focus {
+  outline:      none;
+  border-color: var(--primary-blue);
+  box-shadow:   0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+/* ===== CURRICULUM LOADING STATE ===== */
+.curriculum-loading-state {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  padding:         48px 20px;
+  gap:             14px;
+}
+
+.curriculum-spinner {
+  font-size:  32px;
+  color:      var(--primary-blue);
+  animation:  none; /* fa-spin handles it */
+}
+
+.curriculum-loading-text {
+  font-size:   14px;
+  color:       var(--gray-400);
+  font-weight: 500;
+}
+
 
 /* ========================================================= */
 /* The rest of the file remains unchanged from here onward    */
