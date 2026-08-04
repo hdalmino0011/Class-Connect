@@ -526,13 +526,15 @@ function getRemoteSession() {
   // ===== POSTS =====
   async function getPosts() {
     return withAuthCheck(async function () {
-      var result = await withTimeout(
-        supabaseTable("posts")
-          .select("*")
-          .order("timestamp", { ascending: false }),
-        8000,
-        "Posts load"
-      );
+      var user = getCurrentUser();
+      var section = (remoteProfile && remoteProfile.section) || user.section || null;
+      var query = supabaseTable("posts")
+        .select("*")
+        .order("timestamp", { ascending: false });
+      if (section) {
+        query = query.eq("section", section);
+      }
+      var result = await withTimeout(query, 8000, "Posts load");
       if (result.error) throw result.error;
       return result.data || [];
     });
@@ -541,12 +543,14 @@ function getRemoteSession() {
   async function createPost(content, imageData) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
+      var section = (remoteProfile && remoteProfile.section) || user.section || null;
       var post = {
         user_id: user.id,
         author: user.name || "Student",
         content: content.trim(),
         image: imageData || null,
         tag: null,
+        section: section,
         timestamp: new Date().toISOString(),
       };
       var result = await withTimeout(
@@ -3321,12 +3325,12 @@ function getRemoteSession() {
 
           // Get the public URL
           var urlData = supabaseClient.storage.from('post-images').getPublicUrl(fileName);
-          if (!urlData || !urlData.publicUrl) {
+          if (!urlData || !urlData.data || !urlData.data.publicUrl) {
             throw new Error("Could not retrieve the uploaded image URL.");
           }
 
           // Store the URL for the post
-          currentPostImage = urlData.publicUrl;
+          currentPostImage = urlData.data.publicUrl;
 
           // Show preview
           var preview = document.getElementById("post-image-preview");
@@ -3638,20 +3642,29 @@ function getRemoteSession() {
       clearCacheBtn.addEventListener("click", function () {
         closeDrawer();
         showConfirm(
-          "Clear app cache?\n\nThis will remove cached files and restart ClassConnect to enforce the latest updates.",
-          function () {
+          "Clear app cache and log out?\n\nThis will sign you out, remove cached files, and restart ClassConnect.",
+          async function () {
+            try {
+              var client = getSupabaseClient();
+              if (isSupabaseReady() && client.auth) {
+                await client.auth.signOut();
+              }
+            } catch (e) {
+              console.warn("[ClassConnect] Sign-out during cache clear failed:", e);
+            }
+            try { localStorage.clear(); } catch (e) {}
             if ("caches" in window) {
               caches.keys().then(function (names) {
                 return Promise.all(names.map(function (name) { return caches.delete(name); }));
               }).then(function () {
-                showToast("Cache cleared. Restarting…", "success");
+                showToast("Signed out and cache cleared. Restarting…", "success");
                 setTimeout(function () { location.reload(true); }, 1200);
               }).catch(function () {
-                showToast("Cache cleared. Restarting…", "success");
+                showToast("Signed out and cache cleared. Restarting…", "success");
                 setTimeout(function () { location.reload(true); }, 1200);
               });
             } else {
-              showToast("Cache cleared. Restarting…", "success");
+              showToast("Signed out and cache cleared. Restarting…", "success");
               setTimeout(function () { location.reload(true); }, 1200);
             }
           }
@@ -4353,9 +4366,6 @@ function getRemoteSession() {
 
   function routeAfterSplash() {
     console.log("[ClassConnect] Splash timer completed; checking authentication.");
-
-    // Fail safe first: the login page is always reachable at this point.
-    showLoginFallback("startup fallback");
 
     getRemoteSession().then(function (remote) {
       if (remote.session && remote.session.user) {
