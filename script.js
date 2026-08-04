@@ -1546,7 +1546,14 @@ function getRemoteSession() {
           year: cleanYear,
           section: cleanSection,
         });
+
+        // ===== SEND WELCOME EMAIL VIA BREVO (Template 12) =====
+        // Fire and forget — don't block signup if email fails
+        sendWelcomeEmail(createdUser.email, cleanName)
+          .then(() => console.log("[ClassConnect] Welcome email sent via Brevo."))
+          .catch(err => console.warn("[ClassConnect] Could not send welcome email:", err));
       }
+
       console.log(
         "[ClassConnect] Supabase signup succeeded:",
         response.data.session ? "signed in" : "email confirmation required"
@@ -1701,6 +1708,12 @@ function getRemoteSession() {
       if (response && response.error) {
         return { success: false, message: response.error.message || "Unable to update your password." };
       }
+
+      // ===== SEND PASSWORD CHANGED EMAIL VIA BREVO (Template 16) =====
+      sendPasswordChangedEmail(user.email, user.name || "Student")
+        .then(() => console.log("[ClassConnect] Password changed email sent via Brevo."))
+        .catch(err => console.warn("[ClassConnect] Could not send password changed email:", err));
+
       return { success: true, message: "Password updated successfully in Supabase." };
     } catch (error) {
       console.error("[ClassConnect] Supabase password update failed:", error);
@@ -1711,6 +1724,61 @@ function getRemoteSession() {
           : error.message || "Unable to update your password.",
       };
     }
+  }
+
+  // ===== BREVO EMAIL HELPER FUNCTIONS =====
+  // These functions call the 'send-email' Edge Function to send emails using Brevo templates.
+
+  /**
+   * Send an email via the Brevo Edge Function.
+   * @param {string} to - Recipient email address
+   * @param {string} name - Recipient name
+   * @param {number} templateId - Brevo template ID (10, 12, 14, or 16)
+   * @param {object} params - Template parameters (e.g., { user_name, user_email, reset_link })
+   * @returns {Promise<object>} - Response from Edge Function
+   */
+  async function sendBrevoEmail(to, name, templateId, params) {
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('send-email', {
+        body: { to, name, templateId, params }
+      });
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error("[ClassConnect] Brevo email send failed:", err);
+      throw err;
+    }
+  }
+
+  /**
+   * Send Welcome / Sign Up confirmation email (Template 12)
+   */
+  async function sendWelcomeEmail(email, name) {
+    return await sendBrevoEmail(email, name, 12, { user_name: name, user_email: email });
+  }
+
+  /**
+   * Send Password Reset email (Template 10)
+   * NOTE: To use this, you must disable Supabase's built-in reset email
+   * and implement your own reset token generation.
+   * Currently, Supabase's reset email is used (via SMTP).
+   */
+  async function sendResetLinkEmail(email, name, resetLink) {
+    return await sendBrevoEmail(email, name, 10, { user_name: name, user_email: email, reset_link: resetLink });
+  }
+
+  /**
+   * Send Account Deletion confirmation email (Template 14)
+   */
+  async function sendDeletionConfirmEmail(email, name) {
+    return await sendBrevoEmail(email, name, 14, { user_name: name, user_email: email });
+  }
+
+  /**
+   * Send Password Changed confirmation email (Template 16)
+   */
+  async function sendPasswordChangedEmail(email, name) {
+    return await sendBrevoEmail(email, name, 16, { user_name: name, user_email: email });
   }
 
   // ===== UI HELPERS (unchanged) =====
@@ -3627,7 +3695,16 @@ function getRemoteSession() {
       // Data is already wiped — still sign out even if auth deletion fails
     }
 
-    // Step 4: Clear local data and sign out
+    // Step 4: Send deletion confirmation email via Brevo (Template 14)
+    try {
+      await sendDeletionConfirmEmail(user.email, user.name || "Student");
+      console.log("[ClassConnect] Deletion confirmation email sent.");
+    } catch (emailErr) {
+      console.warn("[ClassConnect] Could not send deletion confirmation email:", emailErr);
+      // Don't fail the deletion if email fails
+    }
+
+    // Step 5: Clear local data and sign out
     try { localStorage.clear(); } catch (e) {}
     await client.auth.signOut();
   }
