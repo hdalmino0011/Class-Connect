@@ -532,7 +532,7 @@
             </div>
             <div class="form-group">
               <label for="profile-section">Section (e.g. BSIT 3-A)</label>
-              <input type="text" id="profile-section" placeholder="e.g. BSIT 3-A" value="BSIT 3-A">
+              <input type="text" id="profile-section" placeholder="e.g. BSIT 3-A" value="">
             </div>
           </div>
           <div class="form-group">
@@ -783,6 +783,18 @@
             <div>
               <span class="settings-label">About ClassConnect</span>
               <span class="settings-desc">Learn more about the app</span>
+            </div>
+          </div>
+          <i class="fas fa-chevron-right"></i>
+        </div>
+
+        <!-- Delete Account -->
+        <div class="settings-item settings-delete-account" id="settings-delete-account-btn">
+          <div class="settings-item-left">
+            <i class="fas fa-user-xmark"></i>
+            <div>
+              <span class="settings-label">Delete Account</span>
+              <span class="settings-desc">Permanently delete your account and all data</span>
             </div>
           </div>
           <i class="fas fa-chevron-right"></i>
@@ -1223,6 +1235,36 @@
         <i class="fas fa-check"></i> Save Subject
       </button>
     </form>
+  </div>
+</div>
+
+<!-- DELETE ACCOUNT MODAL -->
+<div id="delete-account-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-account-modal-heading">
+    <div class="modal-header">
+      <h3 id="delete-account-modal-heading" style="color:var(--coral-pink,#ef4444);">
+        <i class="fas fa-user-xmark"></i> Delete Account
+      </h3>
+      <button id="close-delete-account-modal-btn" class="modal-close" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="delete-account-warning">
+      <i class="fas fa-triangle-exclamation delete-account-warning-icon"></i>
+      <p><strong>This action is permanent and cannot be undone.</strong></p>
+      <p>All your data will be deleted — posts, assignments, grades, schedule, subjects, curriculum, and profile information.</p>
+    </div>
+    <div id="delete-account-error" class="form-error" hidden></div>
+    <div class="form-group">
+      <label for="delete-account-password">Confirm your password to continue</label>
+      <input type="password" id="delete-account-password" placeholder="Enter your current password" autocomplete="current-password">
+    </div>
+    <button type="button" id="delete-account-confirm-btn" class="btn-danger-confirm">
+      <i class="fas fa-trash-can"></i> Yes, Delete My Account
+    </button>
+    <button type="button" id="delete-account-cancel-btn" class="btn-secondary" style="width:100%;justify-content:center;">
+      Cancel
+    </button>
   </div>
 </div>
 
