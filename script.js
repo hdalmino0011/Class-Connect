@@ -2906,7 +2906,18 @@ function getRemoteSession() {
     var corSection = document.getElementById("cor-pdf-section");
     if (!list) return;
 
+    // Show inline loading spinner while data loads
+    list.innerHTML =
+      '<div class="curriculum-loading-state">' +
+        '<div class="curriculum-spinner"><i class="fas fa-circle-notch fa-spin"></i></div>' +
+        '<p class="curriculum-loading-text">Loading curriculum…</p>' +
+      '</div>';
+    if (pdfSection) pdfSection.style.opacity = "0.5";
+    if (corSection) corSection.style.opacity = "0.5";
+
     try {
+      if (pdfSection) pdfSection.style.opacity = "";
+      if (corSection) corSection.style.opacity = "";
       // Load PDF section
       if (pdfSection) {
         var pdfData = await getCurriculumPDF();
@@ -3411,7 +3422,7 @@ function getRemoteSession() {
     var group = document.getElementById(groupId);
     if (!group) return;
     var isHidden = group.style.display === "none" || group.style.display === "";
-    group.style.display = isHidden ? "block" : "none";
+    group.style.display = isHidden ? "flex" : "none";
     var chevronId = groupId.replace("-group", "-chevron");
     var chevron = document.getElementById(chevronId);
     if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "";
