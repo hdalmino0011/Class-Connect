@@ -532,9 +532,14 @@ function getRemoteSession() {
       var query = supabaseTable("posts")
         .select("*")
         .order("timestamp", { ascending: false });
+
+      // FIX: show both posts that match the current section AND posts with no section (null)
+      // This ensures older posts (without a section) are still visible.
       if (section) {
-        query = query.eq("section", section);
+        // Use OR condition: section = currentSection OR section IS NULL
+        query = query.or(`section.eq.${section},section.is.null`);
       }
+      // If no section is set, we show all posts (no filter)
       if (year) {
         query = query.eq("year", year);
       }
