@@ -1379,7 +1379,7 @@ function getRemoteSession() {
     const user = getCurrentUser();
     if (!user) return {};
     if (remoteProfile) return Object.assign({}, remoteProfile);
-    return { name: user.name, email: user.email, section: "BSIT 3-A" };
+    return { name: user.name, email: user.email, section: "" };
   }
 
   function getProfilePhoto() {
@@ -1418,7 +1418,7 @@ function getRemoteSession() {
       student_id: source.studentId || "",
       course: source.course || "",
       year: source.year || "",
-      section: source.section || "BSIT 3-A",
+      section: source.section || "",
       contact: source.contact || "",
       birthdate: source.birthdate || null,
       gender: source.gender || "",
@@ -1439,7 +1439,7 @@ function getRemoteSession() {
       studentId: current.student_id || "",
       course: current.course || "",
       year: current.year || "",
-      section: current.section || "BSIT 3-A",
+      section: current.section || "",
       contact: current.contact || "",
       birthdate: current.birthdate || "",
       gender: current.gender || "",
@@ -1488,7 +1488,7 @@ function getRemoteSession() {
   }
 
   // ===== AUTH functions =====
-  async function signup(name, email, password) {
+  async function signup(name, email, password, studentId, year, section) {
     console.log("[ClassConnect] Signup requested for:", email);
 
     if (!isSupabaseReady()) {
@@ -1498,6 +1498,11 @@ function getRemoteSession() {
       };
     }
 
+    var cleanSection = normalizeSection(section || "");
+    var cleanStudentId = (studentId || "").trim();
+    var cleanYear = (year || "").trim();
+    var cleanName = name.trim();
+
     try {
       var client = getSupabaseClient();
       var response = await withTimeout(
@@ -1505,7 +1510,14 @@ function getRemoteSession() {
           email: email.trim().toLowerCase(),
           password: password,
           options: {
-            data: { full_name: name.trim(), name: name.trim() },
+            // Store all signup fields in auth metadata so they survive email-confirmation flow
+            data: {
+              full_name: cleanName,
+              name: cleanName,
+              student_id: cleanStudentId,
+              year: cleanYear,
+              section: cleanSection,
+            },
           },
         }),
         8000,
@@ -1526,12 +1538,13 @@ function getRemoteSession() {
       }
 
       if (response.data.session) {
+        // Session created immediately — save profile row right now
         saveRemoteUserSession(createdUser);
         await upsertRemoteProfile({
-          name: name.trim(),
-          section: "BSIT 3-A",
-          course: "BSIT",
-          year: "3rd Year",
+          name: cleanName,
+          studentId: cleanStudentId,
+          year: cleanYear,
+          section: cleanSection,
         });
       }
       console.log(
@@ -1542,8 +1555,8 @@ function getRemoteSession() {
         success: true,
         confirmationRequired: !response.data.session,
         message: response.data.session
-          ? "Your Supabase account has been created successfully!"
-          : "Your Supabase account was created. Check your email to confirm it, then log in.",
+          ? "Your account has been created successfully!"
+          : "Your account was created. Check your email to confirm it, then log in.",
       };
     } catch (error) {
       console.error("[ClassConnect] Supabase signup exception:", error);
@@ -1594,6 +1607,26 @@ function getRemoteSession() {
       }
       saveRemoteUserSession(response.data.user);
       await loadRemoteProfile();
+
+      // Bootstrap profile from auth metadata when no profile row exists yet
+      // (happens when email confirmation was required at signup time)
+      if (remoteProfile && !remoteProfile.section) {
+        var meta = (response.data.user.user_metadata) || {};
+        if (meta.section) {
+          try {
+            await upsertRemoteProfile({
+              name: meta.full_name || meta.name || remoteProfile.name,
+              studentId: meta.student_id || "",
+              year: meta.year || "",
+              section: meta.section || "",
+            });
+            console.log("[ClassConnect] Profile bootstrapped from signup metadata.");
+          } catch (e) {
+            console.warn("[ClassConnect] Could not bootstrap profile from metadata:", e);
+          }
+        }
+      }
+
       console.log("[ClassConnect] Supabase login succeeded.");
       return { success: true, remote: true };
     } catch (error) {
@@ -3252,7 +3285,7 @@ function getRemoteSession() {
       "profile-student-id": profile.studentId || "",
       "profile-course": profile.course || "",
       "profile-year": profile.year || "",
-      "profile-section": profile.section || "BSIT 3-A",
+      "profile-section": profile.section || "",
       "profile-contact": profile.contact || "",
       "profile-birthdate": profile.birthdate || "",
       "profile-gender": profile.gender || "",
@@ -3669,22 +3702,34 @@ function getRemoteSession() {
       signupForm.addEventListener("submit", async function (e) {
         e.preventDefault();
         hideError("signup-error");
-        var nameInput = document.getElementById("signup-name");
-        var emailInput = document.getElementById("signup-email");
-        var passwordInput = document.getElementById("signup-password");
-        var confirmInput = document.getElementById("signup-confirm");
-        var name = nameInput ? (nameInput.value || "").trim() : "";
-        var email = emailInput ? (emailInput.value || "").trim() : "";
-        var password = passwordInput ? passwordInput.value || "" : "";
-        var confirm = confirmInput ? (confirmInput.value || "" ) : "";
-        if (name.length < 2) { showError("signup-error", "Please enter your full name."); return; }
-        if (!isValidEmail(email)) { showError("signup-error", "Please enter a valid email address."); return; }
+        var nameInput      = document.getElementById("signup-name");
+        var emailInput     = document.getElementById("signup-email");
+        var studentIdInput = document.getElementById("signup-student-id");
+        var yearInput      = document.getElementById("signup-year");
+        var sectionInput   = document.getElementById("signup-section");
+        var passwordInput  = document.getElementById("signup-password");
+        var confirmInput   = document.getElementById("signup-confirm");
+        var name      = nameInput      ? (nameInput.value      || "").trim() : "";
+        var email     = emailInput     ? (emailInput.value     || "").trim() : "";
+        var studentId = studentIdInput ? (studentIdInput.value || "").trim() : "";
+        var year      = yearInput      ? (yearInput.value      || "")        : "";
+        var section   = sectionInput   ? (sectionInput.value   || "").trim() : "";
+        var password  = passwordInput  ? (passwordInput.value  || "")        : "";
+        var confirm   = confirmInput   ? (confirmInput.value   || "")        : "";
+        // Validate all fields
+        if (name.length < 2)     { showError("signup-error", "Please enter your full name."); return; }
+        if (!isValidEmail(email)){ showError("signup-error", "Please enter a valid email address."); return; }
+        if (!studentId)          { showError("signup-error", "Please enter your Student ID number."); return; }
+        if (!year)               { showError("signup-error", "Please select your year level."); return; }
+        if (!section)            { showError("signup-error", "Please enter your section (e.g. BSIT 3-A)."); return; }
         if (password.length < 6) { showError("signup-error", "Password must be at least 6 characters."); return; }
         if (password !== confirm) { showError("signup-error", "Passwords do not match."); return; }
         var btn = document.getElementById("signup-submit-btn");
         setButtonLoading(btn, true);
         try {
-          var result = await withLoading(function () { return signup(name, email, password); });
+          var result = await withLoading(function () {
+            return signup(name, email, password, studentId, year, section);
+          });
           setButtonLoading(btn, false);
           if (!result.success) { showError("signup-error", result.message); return; }
           signupForm.reset();
@@ -3692,9 +3737,9 @@ function getRemoteSession() {
             result.message || "Your account has been created successfully!",
             "Back to Login",
             function () {
-            showPage("login-page");
-            showLoginForm();
-            showToast("Please log in with your new account.", "info");
+              showPage("login-page");
+              showLoginForm();
+              showToast("Please log in with your new account.", "info");
             }
           );
         } catch (error) {
