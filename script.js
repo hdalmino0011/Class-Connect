@@ -3613,7 +3613,18 @@ function getRemoteSession() {
       "Delete profile"
     );
 
-    // Step 3: Sign out (auth record remains — full deletion requires a Supabase Edge Function)
+    // Step 3: Call the Edge Function to fully delete the auth record
+    var funcResult = await withTimeout(
+      client.functions.invoke("delete-user"),
+      12000,
+      "Delete auth user"
+    );
+    if (funcResult.error) {
+      console.warn("[ClassConnect] Auth record deletion failed:", funcResult.error);
+      // Data is already wiped — still sign out even if auth deletion fails
+    }
+
+    // Step 4: Clear local data and sign out
     try { localStorage.clear(); } catch (e) {}
     await client.auth.signOut();
   }
