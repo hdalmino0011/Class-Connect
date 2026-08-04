@@ -532,11 +532,11 @@ function getRemoteSession() {
       var query = supabaseTable("posts")
         .select("*")
         .order("timestamp", { ascending: false });
-      if (section) {
-        query = query.eq("section", section);
-      }
-      if (year) {
-        query = query.eq("year", year);
+      if (section && year) {
+        query = query.eq("section", section).eq("year", year);
+      } else {
+        // Profile not fully set up — show only own posts to avoid leaking cross-section data
+        query = query.eq("user_id", user.id);
       }
       var result = await withTimeout(query, 8000, "Posts load");
       if (result.error) throw result.error;
@@ -1971,7 +1971,7 @@ function getRemoteSession() {
         var post = posts[i];
         var card = document.createElement("div");
         card.className = "post-card";
-        var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy"></div>' : "";
+        var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy" class="post-img-zoomable" data-viewer-src="' + post.image + '"></div>' : "";
         var tagHtml = post.tag ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>' : "";
 
         var canDel = await canDeletePost(post.id);
@@ -3688,6 +3688,47 @@ function getRemoteSession() {
         );
       });
     }
+
+    // ===== IMAGE VIEWER =====
+    var imgViewerOverlay = document.getElementById("image-viewer-overlay");
+    var imgViewerImg    = document.getElementById("image-viewer-img");
+    var imgViewerClose  = document.querySelector(".image-viewer-close");
+
+    function openImageViewer(src) {
+      if (!imgViewerOverlay || !imgViewerImg) return;
+      imgViewerImg.src = src;
+      imgViewerOverlay.classList.add("active");
+      imgViewerOverlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+    function closeImageViewer() {
+      if (!imgViewerOverlay) return;
+      imgViewerOverlay.classList.remove("active");
+      imgViewerOverlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      if (imgViewerImg) imgViewerImg.src = "";
+    }
+
+    // Delegate clicks on all zoomable post images (works for dynamically added posts)
+    var postsFeed = document.getElementById("posts-feed");
+    if (postsFeed) {
+      postsFeed.addEventListener("click", function (e) {
+        var img = e.target.closest(".post-img-zoomable");
+        if (img) openImageViewer(img.getAttribute("data-viewer-src") || img.src);
+      });
+    }
+    if (imgViewerClose) imgViewerClose.addEventListener("click", closeImageViewer);
+    if (imgViewerOverlay) {
+      imgViewerOverlay.addEventListener("click", function (e) {
+        if (e.target === imgViewerOverlay) closeImageViewer();
+      });
+    }
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && imgViewerOverlay && imgViewerOverlay.classList.contains("active")) {
+        closeImageViewer();
+      }
+    });
+    // ===== END IMAGE VIEWER =====
 
     var hamburger = document.getElementById("hamburger-btn");
     var drawerClose = document.getElementById("drawer-close-btn");
