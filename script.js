@@ -528,11 +528,15 @@ function getRemoteSession() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
       var section = (remoteProfile && remoteProfile.section) || user.section || null;
+      var year = (remoteProfile && remoteProfile.year) || user.year || null;
       var query = supabaseTable("posts")
         .select("*")
         .order("timestamp", { ascending: false });
       if (section) {
         query = query.eq("section", section);
+      }
+      if (year) {
+        query = query.eq("year", year);
       }
       var result = await withTimeout(query, 8000, "Posts load");
       if (result.error) throw result.error;
@@ -544,6 +548,7 @@ function getRemoteSession() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
       var section = (remoteProfile && remoteProfile.section) || user.section || null;
+      var year = (remoteProfile && remoteProfile.year) || user.year || null;
       var post = {
         user_id: user.id,
         author: user.name || "Student",
@@ -551,6 +556,7 @@ function getRemoteSession() {
         image: imageData || null,
         tag: null,
         section: section,
+        year: year,
         timestamp: new Date().toISOString(),
       };
       var result = await withTimeout(
