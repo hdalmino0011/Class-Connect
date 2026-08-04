@@ -532,14 +532,9 @@ function getRemoteSession() {
       var query = supabaseTable("posts")
         .select("*")
         .order("timestamp", { ascending: false });
-
-      // FIX: show both posts that match the current section AND posts with no section (null)
-      // This ensures older posts (without a section) are still visible.
       if (section) {
-        // Use OR condition: section = currentSection OR section IS NULL
-        query = query.or(`section.eq.${section},section.is.null`);
+        query = query.eq("section", section);
       }
-      // If no section is set, we show all posts (no filter)
       if (year) {
         query = query.eq("year", year);
       }
@@ -3554,67 +3549,6 @@ function getRemoteSession() {
     }
   }
 
-  // ===== IMAGE VIEWER =====
-  function initImageViewer() {
-    // Create the viewer elements dynamically
-    const viewerOverlay = document.createElement("div");
-    viewerOverlay.id = "image-viewer-overlay";
-    viewerOverlay.className = "image-viewer-overlay";
-    viewerOverlay.setAttribute("aria-hidden", "true");
-    viewerOverlay.innerHTML = `
-      <div class="image-viewer-content">
-        <button class="image-viewer-close" aria-label="Close image viewer">
-          <i class="fas fa-times"></i>
-        </button>
-        <img id="image-viewer-img" src="" alt="Zoomed image">
-      </div>
-    `;
-    document.body.appendChild(viewerOverlay);
-
-    const viewerImg = document.getElementById("image-viewer-img");
-    const closeBtn = viewerOverlay.querySelector(".image-viewer-close");
-
-    function openImageViewer(src) {
-      if (!src) return;
-      viewerImg.src = src;
-      viewerOverlay.classList.add("active");
-      viewerOverlay.setAttribute("aria-hidden", "false");
-      document.body.style.overflow = "hidden";
-    }
-
-    function closeImageViewer() {
-      viewerOverlay.classList.remove("active");
-      viewerOverlay.setAttribute("aria-hidden", "true");
-      document.body.style.overflow = "";
-      // Clear src to free memory
-      setTimeout(function() { viewerImg.src = ""; }, 300);
-    }
-
-    // Close on backdrop click
-    viewerOverlay.addEventListener("click", function(e) {
-      if (e.target === viewerOverlay || e.target === viewerOverlay.querySelector(".image-viewer-content")) {
-        closeImageViewer();
-      }
-    });
-
-    // Close on close button
-    closeBtn.addEventListener("click", function(e) {
-      e.stopPropagation();
-      closeImageViewer();
-    });
-
-    // Close on Escape key
-    document.addEventListener("keydown", function(e) {
-      if (e.key === "Escape" && viewerOverlay.classList.contains("active")) {
-        closeImageViewer();
-      }
-    });
-
-    // Expose functions globally for event delegation
-    window._openImageViewer = openImageViewer;
-    window._closeImageViewer = closeImageViewer;
-  }
-
   // ===== INIT EVENT LISTENERS =====
   function initEventListeners() {
     var showSignupLink = document.getElementById("show-signup");
@@ -4413,18 +4347,6 @@ function getRemoteSession() {
       });
     }
 
-    // ===== IMAGE VIEWER: click on any image inside a post =====
-    document.getElementById("posts-feed").addEventListener("click", function(e) {
-      var target = e.target.closest(".post-image-wrap img");
-      if (target) {
-        e.preventDefault();
-        var src = target.src;
-        if (src && src.startsWith("http")) {
-          window._openImageViewer(src);
-        }
-      }
-    });
-
     // ----- INACTIVITY: reset timer on any user activity -----
     ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach(function (evName) {
       document.addEventListener(evName, resetInactivityTimer, { passive: true });
@@ -4526,7 +4448,6 @@ function getRemoteSession() {
       initializeSupabase();
       applySettings(getSettings());
       lockPortrait();
-      initImageViewer(); // <-- create image viewer DOM
 
       var bottomNav = document.querySelector(".bottom-nav");
       if (bottomNav) bottomNav.style.display = "none";
