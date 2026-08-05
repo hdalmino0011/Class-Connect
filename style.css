@@ -2518,54 +2518,63 @@ body.body-scroll-lock {
 }
 
 .curriculum-filters {
-  display:       flex;
-  gap:           8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
   margin-bottom: 18px;
-  flex-wrap:     wrap;
-  align-items:   center;
 }
 
-.curriculum-year-filter {
-  padding:            8px 16px;
-  border:             1.5px solid var(--gray-200);
-  border-radius:      999px;
-  background:         var(--white);
-  color:              var(--gray-600);
-  font-size:          13px;
-  font-weight:        600;
-  font-family:        var(--font-base);
-  transition:         all var(--transition-fast);
-  min-height:         38px;
+/* ----- YEAR FILTERS (Curriculum, Subjects, Schedule) ----- */
+.curriculum-year-filter,
+.subject-year-filter,
+.schedule-year-filter {
+  padding: 8px 16px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--gray-600);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-base);
+  transition: all var(--transition-fast);
+  min-height: 38px;
+  cursor: pointer;
   -webkit-appearance: none;
-  appearance:         none;
+  appearance: none;
 }
 
-.curriculum-year-filter:hover {
+.curriculum-year-filter:hover,
+.subject-year-filter:hover,
+.schedule-year-filter:hover {
   border-color: var(--electric-blue);
-  color:        var(--primary-blue);
+  color: var(--primary-blue);
 }
 
-.curriculum-year-filter.active {
+.curriculum-year-filter.active,
+.subject-year-filter.active,
+.schedule-year-filter.active {
   border-color: var(--primary-blue);
-  background:   var(--primary-blue);
-  color:        var(--white);
+  background: var(--primary-blue);
+  color: var(--white);
 }
 
+/* ----- Semester dropdown ----- */
 .curriculum-semester-filter {
-  padding:             8px 32px 8px 14px;
-  border:              1.5px solid var(--gray-200);
-  border-radius:       999px;
-  background-color:    var(--white);
-  color:               var(--deep-navy);
-  font-size:           13px;
-  font-weight:         600;
-  cursor:              pointer;
-  font-family:         var(--font-base);
-  min-height:          38px;
-  -webkit-appearance:  none;
-  appearance:          none;
-  background-image:    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat:   no-repeat;
+  padding: 8px 32px 8px 14px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 999px;
+  background-color: var(--white);
+  color: var(--deep-navy);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-base);
+  min-height: 38px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
   background-position: right 12px center;
 }
 
@@ -4091,6 +4100,28 @@ textarea:focus:not(:focus-visible) {
   .dashboard-main    { padding: 16px 12px 96px; }
   .view-heading      { font-size: 19px; }
   .create-post-card  { padding: 14px; }
+}
+
+/* =========================================================
+   RESPONSIVE — Mobile filters (year & semester)
+   ========================================================= */
+@media (max-width: 600px) {
+  .curriculum-year-filter,
+  .subject-year-filter,
+  .schedule-year-filter {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-height: 34px;
+  }
+  .curriculum-semester-filter {
+    padding: 6px 28px 6px 10px;
+    font-size: 12px;
+    min-height: 34px;
+    background-position: right 8px center;
+  }
+  .curriculum-filters {
+    gap: 6px;
+  }
 }
 
 /* ===== SCHEDULE SECTION HEADERS ===== */
