@@ -350,6 +350,36 @@
           <i class="fas fa-plus"></i> Add Subject
         </button>
       </div>
+
+      <div class="subjects-controls">
+        <div class="subject-filter">
+          <label for="subjects-year-filter">Year Level</label>
+          <select id="subjects-year-filter">
+            <option value="all">All Years</option>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
+          </select>
+        </div>
+        <div class="subject-filter">
+          <label for="subjects-semester-filter">Semester / Term</label>
+          <select id="subjects-semester-filter">
+            <option value="all">All Semesters</option>
+            <option value="1st Semester">1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer / Midyear">Summer / Midyear</option>
+          </select>
+        </div>
+      </div>
+      <div class="subjects-current-term-option" style="margin-bottom:16px;">
+        <label class="custom-checkbox-label">
+          <input type="checkbox" id="subjects-current-term-only">
+          <span>Display current year level &amp; semester subjects only (Saved as default on login)</span>
+        </label>
+      </div>
+
       <div id="subjects-list" class="subjects-list">
         <!-- subjects rendered by script.js -->
       </div>
@@ -363,6 +393,36 @@
           <i class="fas fa-plus"></i> Add Schedule
         </button>
       </div>
+
+      <div class="schedule-controls">
+        <div class="schedule-filter">
+          <label for="schedule-year-filter">Year Level</label>
+          <select id="schedule-year-filter">
+            <option value="all">All Years</option>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
+          </select>
+        </div>
+        <div class="schedule-filter">
+          <label for="schedule-semester-filter">Semester / Term</label>
+          <select id="schedule-semester-filter">
+            <option value="all">All Semesters</option>
+            <option value="1st Semester">1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer / Midyear">Summer / Midyear</option>
+          </select>
+        </div>
+      </div>
+      <div class="schedule-current-term-option" style="margin-bottom:16px;">
+        <label class="custom-checkbox-label">
+          <input type="checkbox" id="schedule-current-term-only">
+          <span>Display current year level &amp; semester schedule only (Saved as default on login)</span>
+        </label>
+      </div>
+
       <div id="schedule-list" class="schedule-list">
         <!-- schedule rendered by script.js -->
       </div>
@@ -396,7 +456,7 @@
             <option value="all">All Years</option>
             <option value="1st Year">1st Year</option>
             <option value="2nd Year">2nd Year</option>
-            <option value="3rd Year" selected>3rd Year</option>
+            <option value="3rd Year">3rd Year</option>
             <option value="4th Year">4th Year</option>
             <option value="5th Year">5th Year</option>
           </select>
@@ -405,7 +465,7 @@
           <label for="grade-semester-filter">Semester / Term</label>
           <select id="grade-semester-filter">
             <option value="all">All Semesters</option>
-            <option value="1st Semester" selected>1st Semester</option>
+            <option value="1st Semester">1st Semester</option>
             <option value="2nd Semester">2nd Semester</option>
             <option value="Summer / Midyear">Summer / Midyear</option>
           </select>
@@ -525,7 +585,7 @@
                 <option value="">Select</option>
                 <option value="1st Year">1st Year</option>
                 <option value="2nd Year">2nd Year</option>
-                <option value="3rd Year" selected>3rd Year</option>
+                <option value="3rd Year">3rd Year</option>
                 <option value="4th Year">4th Year</option>
                 <option value="5th Year">5th Year</option>
               </select>
@@ -894,7 +954,7 @@
 
       <div class="cm-profile-details">
         <div class="cm-detail-item">
-          <span class="cm-detail-label">Program & Year:</span>
+          <span class="cm-detail-label">Program &amp; Year:</span>
           <span class="cm-detail-val" id="cm-modal-course-year">BSIT • 3rd Year</span>
         </div>
         <div class="cm-detail-item">
@@ -1020,18 +1080,74 @@
     </div>
     <form id="subject-form" novalidate>
       <input type="hidden" id="subject-edit-id">
+      
+      <!-- Selection of Year Level and Semester before adding subject -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="subject-year">Year Level <span style="color:var(--coral-pink)">*</span></label>
+          <select id="subject-year" required>
+            <option value="" disabled selected>Select Year Level</option>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="subject-semester">Semester <span style="color:var(--coral-pink)">*</span></label>
+          <select id="subject-semester" required>
+            <option value="" disabled selected>Select Semester</option>
+            <option value="1st Semester">1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer / Midyear">Summer / Midyear</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="subject-code">Subject Code <span style="color:var(--coral-pink)">*</span></label>
+          <input type="text" id="subject-code" placeholder="e.g. IT 203" required>
+        </div>
+        <div class="form-group">
+          <label for="subject-units">Units / Credits</label>
+          <input type="number" id="subject-units" placeholder="3" value="3" min="1" max="12">
+        </div>
+      </div>
+
       <div class="form-group">
-        <label for="subject-name">Subject Name</label>
+        <label for="subject-name">Subject Name <span style="color:var(--coral-pink)">*</span></label>
         <input type="text" id="subject-name" placeholder="e.g. Web Systems and Technologies" required>
       </div>
+      
       <div class="form-group">
         <label for="subject-professor">Professor</label>
         <input type="text" id="subject-professor" placeholder="e.g. Prof. Santos">
       </div>
-      <div class="form-group">
-        <label for="subject-schedule">Schedule</label>
-        <input type="text" id="subject-schedule" placeholder="e.g. MWF 10:00-11:30 AM | Rm 301">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="subject-day">Day(s)</label>
+          <input type="text" id="subject-day" placeholder="e.g. Mon, Wed, Fri">
+        </div>
+        <div class="form-group">
+          <label for="subject-room">Room</label>
+          <input type="text" id="subject-room" placeholder="e.g. Room 301">
+        </div>
       </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="subject-start-time">Start Time</label>
+          <input type="time" id="subject-start-time">
+        </div>
+        <div class="form-group">
+          <label for="subject-end-time">End Time</label>
+          <input type="time" id="subject-end-time">
+        </div>
+      </div>
+
       <button type="submit" class="btn-primary">
         <i class="fas fa-check"></i> Save Subject
       </button>
@@ -1075,6 +1191,26 @@
       <div class="form-group">
         <label for="schedule-subject">Subject</label>
         <input type="text" id="schedule-subject" placeholder="e.g. Data Structures" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="schedule-year">Year Level</label>
+          <select id="schedule-year">
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="schedule-semester">Semester</label>
+          <select id="schedule-semester">
+            <option value="1st Semester">1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer / Midyear">Summer / Midyear</option>
+          </select>
+        </div>
       </div>
       <div class="form-group">
         <label for="schedule-day">Day(s)</label>
