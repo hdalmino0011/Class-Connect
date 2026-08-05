@@ -4093,6 +4093,72 @@ textarea:focus:not(:focus-visible) {
   .create-post-card  { padding: 14px; }
 }
 
+/* ===== SCHEDULE SECTION HEADERS ===== */
+.schedule-section-header {
+  display:         flex;
+  align-items:     center;
+  gap:             8px;
+  font-size:       13px;
+  font-weight:     700;
+  color:           var(--gray-500);
+  text-transform:  uppercase;
+  letter-spacing:  0.6px;
+  padding:         6px 2px 4px;
+  margin-top:      12px;
+  border-bottom:   1px solid var(--gray-200);
+  margin-bottom:   10px;
+}
+.schedule-section-header:first-child { margin-top: 0; }
+.schedule-section-header i { color: var(--primary-blue); }
+
+/* Synced-from-subjects schedule card */
+.schedule-card-from-subject {
+  background: linear-gradient(135deg, #f0f7ff 0%, var(--white) 100%);
+}
+.schedule-card-synced-badge {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             4px;
+  padding:         2px 8px;
+  border-radius:   999px;
+  background:      var(--very-light-blue);
+  color:           var(--primary-blue);
+  font-size:       11px;
+  font-weight:     700;
+  letter-spacing:  0.3px;
+  text-transform:  uppercase;
+  margin-left:     auto;
+}
+.schedule-subject-icon {
+  min-width: 34px;
+  height:    34px;
+  display:   flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== CURRICULUM SYNCED BADGE ===== */
+.cs-synced-badge {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             5px;
+  padding:         2px 9px;
+  border-radius:   999px;
+  background:      var(--very-light-blue);
+  color:           var(--primary-blue);
+  font-size:       11px;
+  font-weight:     700;
+  letter-spacing:  0.3px;
+  text-transform:  uppercase;
+  margin-bottom:   4px;
+}
+.cs-synced-hint {
+  font-size:   12px;
+  color:       var(--gray-400);
+  font-style:  italic;
+  align-self:  center;
+}
+
 /* ===== SUBJECT YEAR/SEM BADGE ===== */
 .subject-year-sem-badge {
   display:         inline-flex;
