@@ -350,6 +350,20 @@
           <i class="fas fa-plus"></i> Add Subject
         </button>
       </div>
+      <div class="curriculum-filters subjects-filter-bar">
+        <button class="subject-year-filter active" data-year="all">All Years</button>
+        <button class="subject-year-filter" data-year="1st Year">1st Year</button>
+        <button class="subject-year-filter" data-year="2nd Year">2nd Year</button>
+        <button class="subject-year-filter" data-year="3rd Year">3rd Year</button>
+        <button class="subject-year-filter" data-year="4th Year">4th Year</button>
+        <button class="subject-year-filter" data-year="5th Year">5th Year</button>
+        <select id="subjects-semester-filter" class="curriculum-semester-filter" aria-label="Filter by Semester">
+          <option value="all">All Semesters</option>
+          <option value="1st Semester">1st Semester</option>
+          <option value="2nd Semester">2nd Semester</option>
+          <option value="Summer / Midyear">Summer / Midyear</option>
+        </select>
+      </div>
       <div id="subjects-list" class="subjects-list">
         <!-- subjects rendered by script.js -->
       </div>
@@ -362,6 +376,20 @@
         <button id="add-schedule-btn" class="btn-add" type="button">
           <i class="fas fa-plus"></i> Add Schedule
         </button>
+      </div>
+      <div class="curriculum-filters schedule-filter-bar">
+        <button class="schedule-year-filter active" data-year="all">All Years</button>
+        <button class="schedule-year-filter" data-year="1st Year">1st Year</button>
+        <button class="schedule-year-filter" data-year="2nd Year">2nd Year</button>
+        <button class="schedule-year-filter" data-year="3rd Year">3rd Year</button>
+        <button class="schedule-year-filter" data-year="4th Year">4th Year</button>
+        <button class="schedule-year-filter" data-year="5th Year">5th Year</button>
+        <select id="schedule-semester-filter" class="curriculum-semester-filter" aria-label="Filter by Semester">
+          <option value="all">All Semesters</option>
+          <option value="1st Semester">1st Semester</option>
+          <option value="2nd Semester">2nd Semester</option>
+          <option value="Summer / Midyear">Summer / Midyear</option>
+        </select>
       </div>
       <div id="schedule-list" class="schedule-list">
         <!-- schedule rendered by script.js -->
