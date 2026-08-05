@@ -1908,6 +1908,14 @@ function getRemoteSession() {
     if (viewId === "view-grades") loadGrades();
     if (viewId === "view-classmates") loadClassmates();
     if (viewId === "view-faqs") loadFaqs();
+    if (viewId === "view-subjects") {
+      setupSubjectFilters();
+      loadSubjects();
+    }
+    if (viewId === "view-schedule") {
+      setupScheduleFilters();
+      loadSchedule();
+    }
     if (viewId === "view-curriculum") {
       setupCurriculumFilters();
       loadCurriculum();
@@ -2338,14 +2346,35 @@ function getRemoteSession() {
     const list = document.getElementById("subjects-list");
     if (!list) return;
     try {
-      var subjects = await getSubjects();
+      var allSubjects = await getSubjects();
+
+      // Apply year/semester filter
+      var subjectYearBtn = document.querySelector(".subject-year-filter.active");
+      var subjectFilterYear = subjectYearBtn ? subjectYearBtn.getAttribute("data-year") : "all";
+      var subjectSemEl = document.getElementById("subjects-semester-filter");
+      var subjectFilterSem = subjectSemEl ? subjectSemEl.value : "all";
+      var subjects = allSubjects.filter(function (s) {
+        var yMatch = (subjectFilterYear === "all" || (s.year || "1st Year") === subjectFilterYear);
+        var sMatch = (subjectFilterSem === "all" || (s.semester || "1st Semester") === subjectFilterSem);
+        return yMatch && sMatch;
+      });
+
       list.innerHTML = "";
-      if (subjects.length === 0) {
+      if (allSubjects.length === 0) {
         list.innerHTML =
           '<div class="empty-state">' +
             '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
             '<p class="empty-title">No subjects yet</p>' +
             '<p class="empty-sub">Click "Add Subject" to get started.</p>' +
+          '</div>';
+        return;
+      }
+      if (subjects.length === 0) {
+        list.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
+            '<p class="empty-title">No subjects for this filter</p>' +
+            '<p class="empty-sub">Try a different year or semester filter.</p>' +
           '</div>';
         return;
       }
@@ -2491,66 +2520,124 @@ function getRemoteSession() {
     const list = document.getElementById("schedule-list");
     if (!list) return;
     try {
-      var schedule = await getSchedule();
+      // Fetch subjects and manual schedule entries in parallel
+      var results = await Promise.all([getSubjects(), getSchedule()]);
+      var allSubjects = results[0];
+      var schedule = results[1];
+
+      // Get schedule year/semester filter
+      var schedYearBtn = document.querySelector(".schedule-year-filter.active");
+      var schedFilterYear = schedYearBtn ? schedYearBtn.getAttribute("data-year") : "all";
+      var schedSemEl = document.getElementById("schedule-semester-filter");
+      var schedFilterSem = schedSemEl ? schedSemEl.value : "all";
+
+      // Filter subjects by year/semester
+      var filteredSubjects = allSubjects.filter(function (s) {
+        var yMatch = (schedFilterYear === "all" || (s.year || "1st Year") === schedFilterYear);
+        var sMatch = (schedFilterSem === "all" || (s.semester || "1st Semester") === schedFilterSem);
+        return yMatch && sMatch;
+      });
+
       list.innerHTML = "";
-      if (schedule.length === 0) {
+
+      if (filteredSubjects.length === 0 && schedule.length === 0) {
         list.innerHTML =
           '<div class="empty-state">' +
             '<div class="empty-icon"><i class="fas fa-calendar-days"></i></div>' +
             '<p class="empty-title">No schedule yet</p>' +
-            '<p class="empty-sub">Click "Add Schedule" to get started.</p>' +
+            '<p class="empty-sub">Add subjects or click "Add Schedule" to get started.</p>' +
           '</div>';
         return;
       }
-      const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
-      var sorted = schedule.slice().sort(function (a, b) {
-        var da = a.day ? a.day.substring(0, 3) : "";
-        var db = b.day ? b.day.substring(0, 3) : "";
-        var od = (dayOrder[da] !== undefined ? dayOrder[da] : 99) - (dayOrder[db] !== undefined ? dayOrder[db] : 99);
-        return od !== 0 ? od : (a.start_time || "").localeCompare(b.start_time || "");
-      });
-      const badgeColors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
-      sorted.forEach(function (item) {
-        var card = document.createElement("div");
-        card.className = "schedule-card";
-        var dayIdx = item.day ? (dayOrder[item.day.substring(0, 3)] || 0) : 0;
-        card.innerHTML =
-          '<div class="schedule-card-top">' +
-            '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
-              escapeHtml(item.day || "N/A") +
-            '</div>' +
-            '<div class="schedule-card-actions">' +
-              '<button class="btn-icon btn-edit-schedule" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
-              '<button class="btn-icon btn-delete-schedule" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
-            '</div>' +
-          '</div>' +
-          '<div class="schedule-card-info">' +
-            '<h4>' + escapeHtml(item.subject) + '</h4>' +
-            '<p class="schedule-time"><i class="fas fa-clock"></i> ' +
-              formatTime12h(item.start_time) + ' &ndash; ' + formatTime12h(item.end_time) +
-            '</p>' +
-            '<p class="schedule-room"><i class="fas fa-location-dot"></i> ' +
-              escapeHtml(item.room || "No room assigned") +
-            '</p>' +
-          '</div>';
-        list.appendChild(card);
-      });
 
-      list.querySelectorAll(".btn-edit-schedule").forEach(function (btn) {
-        btn.addEventListener("click", function () { editScheduleItem(btn.getAttribute("data-id")); });
-      });
-      list.querySelectorAll(".btn-delete-schedule").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          showConfirm("Delete this schedule entry?", function () {
-            withLoading(function () { return deleteScheduleItem(btn.getAttribute("data-id")); }).then(function () {
-              loadSchedule();
-              showToast("Schedule entry deleted.", "info");
-            }).catch(function (err) {
-              showToast(err.message || "Could not delete schedule entry.", "error");
+      // ---- SECTION 1: Subjects from My Subjects (synced) ----
+      if (filteredSubjects.length > 0) {
+        var subjHeader = document.createElement("div");
+        subjHeader.className = "schedule-section-header";
+        subjHeader.innerHTML = '<i class="fas fa-book"></i> From My Subjects';
+        list.appendChild(subjHeader);
+
+        filteredSubjects.forEach(function (s) {
+          var card = document.createElement("div");
+          card.className = "schedule-card schedule-card-from-subject";
+          var color = s.color || "#2563EB";
+          card.style.borderLeftColor = color;
+          card.innerHTML =
+            '<div class="schedule-card-top">' +
+              '<div class="schedule-day-badge schedule-subject-icon" style="background:' + color + '">' +
+                '<i class="fas fa-book" style="font-size:11px;line-height:1;"></i>' +
+              '</div>' +
+              '<div class="schedule-card-synced-badge">Synced</div>' +
+            '</div>' +
+            '<div class="schedule-card-info">' +
+              '<h4>' + escapeHtml(s.name) + '</h4>' +
+              '<p class="schedule-time"><i class="fas fa-clock"></i> ' + escapeHtml(s.schedule || "No schedule set") + '</p>' +
+              '<p class="schedule-room"><i class="fas fa-user-tie"></i> ' + escapeHtml(s.professor || "No professor assigned") + '</p>' +
+              '<span class="subject-year-sem-badge" style="margin-top:6px;display:inline-flex;"><i class="fas fa-layer-group"></i> ' +
+                escapeHtml(s.year || "1st Year") + ' &bull; ' + escapeHtml(s.semester || "1st Semester") +
+              '</span>' +
+            '</div>';
+          list.appendChild(card);
+        });
+      }
+
+      // ---- SECTION 2: Manual schedule entries ----
+      if (schedule.length > 0) {
+        var manualHeader = document.createElement("div");
+        manualHeader.className = "schedule-section-header";
+        manualHeader.innerHTML = '<i class="fas fa-calendar-plus"></i> Manual Entries';
+        list.appendChild(manualHeader);
+
+        const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+        var sorted = schedule.slice().sort(function (a, b) {
+          var da = a.day ? a.day.substring(0, 3) : "";
+          var db = b.day ? b.day.substring(0, 3) : "";
+          var od = (dayOrder[da] !== undefined ? dayOrder[da] : 99) - (dayOrder[db] !== undefined ? dayOrder[db] : 99);
+          return od !== 0 ? od : (a.start_time || "").localeCompare(b.start_time || "");
+        });
+        const badgeColors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
+        sorted.forEach(function (item) {
+          var card = document.createElement("div");
+          card.className = "schedule-card";
+          var dayIdx = item.day ? (dayOrder[item.day.substring(0, 3)] !== undefined ? dayOrder[item.day.substring(0, 3)] : 0) : 0;
+          card.innerHTML =
+            '<div class="schedule-card-top">' +
+              '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
+                escapeHtml(item.day || "N/A") +
+              '</div>' +
+              '<div class="schedule-card-actions">' +
+                '<button class="btn-icon btn-edit-schedule" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
+                '<button class="btn-icon btn-delete-schedule" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="schedule-card-info">' +
+              '<h4>' + escapeHtml(item.subject) + '</h4>' +
+              '<p class="schedule-time"><i class="fas fa-clock"></i> ' +
+                formatTime12h(item.start_time) + ' &ndash; ' + formatTime12h(item.end_time) +
+              '</p>' +
+              '<p class="schedule-room"><i class="fas fa-location-dot"></i> ' +
+                escapeHtml(item.room || "No room assigned") +
+              '</p>' +
+            '</div>';
+          list.appendChild(card);
+        });
+
+        list.querySelectorAll(".btn-edit-schedule").forEach(function (btn) {
+          btn.addEventListener("click", function () { editScheduleItem(btn.getAttribute("data-id")); });
+        });
+        list.querySelectorAll(".btn-delete-schedule").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            showConfirm("Delete this schedule entry?", function () {
+              withLoading(function () { return deleteScheduleItem(btn.getAttribute("data-id")); }).then(function () {
+                loadSchedule();
+                showToast("Schedule entry deleted.", "info");
+              }).catch(function (err) {
+                showToast(err.message || "Could not delete schedule entry.", "error");
+              });
             });
           });
         });
-      });
+      }
 
     } catch (err) {
       console.error("Error loading schedule:", err);
@@ -3263,17 +3350,51 @@ function getRemoteSession() {
         }
       }
 
-      // Load subjects with filters
-      var subjects = await getCurriculumSubjects();
+      // Fetch curriculum subjects, user subjects, and grades in parallel
+      var fetchResults = await Promise.all([getCurriculumSubjects(), getSubjects(), getGrades()]);
+      var curriculumSubjects = fetchResults[0];
+      var mySubjects       = fetchResults[1];
+      var allGrades        = fetchResults[2];
+
       var yearFilterBtn = document.querySelector(".curriculum-year-filter.active");
       var filterYear = yearFilterBtn ? yearFilterBtn.getAttribute("data-year") : "all";
-
       var semSelect = document.getElementById("curriculum-semester-filter");
       var filterSem = semSelect ? semSelect.value : "all";
 
-      var filtered = subjects.filter(function (s) {
+      // Build grade lookup map (by subject name, case-insensitive)
+      var gradeMap = {};
+      allGrades.forEach(function (g) {
+        var key = g.subject.toLowerCase().trim();
+        if (!gradeMap[key]) gradeMap[key] = g;
+      });
+
+      // Build set of names already in curriculum_subjects so we don't duplicate
+      var curriculumNameSet = {};
+      curriculumSubjects.forEach(function (s) {
+        curriculumNameSet[s.name.toLowerCase().trim()] = true;
+      });
+
+      // Merge: user subjects not already in curriculum_subjects become read-only cards
+      var syncedFromSubjects = mySubjects
+        .filter(function (s) { return !curriculumNameSet[s.name.toLowerCase().trim()]; })
+        .map(function (s) {
+          return {
+            id: s.id,
+            name: s.name,
+            code: "—",
+            schedule: s.schedule || "",
+            year: s.year || "1st Year",
+            semester: s.semester || "1st Semester",
+            _fromSubjects: true
+          };
+        });
+
+      var allItems = curriculumSubjects.concat(syncedFromSubjects);
+
+      // Apply year/semester filter
+      var filtered = allItems.filter(function (s) {
         var matchYear = (filterYear === "all" || s.year === filterYear);
-        var matchSem = (filterSem === "all" || !s.semester || s.semester === filterSem);
+        var matchSem  = (filterSem  === "all" || (s.semester || "1st Semester") === filterSem);
         return matchYear && matchSem;
       });
 
@@ -3283,23 +3404,17 @@ function getRemoteSession() {
           '<div class="empty-state">' +
             '<div class="empty-icon"><i class="fas fa-book-open"></i></div>' +
             '<p class="empty-title">No subjects found</p>' +
-            '<p class="empty-sub">Add subjects to your curriculum or select another filter.</p>' +
+            '<p class="empty-sub">Add subjects in My Subjects or use the curriculum modal, or try a different filter.</p>' +
           '</div>';
         return;
       }
-      // Fetch grades to cross-reference
-      var allGrades = [];
-      try { allGrades = await getGrades(); } catch (e) { allGrades = []; }
-      var gradeMap = {};
-      allGrades.forEach(function (g) {
-        var key = g.subject.toLowerCase().trim();
-        if (!gradeMap[key]) gradeMap[key] = g;
-      });
 
       filtered.forEach(function (item) {
         var card = document.createElement("div");
         card.className = "curriculum-subject-card";
         card.style.borderLeftColor = stringToColor(item.name);
+
+        // Grade display
         var matchedGrade = gradeMap[item.name.toLowerCase().trim()];
         var gradeHtml;
         if (matchedGrade) {
@@ -3310,21 +3425,31 @@ function getRemoteSession() {
         } else {
           gradeHtml = '<span class="cs-grade-badge cs-grade-na">Not Graded</span>';
         }
+
+        // Synced badge for subjects that came from My Subjects
+        var syncBadge = item._fromSubjects
+          ? '<span class="cs-synced-badge"><i class="fas fa-link"></i> From Subjects</span>'
+          : '';
+
+        // Actions: curriculum subjects are editable/deletable; synced ones are managed in Subjects
+        var actionsHtml = item._fromSubjects
+          ? '<span class="cs-synced-hint">Manage in Subjects</span>'
+          : '<button class="btn-icon btn-edit-curriculum" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
+            '<button class="btn-icon btn-delete-curriculum" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>';
+
         card.innerHTML =
           '<div class="cs-info">' +
+            syncBadge +
             '<h4>' + escapeHtml(item.name) + '</h4>' +
             '<div class="cs-meta">' +
-              '<span><i class="fas fa-hashtag"></i> ' + escapeHtml(item.code) + '</span>' +
+              '<span><i class="fas fa-hashtag"></i> ' + escapeHtml(item.code || "—") + '</span>' +
               '<span><i class="fas fa-clock"></i> ' + escapeHtml(item.schedule || "No schedule") + '</span>' +
               '<span class="cs-year">' + escapeHtml(item.year) + '</span>' +
               '<span class="cs-sem">' + escapeHtml(item.semester || "1st Semester") + '</span>' +
               gradeHtml +
             '</div>' +
           '</div>' +
-          '<div class="cs-actions">' +
-            '<button class="btn-icon btn-edit-curriculum" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
-            '<button class="btn-icon btn-delete-curriculum" data-id="' + item.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
-          '</div>';
+          '<div class="cs-actions">' + actionsHtml + '</div>';
         list.appendChild(card);
       });
 
@@ -3376,6 +3501,44 @@ function getRemoteSession() {
     }).catch(function (err) {
       showToast("Could not load subject.", "error");
     });
+  }
+
+  function setupSubjectFilters() {
+    var filters = document.querySelectorAll(".subject-year-filter");
+    filters.forEach(function (btn) {
+      if (!btn._ccBound) {
+        btn._ccBound = true;
+        btn.addEventListener("click", function () {
+          filters.forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          loadSubjects();
+        });
+      }
+    });
+    var semSelect = document.getElementById("subjects-semester-filter");
+    if (semSelect && !semSelect._ccBound) {
+      semSelect._ccBound = true;
+      semSelect.addEventListener("change", function () { loadSubjects(); });
+    }
+  }
+
+  function setupScheduleFilters() {
+    var filters = document.querySelectorAll(".schedule-year-filter");
+    filters.forEach(function (btn) {
+      if (!btn._ccBound) {
+        btn._ccBound = true;
+        btn.addEventListener("click", function () {
+          filters.forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          loadSchedule();
+        });
+      }
+    });
+    var semSelect = document.getElementById("schedule-semester-filter");
+    if (semSelect && !semSelect._ccBound) {
+      semSelect._ccBound = true;
+      semSelect.addEventListener("change", function () { loadSchedule(); });
+    }
   }
 
   function setupCurriculumFilters() {
