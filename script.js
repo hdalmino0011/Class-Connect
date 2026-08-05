@@ -749,7 +749,7 @@ function getRemoteSession() {
     });
   }
 
-  async function addSubject(name, professor, schedule) {
+  async function addSubject(name, professor, schedule, year, semester) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
       var colors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
@@ -760,6 +760,8 @@ function getRemoteSession() {
         name: name.trim(),
         professor: professor.trim(),
         schedule: schedule.trim(),
+        year: year || "1st Year",
+        semester: semester || "1st Semester",
         color: color,
         tasks: [],
       };
@@ -2020,14 +2022,20 @@ function getRemoteSession() {
     });
   }
 
-  // POSTS LOAD – FIXED: deduplicate posts by id and add comments
+  // POSTS LOAD – FIXED: render-guard counter prevents stale concurrent renders
+  var _loadPostsCallId = 0;
   async function loadPosts(searchQuery) {
+    var myCallId = ++_loadPostsCallId;
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
     // Clear immediately so rapid/concurrent calls never append duplicate cards
     feed.innerHTML = "";
     try {
       var posts = await getPosts();
+
+      // ===== FIX: bail if a newer call has started =====
+      if (myCallId !== _loadPostsCallId) return;
+      // =================================================
 
       // ===== FIX: Deduplicate posts by id =====
       var seenIds = new Set();
@@ -2398,6 +2406,7 @@ function getRemoteSession() {
           '<div class="subject-meta">' +
             '<span><i class="fas fa-user-tie"></i> ' + escapeHtml(subject.professor || "No professor assigned") + '</span>' +
             '<span><i class="fas fa-calendar"></i> ' + escapeHtml(subject.schedule || "No schedule set") + '</span>' +
+            '<span class="subject-year-sem-badge"><i class="fas fa-layer-group"></i> ' + escapeHtml(subject.year || "1st Year") + ' &bull; ' + escapeHtml(subject.semester || "1st Semester") + '</span>' +
           '</div>' +
           progressHtml +
           '<div class="subject-tasks">' +
@@ -2468,6 +2477,8 @@ function getRemoteSession() {
       document.getElementById("subject-name").value = subject.name;
       document.getElementById("subject-professor").value = subject.professor || "";
       document.getElementById("subject-schedule").value = subject.schedule || "";
+      document.getElementById("subject-year").value = subject.year || "1st Year";
+      document.getElementById("subject-semester").value = subject.semester || "1st Semester";
       document.getElementById("subject-modal-title").textContent = "Edit Subject";
       openModal("subject-modal-overlay");
     }).catch(function (err) {
@@ -2664,15 +2675,28 @@ function getRemoteSession() {
     const semester = semEl ? semEl.value : "all";
 
     try {
-      var grades = await getGrades();
+      // Fetch both grades and subjects in parallel
+      var results = await Promise.all([getGrades(), getSubjects()]);
+      var grades = results[0];
+      var subjects = results[1];
+
       var filtered = grades.filter(function (g) {
         var yMatch = (year === "all" || !year || g.year === year);
         var sMatch = (semester === "all" || !semester || g.semester === semester);
         return yMatch && sMatch;
       });
 
+      // Find subjects that match the current year/semester filter but have no grade entry yet
+      var gradedNames = filtered.map(function (g) { return g.subject.toLowerCase().trim(); });
+      var ungradedSubjects = subjects.filter(function (s) {
+        var yMatch = (year === "all" || !year || (s.year || "1st Year") === year);
+        var sMatch = (semester === "all" || !semester || (s.semester || "1st Semester") === semester);
+        var notGraded = gradedNames.indexOf(s.name.toLowerCase().trim()) === -1;
+        return yMatch && sMatch && notGraded;
+      });
+
       list.innerHTML = "";
-      if (filtered.length === 0) {
+      if (filtered.length === 0 && ungradedSubjects.length === 0) {
         list.innerHTML =
           '<div class="empty-state">' +
             '<div class="empty-icon"><i class="fas fa-chart-simple"></i></div>' +
@@ -2683,6 +2707,7 @@ function getRemoteSession() {
         return;
       }
 
+      // Render graded subjects
       filtered.forEach(function (item) {
         var div = document.createElement("div");
         div.className = "grade-item" + (item.exclude ? " grade-excluded" : "");
@@ -2720,6 +2745,48 @@ function getRemoteSession() {
             '</div>' +
           '</div>';
         list.appendChild(div);
+      });
+
+      // Render ungraded subjects (from the Subjects page) as "Not Graded" cards
+      ungradedSubjects.forEach(function (s) {
+        var div = document.createElement("div");
+        div.className = "grade-item grade-not-graded";
+        div.innerHTML =
+          '<div class="grade-card-main">' +
+            '<div class="grade-card-header-row">' +
+              '<h4 class="grade-subject-title">' + escapeHtml(s.name) + '</h4>' +
+              '<div class="grade-score-wrap">' +
+                '<span class="grade-score-value grade-score-na">—</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="grade-meta-tags-row">' +
+              '<span class="grade-badge grade-badge-na">Not Graded</span>' +
+              '<span class="grade-term-badge"><i class="fas fa-calendar"></i> ' + escapeHtml(s.year || "1st Year") + ' &bull; ' + escapeHtml(s.semester || "1st Semester") + '</span>' +
+            '</div>' +
+            '<div class="grade-card-actions-row">' +
+              '<button class="btn-grade-action btn-add-grade-for-subject" data-name="' + escapeHtml(s.name) + '" ' +
+                'data-year="' + escapeHtml(s.year || "1st Year") + '" data-semester="' + escapeHtml(s.semester || "1st Semester") + '" ' +
+                'title="Add grade for this subject">' +
+                '<i class="fas fa-plus"></i> Add Grade' +
+              '</button>' +
+            '</div>' +
+          '</div>';
+        list.appendChild(div);
+      });
+
+      // Quick-add grade handler for ungraded subject buttons
+      list.querySelectorAll(".btn-add-grade-for-subject").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          document.getElementById("grade-edit-id").value = "";
+          document.getElementById("grade-subject").value = btn.getAttribute("data-name");
+          document.getElementById("grade-value").value = "";
+          document.getElementById("grade-units").value = "3";
+          document.getElementById("grade-year").value = btn.getAttribute("data-year") || "1st Year";
+          document.getElementById("grade-semester").value = btn.getAttribute("data-semester") || "1st Semester";
+          document.getElementById("grade-exclude").checked = false;
+          document.getElementById("grade-modal-title").textContent = "Add Grade";
+          openModal("grade-modal-overlay");
+        });
       });
 
       // Event listeners
@@ -3220,10 +3287,29 @@ function getRemoteSession() {
           '</div>';
         return;
       }
+      // Fetch grades to cross-reference
+      var allGrades = [];
+      try { allGrades = await getGrades(); } catch (e) { allGrades = []; }
+      var gradeMap = {};
+      allGrades.forEach(function (g) {
+        var key = g.subject.toLowerCase().trim();
+        if (!gradeMap[key]) gradeMap[key] = g;
+      });
+
       filtered.forEach(function (item) {
         var card = document.createElement("div");
         card.className = "curriculum-subject-card";
         card.style.borderLeftColor = stringToColor(item.name);
+        var matchedGrade = gradeMap[item.name.toLowerCase().trim()];
+        var gradeHtml;
+        if (matchedGrade) {
+          var gc = matchedGrade.exclude ? "#94A3B8" : gradeColor(matchedGrade.grade);
+          gradeHtml = '<span class="cs-grade-badge" style="background:' + gc + '20;color:' + gc + '">' +
+            (matchedGrade.exclude ? '<s>' + matchedGrade.grade.toFixed(2) + '</s>' : matchedGrade.grade.toFixed(2)) +
+            '</span>';
+        } else {
+          gradeHtml = '<span class="cs-grade-badge cs-grade-na">Not Graded</span>';
+        }
         card.innerHTML =
           '<div class="cs-info">' +
             '<h4>' + escapeHtml(item.name) + '</h4>' +
@@ -3232,6 +3318,7 @@ function getRemoteSession() {
               '<span><i class="fas fa-clock"></i> ' + escapeHtml(item.schedule || "No schedule") + '</span>' +
               '<span class="cs-year">' + escapeHtml(item.year) + '</span>' +
               '<span class="cs-sem">' + escapeHtml(item.semester || "1st Semester") + '</span>' +
+              gradeHtml +
             '</div>' +
           '</div>' +
           '<div class="cs-actions">' +
@@ -4193,6 +4280,8 @@ function getRemoteSession() {
         document.getElementById("subject-name").value = "";
         document.getElementById("subject-professor").value = "";
         document.getElementById("subject-schedule").value = "";
+        document.getElementById("subject-year").value = "1st Year";
+        document.getElementById("subject-semester").value = "1st Semester";
         document.getElementById("subject-modal-title").textContent = "Add Subject";
         openModal("subject-modal-overlay");
       });
@@ -4210,9 +4299,11 @@ function getRemoteSession() {
         var name = (document.getElementById("subject-name").value || "").trim();
         var professor = (document.getElementById("subject-professor").value || "").trim();
         var schedule = (document.getElementById("subject-schedule").value || "").trim();
+        var year = document.getElementById("subject-year").value || "1st Year";
+        var semester = document.getElementById("subject-semester").value || "1st Semester";
         if (!name) { showToast("Please enter a subject name.", "warning"); return; }
         if (id) {
-          withLoading(function () { return updateSubject(id, { name: name, professor: professor, schedule: schedule }); }).then(function () {
+          withLoading(function () { return updateSubject(id, { name: name, professor: professor, schedule: schedule, year: year, semester: semester }); }).then(function () {
             closeModal("subject-modal-overlay");
             subjectForm.reset();
             loadSubjects();
@@ -4221,7 +4312,7 @@ function getRemoteSession() {
             showToast(err.message || "Could not update subject.", "error");
           });
         } else {
-          withLoading(function () { return addSubject(name, professor, schedule); }).then(function () {
+          withLoading(function () { return addSubject(name, professor, schedule, year, semester); }).then(function () {
             closeModal("subject-modal-overlay");
             subjectForm.reset();
             loadSubjects();
