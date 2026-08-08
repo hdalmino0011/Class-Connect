@@ -4052,9 +4052,19 @@ function getRemoteSession() {
     return params.get('reset_token');
   }
 
-  /**
-   * Show the Reset Password modal with the given token.
-   */
+  // ===== NEW: Show the Reset Password View (Secret Page) instead of modal =====
+  function showResetPasswordView(token) {
+    // Fill token field
+    document.getElementById('reset-token-field-view').value = token || '';
+    document.getElementById('reset-new-password-view').value = '';
+    document.getElementById('reset-confirm-password-view').value = '';
+    hideError('reset-error-view');
+    hideError('reset-success-view');
+    // Switch to the reset view
+    switchView('view-reset-password');
+  }
+
+  // ===== Keep old modal function for compatibility (but not used) =====
   function showResetPasswordModal(token) {
     document.getElementById('reset-token-field').value = token || '';
     document.getElementById('reset-new-password').value = '';
@@ -4374,7 +4384,82 @@ function getRemoteSession() {
       });
     }
 
-    // ===== NEW: Reset Password Modal Handlers =====
+    // ===== NEW: Reset Password View Handlers (Secret Page) =====
+    var resetViewForm = document.getElementById('reset-password-form-view');
+    if (resetViewForm) {
+      resetViewForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        hideError('reset-error-view');
+        hideError('reset-success-view');
+
+        var token = document.getElementById('reset-token-field-view').value;
+        var newPwd = document.getElementById('reset-new-password-view').value;
+        var confirmPwd = document.getElementById('reset-confirm-password-view').value;
+
+        if (newPwd.length < 6) {
+          showError('reset-error-view', 'Password must be at least 6 characters.');
+          return;
+        }
+        if (newPwd !== confirmPwd) {
+          showError('reset-error-view', 'Passwords do not match.');
+          return;
+        }
+
+        var btn = document.getElementById('reset-submit-btn-view');
+        setButtonLoading(btn, true);
+
+        withLoading(function () {
+          return fetch(SUPABASE_URL + '/functions/v1/update-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ token: token, new_password: newPwd }),
+          });
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (result) {
+            setButtonLoading(btn, false);
+            if (result.success) {
+              document.getElementById('reset-success-view').textContent = result.message;
+              document.getElementById('reset-success-view').hidden = false;
+              showToast('Password updated! Redirecting to login...', 'success');
+
+              setTimeout(function () {
+                // Clean URL and go to login
+                if (window.history && window.history.replaceState) {
+                  window.history.replaceState(null, null, window.location.pathname);
+                }
+                showPage('login-page');
+                showLoginForm();
+              }, 2500);
+            } else {
+              showError('reset-error-view', result.message || 'Could not update password.');
+            }
+          })
+          .catch(function (error) {
+            console.error('[ClassConnect] Reset password error:', error);
+            setButtonLoading(btn, false);
+            showError('reset-error-view', 'Unable to update password. Please try again.');
+          });
+      });
+    }
+
+    // "Back to Login" link for the new view
+    var resetBackToLoginView = document.getElementById('reset-back-to-login-view');
+    if (resetBackToLoginView) {
+      resetBackToLoginView.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, null, window.location.pathname);
+        }
+        showPage('login-page');
+        showLoginForm();
+      });
+    }
+
+    // ----- Keep old modal handlers for compatibility (they won't interfere) -----
     var resetModalOverlay = document.getElementById("reset-password-modal-overlay");
     var resetCloseBtn = document.getElementById("close-reset-modal-btn");
     var resetBackToLogin = document.getElementById("reset-back-to-login");
@@ -4383,7 +4468,6 @@ function getRemoteSession() {
     if (resetCloseBtn) {
       resetCloseBtn.addEventListener("click", function () {
         closeModal("reset-password-modal-overlay");
-        // Redirect to login and clean URL
         showPage("login-page");
         showLoginForm();
         if (window.history && window.history.replaceState) {
@@ -4467,8 +4551,7 @@ function getRemoteSession() {
     if (resetModalOverlay) {
       resetModalOverlay.addEventListener("click", function (e) {
         if (e.target === resetModalOverlay) {
-          // Optionally allow closing by clicking outside; we'll not to keep user focused.
-          // We'll just ignore.
+          // Keep it as is; we allow outside click to close? We'll just ignore.
         }
       });
     }
@@ -5109,15 +5192,18 @@ function getRemoteSession() {
   function routeAfterSplash() {
     console.log("[ClassConnect] Splash timer completed; checking authentication.");
 
-    // ===== NEW: Check for reset token FIRST =====
+    // First, check for a reset token in the URL
     var resetToken = getResetToken();
     if (resetToken) {
-      console.log("[ClassConnect] Reset token detected in URL. Showing reset modal.");
-      showResetPasswordModal(resetToken);
+      console.log("[ClassConnect] Reset token detected. Showing reset view.");
+      showResetPasswordView(resetToken);
       // Remove token from URL without reloading page
       if (window.history && window.history.replaceState) {
         window.history.replaceState(null, null, window.location.pathname);
       }
+      // Hide offline banner if it's showing
+      var banner = document.getElementById('offline-banner');
+      if (banner) banner.hidden = true;
       return;
     }
 
