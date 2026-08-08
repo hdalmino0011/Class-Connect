@@ -4893,8 +4893,6 @@ body.cc-global-loading .bottom-nav {
 
 /* =========================================================
    RESET PASSWORD VIEW (Secret Page)
-   Styled to match the app's design language.
-   This complements the inline styles used in the reset view.
    ========================================================= */
 #view-reset-password {
   display: flex;
@@ -4904,10 +4902,10 @@ body.cc-global-loading .bottom-nav {
   padding: 20px;
 }
 
-#view-reset-password .reset-container {
+/* The card container */
+#view-reset-password > div {
   max-width: 420px;
   width: 100%;
-  margin: 20px auto;
   background: var(--white);
   border-radius: var(--radius-xl);
   padding: 36px 32px;
@@ -4915,7 +4913,7 @@ body.cc-global-loading .bottom-nav {
   border: 1px solid var(--gray-200);
 }
 
-#view-reset-password .reset-container h2 {
+#view-reset-password h2 {
   font-size: 24px;
   font-weight: 800;
   color: var(--deep-navy);
@@ -4927,33 +4925,39 @@ body.cc-global-loading .bottom-nav {
   gap: 10px;
 }
 
-#view-reset-password .reset-container h2 i {
+#view-reset-password h2 i {
   color: var(--primary-blue);
   font-size: 22px;
 }
 
-#view-reset-password .reset-container .reset-subtitle {
+#view-reset-password .reset-subtitle,
+#view-reset-password p:first-of-type {
   text-align: center;
   color: var(--gray-500);
   font-size: 14px;
   margin-bottom: 24px;
 }
 
-#view-reset-password .reset-container .form-group {
-  margin-bottom: 18px;
+#view-reset-password .form-error,
+#view-reset-password .form-success {
+  margin-bottom: 16px;
 }
 
-#view-reset-password .reset-container .form-group label {
+#view-reset-password .form-group {
+  margin-bottom: 20px;
+}
+
+#view-reset-password .form-group label {
+  display: block;
   font-size: 12px;
   font-weight: 700;
   color: var(--gray-600);
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  display: block;
   margin-bottom: 6px;
 }
 
-#view-reset-password .reset-container .form-group input {
+#view-reset-password .form-group input {
   width: 100%;
   padding: 12px 16px;
   min-height: 48px;
@@ -4967,45 +4971,45 @@ body.cc-global-loading .bottom-nav {
   outline: none;
 }
 
-#view-reset-password .reset-container .form-group input:focus {
+#view-reset-password .form-group input:focus {
   border-color: var(--primary-blue);
   background: var(--white);
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
 }
 
-#view-reset-password .reset-container .btn-primary {
+#view-reset-password .btn-primary {
   width: 100%;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
-#view-reset-password .reset-container .reset-back-link {
+#view-reset-password .reset-back-link {
   text-align: center;
   font-size: 13px;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
-#view-reset-password .reset-container .reset-back-link a {
+#view-reset-password .reset-back-link a {
   color: var(--gray-500);
   font-weight: 600;
   cursor: pointer;
   transition: color var(--transition-fast);
 }
 
-#view-reset-password .reset-container .reset-back-link a:hover {
+#view-reset-password .reset-back-link a:hover {
   color: var(--primary-blue);
 }
 
 /* ===== RESPONSIVE - Reset Password View ===== */
 @media (max-width: 480px) {
-  #view-reset-password .reset-container {
+  #view-reset-password > div {
     padding: 24px 20px;
   }
 
-  #view-reset-password .reset-container h2 {
+  #view-reset-password h2 {
     font-size: 20px;
   }
 
-  #view-reset-password .reset-container .form-group input {
+  #view-reset-password .form-group input {
     font-size: 14px;
     padding: 10px 14px;
     min-height: 44px;
