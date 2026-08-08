@@ -1794,6 +1794,12 @@ function getRemoteSession() {
       target.style.display = "";
     }
 
+    // Clear any reset-mode inline style overrides so CSS rules take effect properly
+    if (pageId === "dashboard-page") {
+      var topnavEl = document.querySelector(".dashboard-topnav");
+      if (topnavEl) topnavEl.style.display = "";
+    }
+
     var bottomNav = document.querySelector(".bottom-nav");
     if (bottomNav) {
       bottomNav.style.display = pageId === "dashboard-page" ? "" : "none";
@@ -2100,16 +2106,22 @@ function getRemoteSession() {
       // Keep the same rendering as before
       var user = getCurrentUser();
       for (var j = 0; j < posts.length; j++) {
+        // Bail immediately if a newer loadPosts call has started (prevents duplicate rendering)
+        if (myCallId !== _loadPostsCallId) return;
+
         var post = posts[j];
         var card = document.createElement("div");
         card.className = "post-card";
         var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy" class="post-img-zoomable" data-viewer-src="' + post.image + '"></div>' : "";
         var tagHtml = post.tag ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>' : "";
 
-        var canDel = await canDeletePost(post.id);
-        var canEdt = await canEditPost(post.id);
-        var hasAck = await hasAcknowledgedPost(post.id);
+        // Pass the already-fetched posts list so these functions don't re-fetch from Supabase
+        var canDel = await canDeletePost(post.id, posts);
+        var canEdt = await canEditPost(post.id, posts);
+        // Fetch acknowledgments once and derive hasAck from the result (avoids a redundant round-trip)
         var acks = await getPostAcknowledgments(post.id);
+        if (myCallId !== _loadPostsCallId) return;
+        var hasAck = user ? acks.some(function (a) { return a.user_id === user.id; }) : false;
         var ackCount = acks.length;
 
         var actionsHtml = '<div class="post-footer">';
@@ -2265,28 +2277,28 @@ function getRemoteSession() {
     }
   }
 
-  async function canDeletePost(postId) {
+  async function canDeletePost(postId, cachedPosts) {
     var user = getCurrentUser();
     if (!user) return false;
     if (isAdmin()) return true;
     try {
-      var posts = await getPosts();
+      var posts = cachedPosts || await getPosts();
       var found = posts.find(function (p) { return p.id === postId; });
       if (!found) return false;
-      return found.author === user.name;
+      return found.user_id === user.id || found.author === user.name;
     } catch (e) {
       return false;
     }
   }
 
-  async function canEditPost(postId) {
+  async function canEditPost(postId, cachedPosts) {
     var user = getCurrentUser();
     if (!user) return false;
     try {
-      var posts = await getPosts();
+      var posts = cachedPosts || await getPosts();
       var found = posts.find(function (p) { return p.id === postId; });
       if (!found) return false;
-      return found.author === user.name;
+      return found.user_id === user.id || found.author === user.name;
     } catch (e) {
       return false;
     }
@@ -5196,13 +5208,20 @@ function getRemoteSession() {
     var resetToken = getResetToken();
     if (resetToken) {
       console.log("[ClassConnect] Reset token detected. Showing reset view.");
+      // Show the dashboard page so the reset view inside it is visible
+      showPage("dashboard-page");
+      // Hide navigation elements — this is a secret reset-only page, not a normal logged-in session
+      var resetTopnav = document.querySelector(".dashboard-topnav");
+      var resetBottomNav = document.querySelector(".bottom-nav");
+      if (resetTopnav) resetTopnav.style.display = "none";
+      if (resetBottomNav) resetBottomNav.style.display = "none";
       showResetPasswordView(resetToken);
       // Remove token from URL without reloading page
       if (window.history && window.history.replaceState) {
         window.history.replaceState(null, null, window.location.pathname);
       }
       // Hide offline banner if it's showing
-      var banner = document.getElementById('offline-banner');
+      var banner = document.getElementById("offline-banner");
       if (banner) banner.hidden = true;
       return;
     }
