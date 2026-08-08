@@ -1761,9 +1761,8 @@ function getRemoteSession() {
 
   /**
    * Send Password Reset email (Template 10)
-   * NOTE: To use this, you must disable Supabase's built-in reset email
-   * and implement your own reset token generation.
-   * Currently, Supabase's reset email is used (via SMTP).
+   * NOTE: This is now called by the Edge Function 'send-reset-email', not directly from frontend.
+   * We keep this for completeness.
    */
   async function sendResetLinkEmail(email, name, resetLink) {
     return await sendBrevoEmail(email, name, 10, { user_name: name, user_email: email, reset_link: resetLink });
@@ -4034,6 +4033,30 @@ function getRemoteSession() {
     }
   }
 
+  // ================================================================
+  // ===== NEW: Password Reset via Brevo + Custom Edge Functions =====
+  // ================================================================
+
+  /**
+   * Check the URL for a reset_token parameter.
+   */
+  function getResetToken() {
+    var params = new URLSearchParams(window.location.search);
+    return params.get('reset_token');
+  }
+
+  /**
+   * Show the Reset Password modal with the given token.
+   */
+  function showResetPasswordModal(token) {
+    document.getElementById('reset-token-field').value = token || '';
+    document.getElementById('reset-new-password').value = '';
+    document.getElementById('reset-confirm-password').value = '';
+    hideError('reset-error');
+    hideError('reset-success');
+    openModal('reset-password-modal-overlay');
+  }
+
   // ===== INIT EVENT LISTENERS =====
   function initEventListeners() {
     var showSignupLink = document.getElementById("show-signup");
@@ -4261,6 +4284,7 @@ function getRemoteSession() {
       });
     }
 
+    // ----- FORGOT PASSWORD: Replace Supabase built-in with custom Edge Function -----
     var forgotLink = document.querySelector(".forgot-link");
     if (forgotLink) {
       forgotLink.addEventListener("click", function (e) {
@@ -4302,47 +4326,37 @@ function getRemoteSession() {
         }
         var btn = forgotForm.querySelector(".btn-primary");
         setButtonLoading(btn, true);
-        var client = getSupabaseClient();
-        if (!isSupabaseReady() || !client.auth || typeof client.auth.resetPasswordForEmail !== "function") {
-          setButtonLoading(btn, false);
-          showError("forgot-error", "Supabase is unavailable. No reset request was sent.");
-          return;
-        }
-        console.log("[ClassConnect] Sending Supabase password reset email.");
+
+        // Use the new Edge Function instead of Supabase built-in
         withLoading(function () {
-          return withTimeout(
-            client.auth.resetPasswordForEmail(email, { redirectTo: window.location.href }),
-            8000,
-            "Supabase password reset"
-          );
-        }).then(function (response) {
-          setButtonLoading(btn, false);
-          if (response && response.error) {
-            console.error("[ClassConnect] Supabase password reset failed:", response.error);
-            showError(
-              "forgot-error",
-              isTransientSupabaseError(response.error)
-                ? "The connection to Supabase is unavailable. Please try again later."
-                : response.error.message || "Unable to send reset instructions."
-            );
-            return;
-          }
-          if (successEl) {
-            successEl.textContent = "Supabase password reset instructions have been sent to " + email + ".";
-            successEl.hidden = false;
-          }
-          var forgotEmailInput = document.getElementById("forgot-email");
-          if (forgotEmailInput) forgotEmailInput.value = "";
-          showToast("Password reset link sent to your email.", "success");
-        }).catch(function (error) {
-          console.error("[ClassConnect] Password reset form error:", error);
-          setButtonLoading(btn, false);
-          if (isTransientSupabaseError(error)) {
-            showError("forgot-error", "The connection is unavailable. Please try again later.");
-            return;
-          }
-          showError("forgot-error", error.message || "Unable to send reset instructions.");
-        });
+          return fetch(SUPABASE_URL + "/functions/v1/send-reset-email", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ email: email.trim().toLowerCase() }),
+          });
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (result) {
+            setButtonLoading(btn, false);
+            if (result.success) {
+              if (successEl) {
+                successEl.textContent = result.message || "Reset link sent to your email.";
+                successEl.hidden = false;
+              }
+              document.getElementById("forgot-email").value = "";
+              showToast("Reset link sent to your email.", "success");
+            } else {
+              showError("forgot-error", result.message || "Something went wrong.");
+            }
+          })
+          .catch(function (error) {
+            console.error("[ClassConnect] Forgot password error:", error);
+            setButtonLoading(btn, false);
+            showError("forgot-error", "Could not send reset link. Please try again.");
+          });
       });
     }
 
@@ -4353,6 +4367,107 @@ function getRemoteSession() {
       });
     }
 
+    // ===== NEW: Reset Password Modal Handlers =====
+    var resetModalOverlay = document.getElementById("reset-password-modal-overlay");
+    var resetCloseBtn = document.getElementById("close-reset-modal-btn");
+    var resetBackToLogin = document.getElementById("reset-back-to-login");
+    var resetForm = document.getElementById("reset-password-form");
+
+    if (resetCloseBtn) {
+      resetCloseBtn.addEventListener("click", function () {
+        closeModal("reset-password-modal-overlay");
+        // Redirect to login and clean URL
+        showPage("login-page");
+        showLoginForm();
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, null, window.location.pathname);
+        }
+      });
+    }
+
+    if (resetBackToLogin) {
+      resetBackToLogin.addEventListener("click", function (e) {
+        e.preventDefault();
+        closeModal("reset-password-modal-overlay");
+        showPage("login-page");
+        showLoginForm();
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, null, window.location.pathname);
+        }
+      });
+    }
+
+    if (resetForm) {
+      resetForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        hideError("reset-error");
+        hideError("reset-success");
+
+        var token = document.getElementById("reset-token-field").value;
+        var newPwd = document.getElementById("reset-new-password").value;
+        var confirmPwd = document.getElementById("reset-confirm-password").value;
+
+        if (newPwd.length < 6) {
+          showError("reset-error", "Password must be at least 6 characters.");
+          return;
+        }
+        if (newPwd !== confirmPwd) {
+          showError("reset-error", "Passwords do not match.");
+          return;
+        }
+
+        var btn = document.getElementById("reset-submit-btn");
+        setButtonLoading(btn, true);
+
+        withLoading(function () {
+          return fetch(SUPABASE_URL + "/functions/v1/update-password", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ token: token, new_password: newPwd }),
+          });
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (result) {
+            setButtonLoading(btn, false);
+            if (result.success) {
+              document.getElementById("reset-success").textContent = result.message;
+              document.getElementById("reset-success").hidden = false;
+              showToast("Password updated! Redirecting to login...", "success");
+
+              setTimeout(function () {
+                closeModal("reset-password-modal-overlay");
+                showPage("login-page");
+                showLoginForm();
+                if (window.history && window.history.replaceState) {
+                  window.history.replaceState(null, null, window.location.pathname);
+                }
+              }, 2500);
+            } else {
+              showError("reset-error", result.message || "Could not update password.");
+            }
+          })
+          .catch(function (error) {
+            console.error("[ClassConnect] Reset password error:", error);
+            setButtonLoading(btn, false);
+            showError("reset-error", "Unable to update password. Please try again.");
+          });
+      });
+    }
+
+    if (resetModalOverlay) {
+      resetModalOverlay.addEventListener("click", function (e) {
+        if (e.target === resetModalOverlay) {
+          // Optionally allow closing by clicking outside; we'll not to keep user focused.
+          // We'll just ignore.
+        }
+      });
+    }
+    // ===== END Reset Password Modal Handlers =====
+
+    // ----- POST MODAL -----
     var composerBtn1 = document.getElementById("open-composer-btn");
     var closeModalBtn = document.getElementById("close-modal-btn");
     var postOverlay = document.getElementById("post-modal-overlay");
@@ -4986,6 +5101,19 @@ function getRemoteSession() {
 
   function routeAfterSplash() {
     console.log("[ClassConnect] Splash timer completed; checking authentication.");
+
+    // First, check for a reset token in the URL
+    var resetToken = getResetToken();
+    if (resetToken) {
+      console.log("[ClassConnect] Reset token detected in URL. Showing reset modal.");
+      // Show the reset modal with the token
+      showResetPasswordModal(resetToken);
+      // Remove token from URL without reloading page
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.pathname);
+      }
+      return;
+    }
 
     getRemoteSession().then(function (remote) {
       if (remote.session && remote.session.user) {
