@@ -1345,6 +1345,41 @@
   </div>
 </div>
 
+<!-- ==================== NEW: RESET PASSWORD (IN-APP) MODAL ==================== -->
+<div id="reset-password-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="reset-modal-heading">
+    <div class="modal-header">
+      <h3 id="reset-modal-heading"><i class="fas fa-key"></i> Set New Password</h3>
+      <button id="close-reset-modal-btn" class="modal-close" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form id="reset-password-form" novalidate>
+      <p style="font-size:14px;color:var(--gray-500);margin-bottom:12px;">
+        Enter your new password below.
+      </p>
+      <div id="reset-error" class="form-error" hidden></div>
+      <div id="reset-success" class="form-success" hidden></div>
+      <div class="form-group">
+        <label for="reset-new-password">New Password (min 6 characters)</label>
+        <input type="password" id="reset-new-password" placeholder="Enter new password" required minlength="6" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label for="reset-confirm-password">Confirm Password</label>
+        <input type="password" id="reset-confirm-password" placeholder="Confirm new password" required autocomplete="new-password">
+      </div>
+      <input type="hidden" id="reset-token-field">
+      <button type="submit" class="btn-primary" id="reset-submit-btn">
+        <i class="fas fa-check"></i> Update Password
+      </button>
+      <p style="text-align:center;font-size:13px;margin-top:8px;">
+        <a href="#" id="reset-back-to-login">Back to Login</a>
+      </p>
+    </form>
+  </div>
+</div>
+<!-- ==================== END RESET PASSWORD MODAL ==================== -->
+
 <!-- ==================== IMAGE VIEWER ==================== -->
 <div id="image-viewer-overlay" class="image-viewer-overlay" aria-hidden="true">
   <div class="image-viewer-content">
