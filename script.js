@@ -2029,14 +2029,16 @@ function getRemoteSession() {
     });
   }
 
-  // POSTS LOAD – FIXED: render-guard counter prevents stale concurrent renders
+  // POSTS LOAD – FIXED: better deduplication and feed clearing
   var _loadPostsCallId = 0;
   async function loadPosts(searchQuery) {
     var myCallId = ++_loadPostsCallId;
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
-    // Clear immediately so rapid/concurrent calls never append duplicate cards
+    
+    // Clear the feed immediately so stale content doesn't linger
     feed.innerHTML = "";
+
     try {
       var posts = await getPosts();
 
@@ -2044,17 +2046,20 @@ function getRemoteSession() {
       if (myCallId !== _loadPostsCallId) return;
       // =================================================
 
-      // ===== FIX: Deduplicate posts by id =====
+      // ===== FIX: Robust deduplication by post.id =====
+      var uniquePosts = [];
       var seenIds = new Set();
-      posts = posts.filter(function(post) {
-        if (seenIds.has(post.id)) {
-          return false;
+      for (var i = 0; i < posts.length; i++) {
+        var post = posts[i];
+        if (!seenIds.has(post.id)) {
+          seenIds.add(post.id);
+          uniquePosts.push(post);
         }
-        seenIds.add(post.id);
-        return true;
-      });
-      // =======================================
+      }
+      posts = uniquePosts;
+      // ===============================================
 
+      // Apply search filter if query provided
       if (searchQuery && searchQuery.trim() !== "") {
         var q = searchQuery.trim().toLowerCase();
         posts = posts.filter(function (p) {
@@ -2079,7 +2084,9 @@ function getRemoteSession() {
         commentsByPost[c.post_id].push(c);
       });
 
+      // Clear the feed again before rendering (in case something else modified it)
       feed.innerHTML = "";
+
       if (posts.length === 0) {
         feed.innerHTML =
           '<div class="empty-state">' +
@@ -2092,8 +2099,8 @@ function getRemoteSession() {
 
       // Keep the same rendering as before
       var user = getCurrentUser();
-      for (var i = 0; i < posts.length; i++) {
-        var post = posts[i];
+      for (var j = 0; j < posts.length; j++) {
+        var post = posts[j];
         var card = document.createElement("div");
         card.className = "post-card";
         var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy" class="post-img-zoomable" data-viewer-src="' + post.image + '"></div>' : "";
@@ -5102,11 +5109,10 @@ function getRemoteSession() {
   function routeAfterSplash() {
     console.log("[ClassConnect] Splash timer completed; checking authentication.");
 
-    // First, check for a reset token in the URL
+    // ===== NEW: Check for reset token FIRST =====
     var resetToken = getResetToken();
     if (resetToken) {
       console.log("[ClassConnect] Reset token detected in URL. Showing reset modal.");
-      // Show the reset modal with the token
       showResetPasswordModal(resetToken);
       // Remove token from URL without reloading page
       if (window.history && window.history.replaceState) {
