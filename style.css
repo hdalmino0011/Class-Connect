@@ -4836,6 +4836,7 @@ body.cc-global-loading .bottom-nav {
   border-radius:  var(--radius-md);
   border:         1px solid var(--gray-100);
   display:        block;
+  aspect-ratio:   1 / 1;  /* <-- FIX: force square images for uniform card heights on desktop */
 }
 
 /* Labels under each QR */
