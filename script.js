@@ -365,8 +365,6 @@ function getRemoteSession() {
   ];
 
   // Parses compact day-letter codes like "MWF", "TTh", "MTWThFSSu".
-  // Two-letter tokens (Th, Sa, Su) are matched before single letters
-  // so "Th" isn't mistaken for "T" (Tuesday) + stray "h".
   function parseCompactDayCodes(rawText) {
     var found = [];
     var letters = (rawText || "").replace(/[^A-Za-z]/g, "");
@@ -378,18 +376,15 @@ function getRemoteSession() {
       if (two === "su") { found.push(0); i += 2; continue; }
       var one = letters.charAt(i).toLowerCase();
       if (one === "m") { found.push(1); i += 1; continue; }
-      if (one === "t") { found.push(2); i += 1; continue; } // standalone T => Tuesday
+      if (one === "t") { found.push(2); i += 1; continue; }
       if (one === "w") { found.push(3); i += 1; continue; }
       if (one === "f") { found.push(5); i += 1; continue; }
-      if (one === "s") { found.push(6); i += 1; continue; } // standalone S => Saturday
-      i += 1; // unrecognized letter, skip
+      if (one === "s") { found.push(6); i += 1; continue; }
+      i += 1;
     }
     return found;
   }
 
-  // Extracts every day-of-week (0=Sunday..6=Saturday) mentioned in a
-  // free-text schedule/day string, e.g. "MWF 10:00-11:30 AM",
-  // "Wednesday - Thursday", "Mon, Tue, Wed", "Friday | 9am-12pm".
   function extractDaysFromText(text) {
     if (!text) return [];
     var lower = String(text).toLowerCase();
@@ -412,9 +407,6 @@ function getRemoteSession() {
     }
 
     if (days.length === 0) {
-      // Fall back to compact letter-code parsing (e.g. "MWF", "TTh"),
-      // restricted to the portion of the text before the first digit so
-      // times, room numbers, etc. don't get misread as day letters.
       var digitIdx = lower.search(/[0-9]/);
       var segment = digitIdx === -1 ? String(text) : String(text).substring(0, digitIdx);
       segment = segment.split("|")[0].trim();
@@ -426,25 +418,19 @@ function getRemoteSession() {
     return days;
   }
 
-  // Returns the earliest day (0=Sunday..6=Saturday) mentioned in the text,
-  // or 99 if no recognizable day is found (so undated items sort last).
   function getEarliestDayValue(text) {
     var days = extractDaysFromText(text);
     if (days.length === 0) return 99;
     return Math.min.apply(null, days);
   }
 
-  // ===== NEW: TIME PARSING FOR SORTING =====
-  // Converts a time string like "8:00", "8:00am", "8am", "08:00", "08:00 AM" to minutes since midnight.
   function parseTimeToMinutes(timeStr) {
     if (!timeStr) return 0;
     var cleaned = timeStr.trim().toLowerCase();
-    // Detect am/pm
     var ampm = '';
     if (cleaned.includes('am')) ampm = 'am';
     else if (cleaned.includes('pm')) ampm = 'pm';
     cleaned = cleaned.replace(/[ap]m/g, '').trim();
-    // Remove colon and parse hours/minutes
     var parts = cleaned.split(':');
     var hours = parseInt(parts[0], 10) || 0;
     var minutes = parts.length > 1 ? parseInt(parts[1], 10) : 0;
@@ -453,18 +439,12 @@ function getRemoteSession() {
     return hours * 60 + minutes;
   }
 
-  // Extracts the first start time found in a free-text schedule string and returns minutes since midnight.
-  // Returns null if no time pattern is found.
   function extractStartTimeFromText(text) {
     if (!text) return null;
-    // Look for a time range like "8:00-9:00", "8-9am", "8:00am - 9:00am", "10:00-11:30 AM", "MWF 10:00-11:30 AM"
-    // We'll search for a pattern: (\d{1,2}:\d{2}\s*[ap]?m?)\s*[-–—]\s*(\d{1,2}:\d{2}\s*[ap]?m?)
     var matches = text.match(/(\d{1,2}(?::\d{2})?\s*[ap]?m?)\s*[-–—]\s*(\d{1,2}(?::\d{2})?\s*[ap]?m?)/i);
     if (matches) {
-      var start = matches[1];
-      return parseTimeToMinutes(start);
+      return parseTimeToMinutes(matches[1]);
     }
-    // Fallback: find any time like "8:00am", "8am", "8:00" - treat as start time
     var single = text.match(/\b(\d{1,2}(?::\d{2})?\s*[ap]?m?)\b/);
     if (single) {
       return parseTimeToMinutes(single[1]);
@@ -472,15 +452,12 @@ function getRemoteSession() {
     return null;
   }
 
-  // Returns a numeric sort key: dayIndex * 10000 + startMinutes, with 99 for no day pushed to the end.
-  // This ensures sorting by day first, then by start time within the same day.
   function getSortKey(text) {
     var day = getEarliestDayValue(text);
     var startMin = extractStartTimeFromText(text);
     if (startMin === null) startMin = 0;
-    // If day is 99 (no day), put after all; use a very large number.
     if (day === 99) {
-      return 9999999 + startMin; // ensures no-day items sort last, and among themselves by start time.
+      return 9999999 + startMin;
     }
     return day * 10000 + startMin;
   }
@@ -518,7 +495,6 @@ function getRemoteSession() {
     }
   }
 
-  // Run an async function with the global loading overlay shown around it
   function withLoading(fn) {
     showGlobalLoading();
     return Promise.resolve()
@@ -660,6 +636,98 @@ function getRemoteSession() {
     return fn();
   }
 
+  // ===============================================================
+  // ===== NEW: SYNCHRONIZATION HELPERS =====
+  // Ensure a subject exists in the main 'subjects' table.
+  // If a subject with the same name (case-insensitive) exists,
+  // update it with new info; otherwise create a new one.
+  // ===============================================================
+  async function ensureSubjectInSubjects(data) {
+    const user = getCurrentUser();
+    if (!user) return null;
+
+    const { name, professor, schedule, year, semester } = data;
+    if (!name) return null;
+
+    // Find existing subject
+    const { data: existing, error } = await supabaseTable("subjects")
+      .select("*")
+      .eq("user_id", user.id)
+      .ilike("name", name.trim());
+
+    if (error) {
+      console.warn("[sync] Failed to find subject:", error);
+      return null;
+    }
+
+    let subject = existing && existing.length > 0 ? existing[0] : null;
+
+    // Prepare update/insert data
+    const colors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
+    const payload = {
+      user_id: user.id,
+      name: name.trim(),
+      professor: professor || "",
+      schedule: schedule || "",
+      year: year || "1st Year",
+      semester: semester || "1st Semester",
+    };
+
+    if (subject) {
+      // Merge: don't overwrite existing non-empty fields if the new data is empty
+      if (!payload.professor && subject.professor) payload.professor = subject.professor;
+      if (!payload.schedule && subject.schedule) payload.schedule = subject.schedule;
+      if (!payload.year || payload.year === "1st Year") payload.year = subject.year || "1st Year";
+      if (!payload.semester || payload.semester === "1st Semester") payload.semester = subject.semester || "1st Semester";
+
+      // Keep existing color
+      payload.color = subject.color;
+
+      const { data: updated, error: updateErr } = await supabaseTable("subjects")
+        .update(payload)
+        .eq("id", subject.id)
+        .select()
+        .single();
+
+      if (updateErr) {
+        console.warn("[sync] Failed to update subject:", updateErr);
+        return null;
+      }
+      return updated;
+    } else {
+      // New subject: assign color
+      const allSubjects = await getSubjects();
+      const color = colors[allSubjects.length % colors.length];
+      payload.color = color;
+      payload.tasks = [];
+
+      const { data: created, error: insertErr } = await supabaseTable("subjects")
+        .insert(payload)
+        .select()
+        .single();
+
+      if (insertErr) {
+        console.warn("[sync] Failed to create subject:", insertErr);
+        return null;
+      }
+      return created;
+    }
+  }
+
+  // When adding/updating a schedule entry, also ensure the subject exists.
+  // Build a schedule string from day and time for the subject's 'schedule' field.
+  function buildScheduleString(day, startTime, endTime) {
+    let parts = [];
+    if (day) parts.push(day);
+    if (startTime) {
+      let start = formatTime12h(startTime);
+      let end = endTime ? formatTime12h(endTime) : "";
+      if (start && end) parts.push(start + " - " + end);
+      else if (start) parts.push(start);
+    }
+    return parts.join(" ");
+  }
+
   // ===== POSTS =====
   async function getPosts() {
     return withAuthCheck(async function () {
@@ -670,15 +738,11 @@ function getRemoteSession() {
         .select("*")
         .order("timestamp", { ascending: false });
       if (section) {
-        // Always filter by section first to separate feeds between sections
         query = query.eq("section", section);
-        // For year: match posts with the same year OR posts where year is NULL
-        // (older posts may not have year set yet — include them so they don't disappear)
         if (year) {
           query = query.or("year.eq." + year + ",year.is.null");
         }
       } else {
-        // Profile not fully set up — show only own posts to avoid leaking cross-section data
         query = query.eq("user_id", user.id);
       }
       var result = await withTimeout(query, 8000, "Posts load");
@@ -764,7 +828,6 @@ function getRemoteSession() {
   async function toggleAcknowledgePost(postId) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
-      // Check if already acknowledged
       var existing = await withTimeout(
         supabaseTable("post_acknowledgments")
           .select("*")
@@ -776,7 +839,6 @@ function getRemoteSession() {
       );
       if (existing.error) throw existing.error;
       if (existing.data) {
-        // Remove acknowledgment
         var del = await withTimeout(
           supabaseTable("post_acknowledgments")
             .delete()
@@ -786,9 +848,8 @@ function getRemoteSession() {
           "Acknowledgment remove"
         );
         if (del.error) throw del.error;
-        return false; // now not acknowledged
+        return false;
       } else {
-        // Add acknowledgment
         var newAck = {
           post_id: postId,
           user_id: user.id,
@@ -801,7 +862,7 @@ function getRemoteSession() {
           "Acknowledgment add"
         );
         if (ins.error) throw ins.error;
-        return true; // now acknowledged
+        return true;
       }
     });
   }
@@ -869,7 +930,7 @@ function getRemoteSession() {
     });
   }
 
-  // ===== SUBJECTS =====
+  // ===== SUBJECTS (with sync) =====
   async function getSubjects() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
@@ -949,7 +1010,6 @@ function getRemoteSession() {
   async function addSubjectTask(subjectId, text) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
-      // Fetch current subject
       var subj = await withTimeout(
         supabaseTable("subjects")
           .select("tasks")
@@ -1038,7 +1098,7 @@ function getRemoteSession() {
     });
   }
 
-  // ===== SCHEDULE =====
+  // ===== SCHEDULE (with sync) =====
   async function getSchedule() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
@@ -1066,12 +1126,24 @@ function getRemoteSession() {
         end_time: endTime,
         room: room.trim(),
       };
+      // Insert schedule
       var result = await withTimeout(
         supabaseTable("schedule").insert(item).select().single(),
         8000,
         "Schedule add"
       );
       if (result.error) throw result.error;
+
+      // ===== SYNC: Ensure subject exists in 'subjects' =====
+      var scheduleStr = buildScheduleString(day, startTime, endTime);
+      await ensureSubjectInSubjects({
+        name: subject.trim(),
+        schedule: scheduleStr || day || "",
+        year: "1st Year",
+        semester: "1st Semester",
+        professor: "",
+      });
+
       return result.data;
     });
   }
@@ -1079,6 +1151,18 @@ function getRemoteSession() {
   async function updateScheduleItem(id, data) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
+      // Fetch current item first to get subject name
+      var current = await withTimeout(
+        supabaseTable("schedule")
+          .select("*")
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .single(),
+        8000,
+        "Schedule fetch"
+      );
+      if (current.error) throw current.error;
+
       var result = await withTimeout(
         supabaseTable("schedule")
           .update(data)
@@ -1090,6 +1174,21 @@ function getRemoteSession() {
         "Schedule update"
       );
       if (result.error) throw result.error;
+
+      // ===== SYNC: Update subject in 'subjects' =====
+      var subjectName = data.subject || current.data.subject;
+      var day = data.day || current.data.day;
+      var startTime = data.start_time || current.data.start_time;
+      var endTime = data.end_time || current.data.end_time;
+      var scheduleStr = buildScheduleString(day, startTime, endTime);
+      await ensureSubjectInSubjects({
+        name: subjectName.trim(),
+        schedule: scheduleStr || day || "",
+        year: current.data.year || "1st Year",
+        semester: current.data.semester || "1st Semester",
+        professor: "",
+      });
+
       return result.data;
     });
   }
@@ -1150,7 +1249,6 @@ function getRemoteSession() {
   async function toggleAssignment(id) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
-      // Fetch current status
       var current = await withTimeout(
         supabaseTable("assignments")
           .select("completed")
@@ -1191,7 +1289,7 @@ function getRemoteSession() {
     });
   }
 
-  // ===== GRADES =====
+  // ===== GRADES (with sync) =====
   async function getGrades() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
@@ -1226,6 +1324,16 @@ function getRemoteSession() {
         "Grade add"
       );
       if (result.error) throw result.error;
+
+      // ===== SYNC: Ensure subject exists in 'subjects' =====
+      await ensureSubjectInSubjects({
+        name: subject.trim(),
+        year: year || "1st Year",
+        semester: semester || "1st Semester",
+        professor: "",
+        schedule: "",
+      });
+
       return result.data;
     });
   }
@@ -1244,6 +1352,18 @@ function getRemoteSession() {
         "Grade update"
       );
       if (result.error) throw result.error;
+
+      // ===== SYNC: Update subject in 'subjects' =====
+      if (data.subject) {
+        await ensureSubjectInSubjects({
+          name: data.subject.trim(),
+          year: data.year || "1st Year",
+          semester: data.semester || "1st Semester",
+          professor: "",
+          schedule: "",
+        });
+      }
+
       return result.data;
     });
   }
@@ -1291,7 +1411,7 @@ function getRemoteSession() {
     });
   }
 
-  // ===== CURRICULUM SUBJECTS =====
+  // ===== CURRICULUM SUBJECTS (with sync) =====
   async function getCurriculumSubjects() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
@@ -1325,6 +1445,16 @@ function getRemoteSession() {
         "Curriculum subject add"
       );
       if (result.error) throw result.error;
+
+      // ===== SYNC: Ensure subject exists in 'subjects' =====
+      await ensureSubjectInSubjects({
+        name: name.trim(),
+        schedule: schedule.trim() || "",
+        year: year.trim(),
+        semester: semester || "1st Semester",
+        professor: "",
+      });
+
       return result.data;
     });
   }
@@ -1343,6 +1473,18 @@ function getRemoteSession() {
         "Curriculum subject update"
       );
       if (result.error) throw result.error;
+
+      // ===== SYNC: Update subject in 'subjects' =====
+      if (data.name) {
+        await ensureSubjectInSubjects({
+          name: data.name.trim(),
+          schedule: data.schedule || "",
+          year: data.year || "1st Year",
+          semester: data.semester || "1st Semester",
+          professor: "",
+        });
+      }
+
       return result.data;
     });
   }
@@ -1649,7 +1791,6 @@ function getRemoteSession() {
           email: email.trim().toLowerCase(),
           password: password,
           options: {
-            // Store all signup fields in auth metadata so they survive email-confirmation flow
             data: {
               full_name: cleanName,
               name: cleanName,
@@ -1677,7 +1818,6 @@ function getRemoteSession() {
       }
 
       if (response.data.session) {
-        // Session created immediately — save profile row right now
         saveRemoteUserSession(createdUser);
         await upsertRemoteProfile({
           name: cleanName,
@@ -1686,8 +1826,6 @@ function getRemoteSession() {
           section: cleanSection,
         });
 
-        // ===== SEND WELCOME EMAIL VIA BREVO (Template 12) =====
-        // Fire and forget — don't block signup if email fails
         sendWelcomeEmail(createdUser.email, cleanName)
           .then(() => console.log("[ClassConnect] Welcome email sent via Brevo."))
           .catch(err => console.warn("[ClassConnect] Could not send welcome email:", err));
@@ -1754,9 +1892,6 @@ function getRemoteSession() {
       saveRemoteUserSession(response.data.user);
       await loadRemoteProfile();
 
-      // Bootstrap profile from auth metadata when:
-      // (a) no section was ever saved, OR
-      // (b) section is still the old hardcoded default "BSIT 3-A" but signup metadata has the real value
       var meta = (response.data.user.user_metadata) || {};
       if (meta.section && remoteProfile) {
         var profileSec = normalizeSection(remoteProfile.section || "");
@@ -1848,7 +1983,6 @@ function getRemoteSession() {
         return { success: false, message: response.error.message || "Unable to update your password." };
       }
 
-      // ===== SEND PASSWORD CHANGED EMAIL VIA BREVO (Template 16) =====
       sendPasswordChangedEmail(user.email, user.name || "Student")
         .then(() => console.log("[ClassConnect] Password changed email sent via Brevo."))
         .catch(err => console.warn("[ClassConnect] Could not send password changed email:", err));
@@ -1866,16 +2000,6 @@ function getRemoteSession() {
   }
 
   // ===== BREVO EMAIL HELPER FUNCTIONS =====
-  // These functions call the 'send-email' Edge Function to send emails using Brevo templates.
-
-  /**
-   * Send an email via the Brevo Edge Function.
-   * @param {string} to - Recipient email address
-   * @param {string} name - Recipient name
-   * @param {number} templateId - Brevo template ID (10, 12, 14, or 16)
-   * @param {object} params - Template parameters (e.g., { user_name, user_email, reset_link })
-   * @returns {Promise<object>} - Response from Edge Function
-   */
   async function sendBrevoEmail(to, name, templateId, params) {
     try {
       const { data, error } = await supabaseClient.functions.invoke('send-email', {
@@ -1889,32 +2013,18 @@ function getRemoteSession() {
     }
   }
 
-  /**
-   * Send Welcome / Sign Up confirmation email (Template 12)
-   */
   async function sendWelcomeEmail(email, name) {
     return await sendBrevoEmail(email, name, 12, { user_name: name, user_email: email });
   }
 
-  /**
-   * Send Password Reset email (Template 10)
-   * NOTE: This is now called by the Edge Function 'send-reset-email', not directly from frontend.
-   * We keep this for completeness.
-   */
   async function sendResetLinkEmail(email, name, resetLink) {
     return await sendBrevoEmail(email, name, 10, { user_name: name, user_email: email, reset_link: resetLink });
   }
 
-  /**
-   * Send Account Deletion confirmation email (Template 14)
-   */
   async function sendDeletionConfirmEmail(email, name) {
     return await sendBrevoEmail(email, name, 14, { user_name: name, user_email: email });
   }
 
-  /**
-   * Send Password Changed confirmation email (Template 16)
-   */
   async function sendPasswordChangedEmail(email, name) {
     return await sendBrevoEmail(email, name, 16, { user_name: name, user_email: email });
   }
@@ -1931,7 +2041,6 @@ function getRemoteSession() {
       target.style.display = "";
     }
 
-    // Clear any reset-mode inline style overrides so CSS rules take effect properly
     if (pageId === "dashboard-page") {
       var topnavEl = document.querySelector(".dashboard-topnav");
       if (topnavEl) topnavEl.style.display = "";
@@ -2105,8 +2214,6 @@ function getRemoteSession() {
     function applyLandscapeLock() {
       var lock = document.getElementById("landscape-lock");
       if (!lock) return;
-      // Only enforce portrait on mobile phones (touch device with a small screen).
-      // Desktop monitors are always wider than tall — never show the overlay there.
       var isMobilePhone = navigator.maxTouchPoints > 0 &&
         Math.min(screen.width, screen.height) <= 480;
       var isLandscape = window.innerWidth > window.innerHeight;
@@ -2155,14 +2262,12 @@ function getRemoteSession() {
         '</div>';
       container.appendChild(div);
     });
-    // Attach delete event listeners (delegation will also work, but we can attach directly)
     container.querySelectorAll(".comment-delete-btn").forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
         var commentId = btn.getAttribute("data-comment-id");
         showConfirm("Delete this comment?", function () {
           withLoading(function () { return deleteComment(commentId); }).then(function () {
-            // Reload posts to refresh comments
             loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
           }).catch(function (err) {
             showToast(err.message || "Could not delete comment.", "error");
@@ -2179,17 +2284,13 @@ function getRemoteSession() {
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
     
-    // Clear the feed immediately so stale content doesn't linger
     feed.innerHTML = "";
 
     try {
       var posts = await getPosts();
 
-      // ===== FIX: bail if a newer call has started =====
       if (myCallId !== _loadPostsCallId) return;
-      // =================================================
 
-      // ===== FIX: Robust deduplication by post.id =====
       var uniquePosts = [];
       var seenIds = new Set();
       for (var i = 0; i < posts.length; i++) {
@@ -2200,9 +2301,7 @@ function getRemoteSession() {
         }
       }
       posts = uniquePosts;
-      // ===============================================
 
-      // Apply search filter if query provided
       if (searchQuery && searchQuery.trim() !== "") {
         var q = searchQuery.trim().toLowerCase();
         posts = posts.filter(function (p) {
@@ -2214,20 +2313,17 @@ function getRemoteSession() {
         });
       }
 
-      // Fetch comments for all posts
       var postIds = posts.map(function (p) { return p.id; });
       var allComments = [];
       if (postIds.length > 0) {
         allComments = await getCommentsForPosts(postIds);
       }
-      // Group comments by post_id
       var commentsByPost = {};
       allComments.forEach(function (c) {
         if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = [];
         commentsByPost[c.post_id].push(c);
       });
 
-      // Clear the feed again before rendering (in case something else modified it)
       feed.innerHTML = "";
 
       if (posts.length === 0) {
@@ -2240,10 +2336,8 @@ function getRemoteSession() {
         return;
       }
 
-      // Keep the same rendering as before
       var user = getCurrentUser();
       for (var j = 0; j < posts.length; j++) {
-        // Bail immediately if a newer loadPosts call has started (prevents duplicate rendering)
         if (myCallId !== _loadPostsCallId) return;
 
         var post = posts[j];
@@ -2252,10 +2346,8 @@ function getRemoteSession() {
         var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy" class="post-img-zoomable" data-viewer-src="' + post.image + '"></div>' : "";
         var tagHtml = post.tag ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>' : "";
 
-        // Pass the already-fetched posts list so these functions don't re-fetch from Supabase
         var canDel = await canDeletePost(post.id, posts);
         var canEdt = await canEditPost(post.id, posts);
-        // Fetch acknowledgments once and derive hasAck from the result (avoids a redundant round-trip)
         var acks = await getPostAcknowledgments(post.id);
         if (myCallId !== _loadPostsCallId) return;
         var hasAck = user ? acks.some(function (a) { return a.user_id === user.id; }) : false;
@@ -2276,7 +2368,6 @@ function getRemoteSession() {
         }
         actionsHtml += '</div>';
         actionsHtml += '<div class="post-footer-right">';
-        // Comments button
         var commentCount = (commentsByPost[post.id] || []).length;
         actionsHtml +=
           '<button class="btn-comments" data-post-id="' + post.id + '">' +
@@ -2297,7 +2388,6 @@ function getRemoteSession() {
         }
         actionsHtml += '</div></div>';
 
-        // Comments section
         var commentsSectionId = "comments-container-" + post.id;
         var commentsHtml =
           '<div class="post-comments-section">' +
@@ -2329,7 +2419,6 @@ function getRemoteSession() {
           commentsHtml;
         feed.appendChild(card);
 
-        // Render comments into the container
         var commentsContainer = document.getElementById(commentsSectionId);
         if (commentsContainer) {
           var postComments = commentsByPost[post.id] || [];
@@ -2337,7 +2426,6 @@ function getRemoteSession() {
         }
       }
 
-      // Attach event listeners
       feed.querySelectorAll(".btn-delete-post").forEach(function (btn) {
         btn.addEventListener("click", function () {
           showConfirm("Delete this post?", function () {
@@ -2377,7 +2465,6 @@ function getRemoteSession() {
         });
       });
 
-      // Comments: submit
       feed.querySelectorAll(".comment-submit-btn").forEach(function (btn) {
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
@@ -2397,7 +2484,6 @@ function getRemoteSession() {
           });
         });
       });
-      // Also allow Enter key on comment input
       feed.querySelectorAll(".comment-input").forEach(function (input) {
         input.addEventListener("keydown", function (e) {
           if (e.key === "Enter") {
@@ -2503,7 +2589,6 @@ function getRemoteSession() {
     try {
       var allSubjects = await getSubjects();
 
-      // Apply year/semester filter
       var subjectYearBtn = document.querySelector(".subject-year-filter.active");
       var subjectFilterYear = subjectYearBtn ? subjectYearBtn.getAttribute("data-year") : "all";
       var subjectSemEl = document.getElementById("subjects-semester-filter");
@@ -2514,7 +2599,6 @@ function getRemoteSession() {
         return yMatch && sMatch;
       });
 
-      // ===== NEW: Sort subjects by day and start time =====
       subjects = subjects.slice().sort(function (a, b) {
         return getSortKey(a.schedule) - getSortKey(b.schedule);
       });
@@ -2607,7 +2691,6 @@ function getRemoteSession() {
         list.appendChild(card);
       }
 
-      // Attach events
       list.querySelectorAll(".btn-edit-subject").forEach(function (btn) {
         btn.addEventListener("click", function () { editSubject(btn.getAttribute("data-id")); });
       });
@@ -2680,25 +2763,21 @@ function getRemoteSession() {
     const list = document.getElementById("schedule-list");
     if (!list) return;
     try {
-      // Fetch subjects and manual schedule entries in parallel
       var results = await Promise.all([getSubjects(), getSchedule()]);
       var allSubjects = results[0];
       var schedule = results[1];
 
-      // Get schedule year/semester filter
       var schedYearBtn = document.querySelector(".schedule-year-filter.active");
       var schedFilterYear = schedYearBtn ? schedYearBtn.getAttribute("data-year") : "all";
       var schedSemEl = document.getElementById("schedule-semester-filter");
       var schedFilterSem = schedSemEl ? schedSemEl.value : "all";
 
-      // Filter subjects by year/semester
       var filteredSubjects = allSubjects.filter(function (s) {
         var yMatch = (schedFilterYear === "all" || (s.year || "1st Year") === schedFilterYear);
         var sMatch = (schedFilterSem === "all" || (s.semester || "1st Semester") === schedFilterSem);
         return yMatch && sMatch;
       });
 
-      // ===== NEW: Sort subjects-derived schedule cards by day and start time =====
       filteredSubjects = filteredSubjects.slice().sort(function (a, b) {
         return getSortKey(a.schedule) - getSortKey(b.schedule);
       });
@@ -2715,7 +2794,6 @@ function getRemoteSession() {
         return;
       }
 
-      // ---- SECTION 1: Subjects from My Subjects (synced) ----
       if (filteredSubjects.length > 0) {
         var subjHeader = document.createElement("div");
         subjHeader.className = "schedule-section-header";
@@ -2746,14 +2824,12 @@ function getRemoteSession() {
         });
       }
 
-      // ---- SECTION 2: Manual schedule entries ----
       if (schedule.length > 0) {
         var manualHeader = document.createElement("div");
         manualHeader.className = "schedule-section-header";
         manualHeader.innerHTML = '<i class="fas fa-calendar-plus"></i> Manual Entries';
         list.appendChild(manualHeader);
 
-        // ===== NEW: Sort manual schedule entries by day and start time =====
         var sorted = schedule.slice().sort(function (a, b) {
           var da = getEarliestDayValue(a.day);
           var db = getEarliestDayValue(b.day);
@@ -2930,7 +3006,6 @@ function getRemoteSession() {
     const semester = semEl ? semEl.value : "all";
 
     try {
-      // Fetch both grades and subjects in parallel
       var results = await Promise.all([getGrades(), getSubjects()]);
       var grades = results[0];
       var subjects = results[1];
@@ -2941,7 +3016,6 @@ function getRemoteSession() {
         return yMatch && sMatch;
       });
 
-      // Find subjects that match the current year/semester filter but have no grade entry yet
       var gradedNames = filtered.map(function (g) { return g.subject.toLowerCase().trim(); });
       var ungradedSubjects = subjects.filter(function (s) {
         var yMatch = (year === "all" || !year || (s.year || "1st Year") === year);
@@ -2950,8 +3024,6 @@ function getRemoteSession() {
         return yMatch && sMatch && notGraded;
       });
 
-      // ===== NEW: Sort graded and ungraded subject cards by day and start time =====
-      // Build a map from subject name to schedule text, if available, for graded items
       var subjectScheduleMap = {};
       subjects.forEach(function (s) {
         subjectScheduleMap[s.name.toLowerCase().trim()] = s.schedule || "";
@@ -2981,7 +3053,6 @@ function getRemoteSession() {
         return;
       }
 
-      // Render graded subjects
       filtered.forEach(function (item) {
         var div = document.createElement("div");
         div.className = "grade-item" + (item.exclude ? " grade-excluded" : "");
@@ -3021,7 +3092,6 @@ function getRemoteSession() {
         list.appendChild(div);
       });
 
-      // Render ungraded subjects (from the Subjects page) as "Not Graded" cards
       ungradedSubjects.forEach(function (s) {
         var div = document.createElement("div");
         div.className = "grade-item grade-not-graded";
@@ -3048,7 +3118,6 @@ function getRemoteSession() {
         list.appendChild(div);
       });
 
-      // Quick-add grade handler for ungraded subject buttons
       list.querySelectorAll(".btn-add-grade-for-subject").forEach(function (btn) {
         btn.addEventListener("click", function () {
           document.getElementById("grade-edit-id").value = "";
@@ -3063,7 +3132,6 @@ function getRemoteSession() {
         });
       });
 
-      // Event listeners
       list.querySelectorAll(".btn-toggle-exclude").forEach(function (btn) {
         btn.addEventListener("click", function () {
           withLoading(function () { return toggleGradeExclude(btn.getAttribute("data-id")); }).then(function () {
@@ -3091,7 +3159,6 @@ function getRemoteSession() {
         });
       });
 
-      // Calculate GWA
       var gwa = calculateGWA(grades, year, semester);
       if (gwaDisplay) {
         gwaDisplay.textContent = gwa > 0 ? gwa.toFixed(4).replace(/00$/, '') : "0.00";
@@ -3232,7 +3299,6 @@ function getRemoteSession() {
 
     var result = [];
 
-    // 1. Registered users matching section from Supabase
     if (currentUser && isSupabaseReady()) {
       try {
         var client = getSupabaseClient();
@@ -3267,7 +3333,6 @@ function getRemoteSession() {
       }
     }
 
-    // 2. Demo classmates matching section
     var demo = getDemoClassmates();
     demo.forEach(function (cm) {
       var cmSec = normalizeSection(cm.section);
@@ -3363,7 +3428,6 @@ function getRemoteSession() {
     var corSection = document.getElementById("cor-pdf-section");
     if (!list) return;
 
-    // Show inline loading spinner while data loads
     list.innerHTML =
       '<div class="curriculum-loading-state">' +
         '<div class="curriculum-spinner"><i class="fas fa-circle-notch fa-spin"></i></div>' +
@@ -3375,7 +3439,6 @@ function getRemoteSession() {
     try {
       if (pdfSection) pdfSection.style.opacity = "";
       if (corSection) corSection.style.opacity = "";
-      // Load PDF section
       if (pdfSection) {
         var pdfData = await getCurriculumPDF();
         if (pdfData) {
@@ -3455,7 +3518,6 @@ function getRemoteSession() {
         }
       }
 
-      // Load COR section
       if (corSection) {
         var corData = await getCORPDF();
         if (corData) {
@@ -3537,7 +3599,6 @@ function getRemoteSession() {
         }
       }
 
-      // Fetch curriculum subjects, user subjects, and grades in parallel
       var fetchResults = await Promise.all([getCurriculumSubjects(), getSubjects(), getGrades()]);
       var curriculumSubjects = fetchResults[0];
       var mySubjects       = fetchResults[1];
@@ -3548,20 +3609,17 @@ function getRemoteSession() {
       var semSelect = document.getElementById("curriculum-semester-filter");
       var filterSem = semSelect ? semSelect.value : "all";
 
-      // Build grade lookup map (by subject name, case-insensitive)
       var gradeMap = {};
       allGrades.forEach(function (g) {
         var key = g.subject.toLowerCase().trim();
         if (!gradeMap[key]) gradeMap[key] = g;
       });
 
-      // Build set of names already in curriculum_subjects so we don't duplicate
       var curriculumNameSet = {};
       curriculumSubjects.forEach(function (s) {
         curriculumNameSet[s.name.toLowerCase().trim()] = true;
       });
 
-      // Merge: user subjects not already in curriculum_subjects become read-only cards
       var syncedFromSubjects = mySubjects
         .filter(function (s) { return !curriculumNameSet[s.name.toLowerCase().trim()]; })
         .map(function (s) {
@@ -3578,14 +3636,12 @@ function getRemoteSession() {
 
       var allItems = curriculumSubjects.concat(syncedFromSubjects);
 
-      // Apply year/semester filter
       var filtered = allItems.filter(function (s) {
         var matchYear = (filterYear === "all" || s.year === filterYear);
         var matchSem  = (filterSem  === "all" || (s.semester || "1st Semester") === filterSem);
         return matchYear && matchSem;
       });
 
-      // ===== NEW: Sort curriculum subject cards by day and start time =====
       filtered = filtered.slice().sort(function (a, b) {
         return getSortKey(a.schedule) - getSortKey(b.schedule);
       });
@@ -3606,7 +3662,6 @@ function getRemoteSession() {
         card.className = "curriculum-subject-card";
         card.style.borderLeftColor = stringToColor(item.name);
 
-        // Grade display
         var matchedGrade = gradeMap[item.name.toLowerCase().trim()];
         var gradeHtml;
         if (matchedGrade) {
@@ -3618,12 +3673,10 @@ function getRemoteSession() {
           gradeHtml = '<span class="cs-grade-badge cs-grade-na">Not Graded</span>';
         }
 
-        // Synced badge for subjects that came from My Subjects
         var syncBadge = item._fromSubjects
           ? '<span class="cs-synced-badge"><i class="fas fa-link"></i> From Subjects</span>'
           : '';
 
-        // Actions: curriculum subjects are editable/deletable; synced ones are managed in Subjects
         var actionsHtml = item._fromSubjects
           ? '<span class="cs-synced-hint">Manage in Subjects</span>'
           : '<button class="btn-icon btn-edit-curriculum" data-id="' + item.id + '" title="Edit"><i class="fas fa-pen"></i></button>' +
@@ -3844,25 +3897,21 @@ function getRemoteSession() {
     if (!editor) return;
     document.querySelectorAll("#post-modal-overlay .toolbar-btn[data-command]").forEach(function (btn) {
       btn.addEventListener("mousedown", function (e) {
-        e.preventDefault(); // keep focus on editor
+        e.preventDefault();
         var cmd = btn.getAttribute("data-command");
         document.execCommand(cmd, false, null);
-        // Update all toolbar button states after the command
         setTimeout(function () { updateToolbarState("#post-modal-overlay"); }, 0);
       });
     });
-    // Update toolbar state whenever the cursor moves or selection changes
     editor.addEventListener("keyup", function () { updateToolbarState("#post-modal-overlay"); });
     editor.addEventListener("mouseup", function () { updateToolbarState("#post-modal-overlay"); });
     editor.addEventListener("focus", function () { updateToolbarState("#post-modal-overlay"); });
     var fontSelect = document.getElementById("post-font-select");
     if (fontSelect) {
       fontSelect.addEventListener("mousedown", function () {
-        // Save the current selection before the select steals focus
         fontSelect._savedRange = saveSelection();
       });
       fontSelect.addEventListener("change", function () {
-        // Restore selection then apply font
         if (fontSelect._savedRange) restoreSelection(fontSelect._savedRange);
         document.execCommand("fontName", false, fontSelect.value);
         editor.focus();
@@ -3873,12 +3922,10 @@ function getRemoteSession() {
     if (imageBtn && imageInput) {
       imageBtn.addEventListener("click", function () { imageInput.click(); });
 
-      // ===== FIXED IMAGE UPLOAD HANDLER =====
       imageInput.addEventListener("change", async function () {
         var file = imageInput.files[0];
         if (!file) return;
 
-        // Validate file size (5MB max)
         if (file.size > 5 * 1024 * 1024) {
           showToast("Image must be smaller than 5 MB.", "error");
           imageInput.value = "";
@@ -3886,7 +3933,6 @@ function getRemoteSession() {
         }
 
         try {
-          // Get current user
           var user = getCurrentUser();
           if (!user) {
             showToast("You must be logged in to upload images.", "error");
@@ -3894,18 +3940,15 @@ function getRemoteSession() {
             return;
           }
 
-          // Ensure Supabase is ready
           if (!isSupabaseReady()) {
             showToast("Supabase is not available. Please check your connection.", "error");
             imageInput.value = "";
             return;
           }
 
-          // Generate a unique filename
           var fileExt = file.name.split('.').pop();
           var fileName = "posts/" + user.id + "/" + Date.now() + "." + fileExt;
 
-          // Upload to Supabase Storage
           var uploadResult = await withLoading(function () {
             return withTimeout(supabaseClient.storage.from('post-images').upload(fileName, file), 8000, "Image upload");
           });
@@ -3914,16 +3957,13 @@ function getRemoteSession() {
             throw new Error(uploadResult.error.message || "Upload failed.");
           }
 
-          // Get the public URL
           var urlData = supabaseClient.storage.from('post-images').getPublicUrl(fileName);
           if (!urlData || !urlData.data || !urlData.data.publicUrl) {
             throw new Error("Could not retrieve the uploaded image URL.");
           }
 
-          // Store the URL for the post
           currentPostImage = urlData.data.publicUrl;
 
-          // Show preview
           var preview = document.getElementById("post-image-preview");
           var img = document.getElementById("post-preview-img");
           if (preview && img) {
@@ -3939,7 +3979,6 @@ function getRemoteSession() {
           imageInput.value = "";
         }
       });
-      // ===== END FIXED IMAGE UPLOAD HANDLER =====
     }
     var removeBtn = document.getElementById("post-remove-image-btn");
     if (removeBtn) {
@@ -3975,14 +4014,12 @@ function getRemoteSession() {
     if (!editor) return;
     document.querySelectorAll("#edit-post-modal-overlay .toolbar-btn[data-command]").forEach(function (btn) {
       btn.addEventListener("mousedown", function (e) {
-        e.preventDefault(); // keep focus on editor
+        e.preventDefault();
         var cmd = btn.getAttribute("data-command");
         document.execCommand(cmd, false, null);
-        // Update all toolbar button states after the command
         setTimeout(function () { updateToolbarState("#edit-post-modal-overlay"); }, 0);
       });
     });
-    // Update toolbar state whenever cursor moves or selection changes
     editor.addEventListener("keyup", function () { updateToolbarState("#edit-post-modal-overlay"); });
     editor.addEventListener("mouseup", function () { updateToolbarState("#edit-post-modal-overlay"); });
     editor.addEventListener("focus", function () { updateToolbarState("#edit-post-modal-overlay"); });
@@ -4014,7 +4051,6 @@ function getRemoteSession() {
     if (img) img.src = "#";
     var fontSel = document.getElementById("post-font-select");
     if (fontSel) fontSel.selectedIndex = 0;
-    // Only clear active state on the create-post toolbar buttons (not edit toolbar)
     document.querySelectorAll("#post-modal-overlay .toolbar-btn.active-toolbar").forEach(function (b) {
       b.classList.remove("active-toolbar");
     });
@@ -4036,7 +4072,7 @@ function getRemoteSession() {
     if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "";
   }
 
-  // ===== EXPORT / IMPORT DATA (Now mostly for settings and maybe migration) =====
+  // ===== EXPORT / IMPORT DATA =====
   function exportData() {
     var user = getCurrentUser();
     var data = {
@@ -4083,7 +4119,6 @@ function getRemoteSession() {
     if (!isSupabaseReady()) throw new Error("Supabase is not available. Please check your connection.");
     var client = getSupabaseClient();
 
-    // Step 1: Re-authenticate to verify the password
     var authResult = await withTimeout(
       client.auth.signInWithPassword({ email: user.email, password: password }),
       10000,
@@ -4097,8 +4132,6 @@ function getRemoteSession() {
       );
     }
 
-    // Step 2: Delete all user data from every table
-    // These tables all use user_id
     var userIdTables = [
       "post_acknowledgments",
       "comments",
@@ -4119,14 +4152,12 @@ function getRemoteSession() {
       );
     }));
 
-    // profiles table uses `id` as its primary key (= auth user id)
     await withTimeout(
       supabaseTable("profiles").delete().eq("id", user.id),
       10000,
       "Delete profile"
     );
 
-    // Step 3: Call the Edge Function to fully delete the auth record
     var funcResult = await withTimeout(
       client.functions.invoke("delete-user"),
       12000,
@@ -4134,19 +4165,15 @@ function getRemoteSession() {
     );
     if (funcResult.error) {
       console.warn("[ClassConnect] Auth record deletion failed:", funcResult.error);
-      // Data is already wiped — still sign out even if auth deletion fails
     }
 
-    // Step 4: Send deletion confirmation email via Brevo (Template 14)
     try {
       await sendDeletionConfirmEmail(user.email, user.name || "Student");
       console.log("[ClassConnect] Deletion confirmation email sent.");
     } catch (emailErr) {
       console.warn("[ClassConnect] Could not send deletion confirmation email:", emailErr);
-      // Don't fail the deletion if email fails
     }
 
-    // Step 5: Clear local data and sign out
     try { localStorage.clear(); } catch (e) {}
     await client.auth.signOut();
   }
@@ -4204,7 +4231,6 @@ function getRemoteSession() {
       }
     }
 
-    // Load all data from Supabase
     try {
       showGlobalLoading();
       loadProfileForm();
@@ -4230,27 +4256,20 @@ function getRemoteSession() {
   // ===== NEW: Password Reset via Brevo + Custom Edge Functions =====
   // ================================================================
 
-  /**
-   * Check the URL for a reset_token parameter.
-   */
   function getResetToken() {
     var params = new URLSearchParams(window.location.search);
     return params.get('reset_token');
   }
 
-  // ===== NEW: Show the Reset Password View (Secret Page) instead of modal =====
   function showResetPasswordView(token) {
-    // Fill token field
     document.getElementById('reset-token-field-view').value = token || '';
     document.getElementById('reset-new-password-view').value = '';
     document.getElementById('reset-confirm-password-view').value = '';
     hideError('reset-error-view');
     hideError('reset-success-view');
-    // Switch to the reset view
     switchView('view-reset-password');
   }
 
-  // ===== Keep old modal function for compatibility (but not used) =====
   function showResetPasswordModal(token) {
     document.getElementById('reset-token-field').value = token || '';
     document.getElementById('reset-new-password').value = '';
@@ -4338,7 +4357,6 @@ function getRemoteSession() {
         var section   = sectionInput   ? (sectionInput.value   || "").trim() : "";
         var password  = passwordInput  ? (passwordInput.value  || "")        : "";
         var confirm   = confirmInput   ? (confirmInput.value   || "")        : "";
-        // Validate all fields
         if (name.length < 2)     { showError("signup-error", "Please enter your full name."); return; }
         if (!isValidEmail(email)){ showError("signup-error", "Please enter a valid email address."); return; }
         if (!studentId)          { showError("signup-error", "Please enter your Student ID number."); return; }
@@ -4431,7 +4449,6 @@ function getRemoteSession() {
       if (imgViewerImg) imgViewerImg.src = "";
     }
 
-    // Delegate clicks on all zoomable post images (works for dynamically added posts)
     var postsFeed = document.getElementById("posts-feed");
     if (postsFeed) {
       postsFeed.addEventListener("click", function (e) {
@@ -4439,7 +4456,6 @@ function getRemoteSession() {
         if (img) openImageViewer(img.getAttribute("data-viewer-src") || img.src);
       });
     }
-    // Delegate clicks on QR code images in Support HDDev view
     var supportView = document.getElementById("view-support");
     if (supportView) {
       supportView.addEventListener("click", function (e) {
@@ -4447,7 +4463,6 @@ function getRemoteSession() {
         if (img) openImageViewer(img.src);
       });
     }
-    // Close by clicking anywhere on the overlay (tap outside / tap image)
     if (imgViewerOverlay) {
       imgViewerOverlay.addEventListener("click", closeImageViewer);
     }
@@ -4456,7 +4471,6 @@ function getRemoteSession() {
         closeImageViewer();
       }
     });
-    // ===== END IMAGE VIEWER =====
 
     var hamburger = document.getElementById("hamburger-btn");
     var drawerClose = document.getElementById("drawer-close-btn");
@@ -4487,7 +4501,7 @@ function getRemoteSession() {
       });
     }
 
-    // ----- FORGOT PASSWORD: Replace Supabase built-in with custom Edge Function -----
+    // ----- FORGOT PASSWORD -----
     var forgotLink = document.querySelector(".forgot-link");
     if (forgotLink) {
       forgotLink.addEventListener("click", function (e) {
@@ -4530,7 +4544,6 @@ function getRemoteSession() {
         var btn = forgotForm.querySelector(".btn-primary");
         setButtonLoading(btn, true);
 
-        // Use the new Edge Function instead of Supabase built-in
         withLoading(function () {
           return fetch(SUPABASE_URL + "/functions/v1/send-reset-email", {
             method: "POST",
@@ -4570,7 +4583,7 @@ function getRemoteSession() {
       });
     }
 
-    // ===== NEW: Reset Password View Handlers (Secret Page) =====
+    // ===== NEW: Reset Password View Handlers =====
     var resetViewForm = document.getElementById('reset-password-form-view');
     if (resetViewForm) {
       resetViewForm.addEventListener('submit', function (e) {
@@ -4613,7 +4626,6 @@ function getRemoteSession() {
               showToast('Password updated! Redirecting to login...', 'success');
 
               setTimeout(function () {
-                // Clean URL and go to login
                 if (window.history && window.history.replaceState) {
                   window.history.replaceState(null, null, window.location.pathname);
                 }
@@ -4632,7 +4644,6 @@ function getRemoteSession() {
       });
     }
 
-    // "Back to Login" link for the new view
     var resetBackToLoginView = document.getElementById('reset-back-to-login-view');
     if (resetBackToLoginView) {
       resetBackToLoginView.addEventListener('click', function (e) {
@@ -4645,7 +4656,7 @@ function getRemoteSession() {
       });
     }
 
-    // ----- Keep old modal handlers for compatibility (they won't interfere) -----
+    // ----- Keep old modal handlers for compatibility -----
     var resetModalOverlay = document.getElementById("reset-password-modal-overlay");
     var resetCloseBtn = document.getElementById("close-reset-modal-btn");
     var resetBackToLogin = document.getElementById("reset-back-to-login");
@@ -4737,11 +4748,10 @@ function getRemoteSession() {
     if (resetModalOverlay) {
       resetModalOverlay.addEventListener("click", function (e) {
         if (e.target === resetModalOverlay) {
-          // Keep it as is; we allow outside click to close? We'll just ignore.
+          // ignore
         }
       });
     }
-    // ===== END Reset Password Modal Handlers =====
 
     // ----- POST MODAL -----
     var composerBtn1 = document.getElementById("open-composer-btn");
@@ -5341,12 +5351,11 @@ function getRemoteSession() {
       });
     }
 
-    // ----- INACTIVITY: reset timer on any user activity -----
+    // ----- INACTIVITY -----
     ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach(function (evName) {
       document.addEventListener(evName, resetInactivityTimer, { passive: true });
     });
 
-    // ----- INACTIVITY MODAL: Back to Login button -----
     var inactivityBackBtn = document.getElementById("inactivity-back-to-login-btn");
     if (inactivityBackBtn) {
       inactivityBackBtn.addEventListener("click", function () {
@@ -5378,23 +5387,18 @@ function getRemoteSession() {
   function routeAfterSplash() {
     console.log("[ClassConnect] Splash timer completed; checking authentication.");
 
-    // First, check for a reset token in the URL
     var resetToken = getResetToken();
     if (resetToken) {
       console.log("[ClassConnect] Reset token detected. Showing reset view.");
-      // Show the dashboard page so the reset view inside it is visible
       showPage("dashboard-page");
-      // Hide navigation elements — this is a secret reset-only page, not a normal logged-in session
       var resetTopnav = document.querySelector(".dashboard-topnav");
       var resetBottomNav = document.querySelector(".bottom-nav");
       if (resetTopnav) resetTopnav.style.display = "none";
       if (resetBottomNav) resetBottomNav.style.display = "none";
       showResetPasswordView(resetToken);
-      // Remove token from URL without reloading page
       if (window.history && window.history.replaceState) {
         window.history.replaceState(null, null, window.location.pathname);
       }
-      // Hide offline banner if it's showing
       var banner = document.getElementById("offline-banner");
       if (banner) banner.hidden = true;
       return;
