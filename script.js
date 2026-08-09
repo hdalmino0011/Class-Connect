@@ -348,6 +348,94 @@ function getRemoteSession() {
     return h + ":" + m + " " + ampm;
   }
 
+  // =========================================================
+  // ===== NEW: DAY-OF-WEEK SORTING HELPERS =====
+  // Sunday = 0, Monday = 1, Tuesday = 2, Wednesday = 3,
+  // Thursday = 4, Friday = 5, Saturday = 6
+  // (Sunday sorts first, Saturday sorts last — matches a
+  // standard week layout used across Subjects, Schedule,
+  // Grades, and Curriculum.)
+  // =========================================================
+  var FULL_DAY_NAMES = [
+    ["sunday", 0], ["monday", 1], ["tuesday", 2], ["wednesday", 3],
+    ["thursday", 4], ["friday", 5], ["saturday", 6]
+  ];
+
+  var ABBR_DAY_PATTERNS = [
+    [/\bsun\b/i, 0], [/\bmon\b/i, 1], [/\btues?\b/i, 2], [/\bweds?\b/i, 3],
+    [/\bthurs?\b/i, 4], [/\bthu\b/i, 4], [/\bfri\b/i, 5], [/\bsat\b/i, 6]
+  ];
+
+  // Parses compact day-letter codes like "MWF", "TTh", "MTWThFSSu".
+  // Two-letter tokens (Th, Sa, Su) are matched before single letters
+  // so "Th" isn't mistaken for "T" (Tuesday) + stray "h".
+  function parseCompactDayCodes(rawText) {
+    var found = [];
+    var letters = (rawText || "").replace(/[^A-Za-z]/g, "");
+    var i = 0;
+    while (i < letters.length) {
+      var two = letters.substr(i, 2).toLowerCase();
+      if (two === "th") { found.push(4); i += 2; continue; }
+      if (two === "sa") { found.push(6); i += 2; continue; }
+      if (two === "su") { found.push(0); i += 2; continue; }
+      var one = letters.charAt(i).toLowerCase();
+      if (one === "m") { found.push(1); i += 1; continue; }
+      if (one === "t") { found.push(2); i += 1; continue; } // standalone T => Tuesday
+      if (one === "w") { found.push(3); i += 1; continue; }
+      if (one === "f") { found.push(5); i += 1; continue; }
+      if (one === "s") { found.push(6); i += 1; continue; } // standalone S => Saturday
+      i += 1; // unrecognized letter, skip
+    }
+    return found;
+  }
+
+  // Extracts every day-of-week (0=Sunday..6=Saturday) mentioned in a
+  // free-text schedule/day string, e.g. "MWF 10:00-11:30 AM",
+  // "Wednesday - Thursday", "Mon, Tue, Wed", "Friday | 9am-12pm".
+  function extractDaysFromText(text) {
+    if (!text) return [];
+    var lower = String(text).toLowerCase();
+    var days = [];
+    var seen = {};
+
+    function add(v) {
+      if (!seen[v]) { seen[v] = true; days.push(v); }
+    }
+
+    FULL_DAY_NAMES.forEach(function (pair) {
+      var re = new RegExp("\\b" + pair[0] + "\\b", "i");
+      if (re.test(lower)) add(pair[1]);
+    });
+
+    if (days.length === 0) {
+      ABBR_DAY_PATTERNS.forEach(function (pair) {
+        if (pair[0].test(lower)) add(pair[1]);
+      });
+    }
+
+    if (days.length === 0) {
+      // Fall back to compact letter-code parsing (e.g. "MWF", "TTh"),
+      // restricted to the portion of the text before the first digit so
+      // times, room numbers, etc. don't get misread as day letters.
+      var digitIdx = lower.search(/[0-9]/);
+      var segment = digitIdx === -1 ? String(text) : String(text).substring(0, digitIdx);
+      segment = segment.split("|")[0].trim();
+      if (segment && segment.replace(/[^A-Za-z]/g, "").length > 0 && segment.length <= 20) {
+        parseCompactDayCodes(segment).forEach(add);
+      }
+    }
+
+    return days;
+  }
+
+  // Returns the earliest day (0=Sunday..6=Saturday) mentioned in the text,
+  // or 99 if no recognizable day is found (so undated items sort last).
+  function getEarliestDayValue(text) {
+    var days = extractDaysFromText(text);
+    if (days.length === 0) return 99;
+    return Math.min.apply(null, days);
+  }
+
   function isAdmin() {
     var user = getCurrentUser();
     if (!user) return false;
@@ -2377,6 +2465,12 @@ function getRemoteSession() {
         return yMatch && sMatch;
       });
 
+      // ===== NEW: Sort subjects by day-of-week (Sunday first, Saturday last),
+      // based on the free-text schedule field (e.g. "MWF 10:00-11:30 AM"). =====
+      subjects = subjects.slice().sort(function (a, b) {
+        return getEarliestDayValue(a.schedule) - getEarliestDayValue(b.schedule);
+      });
+
       list.innerHTML = "";
       if (allSubjects.length === 0) {
         list.innerHTML =
@@ -2556,6 +2650,12 @@ function getRemoteSession() {
         return yMatch && sMatch;
       });
 
+      // ===== NEW: Sort subjects-derived schedule cards by day-of-week
+      // (Sunday first, Saturday last), based on each subject's schedule text. =====
+      filteredSubjects = filteredSubjects.slice().sort(function (a, b) {
+        return getEarliestDayValue(a.schedule) - getEarliestDayValue(b.schedule);
+      });
+
       list.innerHTML = "";
 
       if (filteredSubjects.length === 0 && schedule.length === 0) {
@@ -2606,18 +2706,20 @@ function getRemoteSession() {
         manualHeader.innerHTML = '<i class="fas fa-calendar-plus"></i> Manual Entries';
         list.appendChild(manualHeader);
 
-        const dayOrder = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+        // ===== NEW: Sort manual schedule entries by day-of-week
+        // (Sunday first, Saturday last), then by start time within the same day. =====
         var sorted = schedule.slice().sort(function (a, b) {
-          var da = a.day ? a.day.substring(0, 3) : "";
-          var db = b.day ? b.day.substring(0, 3) : "";
-          var od = (dayOrder[da] !== undefined ? dayOrder[da] : 99) - (dayOrder[db] !== undefined ? dayOrder[db] : 99);
-          return od !== 0 ? od : (a.start_time || "").localeCompare(b.start_time || "");
+          var da = getEarliestDayValue(a.day);
+          var db = getEarliestDayValue(b.day);
+          if (da !== db) return da - db;
+          return (a.start_time || "").localeCompare(b.start_time || "");
         });
         const badgeColors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
         sorted.forEach(function (item) {
           var card = document.createElement("div");
           card.className = "schedule-card";
-          var dayIdx = item.day ? (dayOrder[item.day.substring(0, 3)] !== undefined ? dayOrder[item.day.substring(0, 3)] : 0) : 0;
+          var dayIdx = getEarliestDayValue(item.day);
+          if (dayIdx === 99) dayIdx = 0;
           card.innerHTML =
             '<div class="schedule-card-top">' +
               '<div class="schedule-day-badge" style="background:' + badgeColors[dayIdx % badgeColors.length] + '">' +
@@ -2798,6 +2900,25 @@ function getRemoteSession() {
         var sMatch = (semester === "all" || !semester || (s.semester || "1st Semester") === semester);
         var notGraded = gradedNames.indexOf(s.name.toLowerCase().trim()) === -1;
         return yMatch && sMatch && notGraded;
+      });
+
+      // ===== NEW: Sort graded and ungraded subject cards by day-of-week
+      // (Sunday first, Saturday last). Graded entries are matched to their
+      // corresponding subject's schedule text (by subject name); ungraded
+      // entries use their own schedule field directly. =====
+      var subjectDayMap = {};
+      subjects.forEach(function (s) {
+        subjectDayMap[s.name.toLowerCase().trim()] = getEarliestDayValue(s.schedule);
+      });
+      filtered = filtered.slice().sort(function (a, b) {
+        var keyA = (a.subject || "").toLowerCase().trim();
+        var keyB = (b.subject || "").toLowerCase().trim();
+        var da = subjectDayMap.hasOwnProperty(keyA) ? subjectDayMap[keyA] : 99;
+        var db = subjectDayMap.hasOwnProperty(keyB) ? subjectDayMap[keyB] : 99;
+        return da - db;
+      });
+      ungradedSubjects = ungradedSubjects.slice().sort(function (a, b) {
+        return getEarliestDayValue(a.schedule) - getEarliestDayValue(b.schedule);
       });
 
       list.innerHTML = "";
@@ -3414,6 +3535,12 @@ function getRemoteSession() {
         var matchYear = (filterYear === "all" || s.year === filterYear);
         var matchSem  = (filterSem  === "all" || (s.semester || "1st Semester") === filterSem);
         return matchYear && matchSem;
+      });
+
+      // ===== NEW: Sort curriculum subject cards by day-of-week
+      // (Sunday first, Saturday last), based on each item's schedule text. =====
+      filtered = filtered.slice().sort(function (a, b) {
+        return getEarliestDayValue(a.schedule) - getEarliestDayValue(b.schedule);
       });
 
       list.innerHTML = "";
