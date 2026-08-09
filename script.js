@@ -349,12 +349,10 @@ function getRemoteSession() {
   }
 
   // =========================================================
-  // ===== NEW: DAY-OF-WEEK SORTING HELPERS =====
+  // ===== NEW: DAY-OF-WEEK AND TIME SORTING HELPERS =====
   // Sunday = 0, Monday = 1, Tuesday = 2, Wednesday = 3,
   // Thursday = 4, Friday = 5, Saturday = 6
-  // (Sunday sorts first, Saturday sorts last — matches a
-  // standard week layout used across Subjects, Schedule,
-  // Grades, and Curriculum.)
+  // (Sunday sorts first, Saturday sorts last)
   // =========================================================
   var FULL_DAY_NAMES = [
     ["sunday", 0], ["monday", 1], ["tuesday", 2], ["wednesday", 3],
@@ -434,6 +432,57 @@ function getRemoteSession() {
     var days = extractDaysFromText(text);
     if (days.length === 0) return 99;
     return Math.min.apply(null, days);
+  }
+
+  // ===== NEW: TIME PARSING FOR SORTING =====
+  // Converts a time string like "8:00", "8:00am", "8am", "08:00", "08:00 AM" to minutes since midnight.
+  function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    var cleaned = timeStr.trim().toLowerCase();
+    // Detect am/pm
+    var ampm = '';
+    if (cleaned.includes('am')) ampm = 'am';
+    else if (cleaned.includes('pm')) ampm = 'pm';
+    cleaned = cleaned.replace(/[ap]m/g, '').trim();
+    // Remove colon and parse hours/minutes
+    var parts = cleaned.split(':');
+    var hours = parseInt(parts[0], 10) || 0;
+    var minutes = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+    if (ampm === 'pm' && hours < 12) hours += 12;
+    if (ampm === 'am' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+
+  // Extracts the first start time found in a free-text schedule string and returns minutes since midnight.
+  // Returns null if no time pattern is found.
+  function extractStartTimeFromText(text) {
+    if (!text) return null;
+    // Look for a time range like "8:00-9:00", "8-9am", "8:00am - 9:00am", "10:00-11:30 AM", "MWF 10:00-11:30 AM"
+    // We'll search for a pattern: (\d{1,2}:\d{2}\s*[ap]?m?)\s*[-–—]\s*(\d{1,2}:\d{2}\s*[ap]?m?)
+    var matches = text.match(/(\d{1,2}(?::\d{2})?\s*[ap]?m?)\s*[-–—]\s*(\d{1,2}(?::\d{2})?\s*[ap]?m?)/i);
+    if (matches) {
+      var start = matches[1];
+      return parseTimeToMinutes(start);
+    }
+    // Fallback: find any time like "8:00am", "8am", "8:00" - treat as start time
+    var single = text.match(/\b(\d{1,2}(?::\d{2})?\s*[ap]?m?)\b/);
+    if (single) {
+      return parseTimeToMinutes(single[1]);
+    }
+    return null;
+  }
+
+  // Returns a numeric sort key: dayIndex * 10000 + startMinutes, with 99 for no day pushed to the end.
+  // This ensures sorting by day first, then by start time within the same day.
+  function getSortKey(text) {
+    var day = getEarliestDayValue(text);
+    var startMin = extractStartTimeFromText(text);
+    if (startMin === null) startMin = 0;
+    // If day is 99 (no day), put after all; use a very large number.
+    if (day === 99) {
+      return 9999999 + startMin; // ensures no-day items sort last, and among themselves by start time.
+    }
+    return day * 10000 + startMin;
   }
 
   function isAdmin() {
@@ -2465,10 +2514,9 @@ function getRemoteSession() {
         return yMatch && sMatch;
       });
 
-      // ===== NEW: Sort subjects by day-of-week (Sunday first, Saturday last),
-      // based on the free-text schedule field (e.g. "MWF 10:00-11:30 AM"). =====
+      // ===== NEW: Sort subjects by day and start time =====
       subjects = subjects.slice().sort(function (a, b) {
-        return getEarliestDayValue(a.schedule) - getEarliestDayValue(b.schedule);
+        return getSortKey(a.schedule) - getSortKey(b.schedule);
       });
 
       list.innerHTML = "";
@@ -2650,10 +2698,9 @@ function getRemoteSession() {
         return yMatch && sMatch;
       });
 
-      // ===== NEW: Sort subjects-derived schedule cards by day-of-week
-      // (Sunday first, Saturday last), based on each subject's schedule text. =====
+      // ===== NEW: Sort subjects-derived schedule cards by day and start time =====
       filteredSubjects = filteredSubjects.slice().sort(function (a, b) {
-        return getEarliestDayValue(a.schedule) - getEarliestDayValue(b.schedule);
+        return getSortKey(a.schedule) - getSortKey(b.schedule);
       });
 
       list.innerHTML = "";
@@ -2706,13 +2753,14 @@ function getRemoteSession() {
         manualHeader.innerHTML = '<i class="fas fa-calendar-plus"></i> Manual Entries';
         list.appendChild(manualHeader);
 
-        // ===== NEW: Sort manual schedule entries by day-of-week
-        // (Sunday first, Saturday last), then by start time within the same day. =====
+        // ===== NEW: Sort manual schedule entries by day and start time =====
         var sorted = schedule.slice().sort(function (a, b) {
           var da = getEarliestDayValue(a.day);
           var db = getEarliestDayValue(b.day);
           if (da !== db) return da - db;
-          return (a.start_time || "").localeCompare(b.start_time || "");
+          var ta = parseTimeToMinutes(a.start_time);
+          var tb = parseTimeToMinutes(b.start_time);
+          return ta - tb;
         });
         const badgeColors = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
         sorted.forEach(function (item) {
@@ -2902,23 +2950,23 @@ function getRemoteSession() {
         return yMatch && sMatch && notGraded;
       });
 
-      // ===== NEW: Sort graded and ungraded subject cards by day-of-week
-      // (Sunday first, Saturday last). Graded entries are matched to their
-      // corresponding subject's schedule text (by subject name); ungraded
-      // entries use their own schedule field directly. =====
-      var subjectDayMap = {};
+      // ===== NEW: Sort graded and ungraded subject cards by day and start time =====
+      // Build a map from subject name to schedule text, if available, for graded items
+      var subjectScheduleMap = {};
       subjects.forEach(function (s) {
-        subjectDayMap[s.name.toLowerCase().trim()] = getEarliestDayValue(s.schedule);
+        subjectScheduleMap[s.name.toLowerCase().trim()] = s.schedule || "";
       });
+
       filtered = filtered.slice().sort(function (a, b) {
         var keyA = (a.subject || "").toLowerCase().trim();
         var keyB = (b.subject || "").toLowerCase().trim();
-        var da = subjectDayMap.hasOwnProperty(keyA) ? subjectDayMap[keyA] : 99;
-        var db = subjectDayMap.hasOwnProperty(keyB) ? subjectDayMap[keyB] : 99;
-        return da - db;
+        var scheduleA = subjectScheduleMap[keyA] || "";
+        var scheduleB = subjectScheduleMap[keyB] || "";
+        return getSortKey(scheduleA) - getSortKey(scheduleB);
       });
+
       ungradedSubjects = ungradedSubjects.slice().sort(function (a, b) {
-        return getEarliestDayValue(a.schedule) - getEarliestDayValue(b.schedule);
+        return getSortKey(a.schedule) - getSortKey(b.schedule);
       });
 
       list.innerHTML = "";
@@ -3537,10 +3585,9 @@ function getRemoteSession() {
         return matchYear && matchSem;
       });
 
-      // ===== NEW: Sort curriculum subject cards by day-of-week
-      // (Sunday first, Saturday last), based on each item's schedule text. =====
+      // ===== NEW: Sort curriculum subject cards by day and start time =====
       filtered = filtered.slice().sort(function (a, b) {
-        return getEarliestDayValue(a.schedule) - getEarliestDayValue(b.schedule);
+        return getSortKey(a.schedule) - getSortKey(b.schedule);
       });
 
       list.innerHTML = "";
