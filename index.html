@@ -354,9 +354,6 @@
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-book"></i> My Subjects</h2>
         <div class="view-header-actions">
-          <button id="import-cor-btn" class="btn-secondary btn-cor-import" type="button" title="Upload Certificate of Registration to auto-import subjects and schedule">
-            <i class="fas fa-file-import"></i> Import COR
-          </button>
           <button id="add-subject-btn" class="btn-add" type="button">
             <i class="fas fa-plus"></i> Add Subject
           </button>
@@ -386,9 +383,6 @@
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-calendar-days"></i> My Schedule</h2>
         <div class="view-header-actions">
-          <button id="schedule-import-cor-btn" class="btn-secondary btn-cor-import" type="button" title="Upload Certificate of Registration to auto-import subjects and schedule">
-            <i class="fas fa-file-import"></i> Import COR
-          </button>
           <button id="add-schedule-btn" class="btn-add" type="button">
             <i class="fas fa-plus"></i> Add Schedule
           </button>
@@ -486,9 +480,6 @@
       <div class="view-header curriculum-header">
         <h2 class="view-heading"><i class="fas fa-file-pdf"></i> College Curriculum</h2>
         <div class="view-header-actions">
-          <button id="curriculum-import-cor-btn" class="btn-secondary btn-cor-import" type="button" title="Upload Certificate of Registration to auto-import subjects and schedule">
-            <i class="fas fa-file-import"></i> Import COR
-          </button>
           <button id="add-curriculum-subject-btn" class="btn-add" type="button">
             <i class="fas fa-plus"></i> Add Subject
           </button>
@@ -1508,85 +1499,6 @@
   </div>
 </div>
 <!-- ==================== END RESET PASSWORD MODAL ==================== -->
-
-<!-- ==================== HIDDEN COR UPLOAD INPUT ==================== -->
-<input type="file" id="cor-upload-file-input" accept=".pdf,image/*" hidden>
-
-<!-- ==================== COR REVIEW & IMPORT MODAL ==================== -->
-<div id="cor-review-modal-overlay" class="modal-overlay cor-modal-overlay" aria-hidden="true">
-  <div class="modal-card cor-modal-card" role="dialog" aria-modal="true" aria-labelledby="cor-modal-title">
-    <div class="modal-header">
-      <div class="cor-modal-header-left">
-        <span class="cor-modal-badge"><i class="fas fa-wand-magic-sparkles"></i> Review Extracted COR</span>
-        <h3 id="cor-modal-title">Certificate of Registration (COR) Import</h3>
-      </div>
-      <button id="close-cor-modal-btn" class="modal-close" aria-label="Close">
-        <i class="fas fa-xmark"></i>
-      </button>
-    </div>
-
-    <div class="cor-review-intro-box">
-      <div class="cor-intro-icon">
-        <i class="fas fa-spell-check"></i>
-      </div>
-      <div class="cor-intro-text">
-        <strong>Review &amp; Edit Before Importing</strong>
-        <p>Review the extracted subjects, codes, and schedules below. You can fix typos, adjust rooms/times, and select the target Year Level and Semester.</p>
-      </div>
-    </div>
-
-    <form id="cor-review-form" novalidate>
-      <!-- Year and Semester Selection -->
-      <div class="cor-target-term-grid">
-        <div class="form-group">
-          <label for="cor-year-select"><i class="fas fa-graduation-cap"></i> Target Year Level</label>
-          <select id="cor-year-select" required>
-            <option value="1st Year">1st Year</option>
-            <option value="2nd Year">2nd Year</option>
-            <option value="3rd Year" selected>3rd Year</option>
-            <option value="4th Year">4th Year</option>
-            <option value="5th Year">5th Year</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="cor-semester-select"><i class="fas fa-calendar-days"></i> Target Semester</label>
-          <select id="cor-semester-select" required>
-            <option value="1st Semester" selected>1st Semester</option>
-            <option value="2nd Semester">2nd Semester</option>
-            <option value="Summer / Midyear">Summer / Midyear</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Action helper bar -->
-      <div class="cor-table-actions-bar">
-        <div class="cor-selection-info">
-          <label class="cor-checkbox-label">
-            <input type="checkbox" id="cor-select-all-checkbox" checked>
-            <span id="cor-selected-count-label">Select All (0 subjects)</span>
-          </label>
-        </div>
-        <button type="button" class="btn-secondary btn-sm" id="cor-add-row-btn">
-          <i class="fas fa-plus"></i> Add Another Subject
-        </button>
-      </div>
-
-      <!-- Scrollable list of detected subject rows -->
-      <div class="cor-subjects-review-list" id="cor-subjects-review-list">
-        <!-- populated dynamically by script.js -->
-      </div>
-
-      <div class="cor-modal-footer">
-        <button type="button" id="cor-cancel-btn" class="btn-secondary">
-          Cancel
-        </button>
-        <button type="submit" class="btn-primary btn-cor-import-confirm" id="cor-confirm-import-btn">
-          <i class="fas fa-check-double"></i> Import to Subjects &amp; Schedule
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <!-- ==================== UPLOAD SCHOOL FILE MODAL ==================== -->
 <div id="upload-file-modal-overlay" class="modal-overlay" aria-hidden="true">
