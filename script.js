@@ -1,8 +1,29 @@
 /* file: script.js - ClassConnect Complete Application Script */
 
-// Supabase Configuration
-const SUPABASE_URL = "https://uctodqnrwrroppkaggbl.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjdG9kcW5yd3Jyb3Bwa2FnZ2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2ODk0NDYsImV4cCI6MjEwMTI2NTQ0Nn0.EwFU5LmczD8PLLeV0jTFvWxnuMzL65xy_zpkZEAV3NA";
+// Supabase Configuration - loaded dynamically from server-side environment
+let SUPABASE_URL = "";
+let SUPABASE_ANON_KEY = "";
+
+// Helper to load configuration securely from backend
+async function loadServerConfig() {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    return { supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY };
+  }
+  try {
+    const res = await fetch("/api/config");
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
+        SUPABASE_URL = cfg.supabaseUrl;
+        SUPABASE_ANON_KEY = cfg.supabaseAnonKey;
+        return cfg;
+      }
+    }
+  } catch (err) {
+    console.warn("[ClassConnect] /api/config load warning:", err);
+  }
+  return { supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY };
+}
 
 /*
  * Supabase bootstrap — same as before
@@ -73,6 +94,27 @@ function initializeSupabase() {
         "Supabase SDK is not loaded. Check that the Supabase script tag appears before script.js."
       );
       return supabaseClient;
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      // Synchronously create placeholder/fallback until config finishes loading if needed
+      loadServerConfig().then(function (cfg) {
+        if (cfg && cfg.supabaseUrl && cfg.supabaseAnonKey && sdk) {
+          try {
+            supabaseClient = sdk.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+              auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true,
+              },
+            });
+            supabaseStatus = "ready";
+            console.log("[ClassConnect] Supabase initialized with runtime server config.");
+          } catch (e) {
+            console.error("[ClassConnect] Supabase config re-init error:", e);
+          }
+        }
+      });
     }
 
     var client = sdk.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
