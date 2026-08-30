@@ -30,7 +30,11 @@
 <!-- ==================== GLOBAL LOADING OVERLAY ==================== -->
 <div id="global-loading-overlay" class="global-loading-overlay" aria-hidden="true">
   <div class="global-loading-spinner" role="status" aria-live="polite">
-    <i class="fas fa-spinner fa-spin"></i>
+    <div class="spinner-ring-outer"></div>
+    <div class="spinner-ring-inner"></div>
+    <div class="spinner-core-icon">
+      <i class="fas fa-graduation-cap"></i>
+    </div>
   </div>
 </div>
 
@@ -279,6 +283,9 @@
         <button class="drawer-item" data-view="view-curriculum">
           <i class="fas fa-file-pdf"></i> Curriculum
         </button>
+        <button class="drawer-item" data-view="view-files">
+          <i class="fas fa-folder-open"></i> School Files
+        </button>
         <button class="drawer-item" data-view="view-profile">
           <i class="fas fa-user"></i> Profile
         </button>
@@ -346,9 +353,14 @@
     <div id="view-subjects" class="dashboard-view">
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-book"></i> My Subjects</h2>
-        <button id="add-subject-btn" class="btn-add" type="button">
-          <i class="fas fa-plus"></i> Add Subject
-        </button>
+        <div class="view-header-actions">
+          <button id="import-cor-btn" class="btn-secondary btn-cor-import" type="button" title="Upload Certificate of Registration to auto-import subjects and schedule">
+            <i class="fas fa-file-import"></i> Import COR
+          </button>
+          <button id="add-subject-btn" class="btn-add" type="button">
+            <i class="fas fa-plus"></i> Add Subject
+          </button>
+        </div>
       </div>
       <div class="curriculum-filters subjects-filter-bar">
         <button class="subject-year-filter active" data-year="all">All Years</button>
@@ -373,9 +385,14 @@
     <div id="view-schedule" class="dashboard-view">
       <div class="view-header">
         <h2 class="view-heading"><i class="fas fa-calendar-days"></i> My Schedule</h2>
-        <button id="add-schedule-btn" class="btn-add" type="button">
-          <i class="fas fa-plus"></i> Add Schedule
-        </button>
+        <div class="view-header-actions">
+          <button id="schedule-import-cor-btn" class="btn-secondary btn-cor-import" type="button" title="Upload Certificate of Registration to auto-import subjects and schedule">
+            <i class="fas fa-file-import"></i> Import COR
+          </button>
+          <button id="add-schedule-btn" class="btn-add" type="button">
+            <i class="fas fa-plus"></i> Add Schedule
+          </button>
+        </div>
       </div>
       <div class="curriculum-filters schedule-filter-bar">
         <button class="schedule-year-filter active" data-year="all">All Years</button>
@@ -469,6 +486,9 @@
       <div class="view-header curriculum-header">
         <h2 class="view-heading"><i class="fas fa-file-pdf"></i> College Curriculum</h2>
         <div class="view-header-actions">
+          <button id="curriculum-import-cor-btn" class="btn-secondary btn-cor-import" type="button" title="Upload Certificate of Registration to auto-import subjects and schedule">
+            <i class="fas fa-file-import"></i> Import COR
+          </button>
           <button id="add-curriculum-subject-btn" class="btn-add" type="button">
             <i class="fas fa-plus"></i> Add Subject
           </button>
@@ -506,6 +526,75 @@
 
       <div id="curriculum-subjects-list" class="curriculum-subjects-list">
         <!-- curriculum subjects rendered by script.js -->
+      </div>
+    </div>
+
+    <!-- ===== VIEW: SCHOOL FILES & DOCUMENTS ===== -->
+    <div id="view-files" class="dashboard-view">
+      <div class="view-header files-view-header">
+        <div>
+          <h2 class="view-heading"><i class="fas fa-folder-open"></i> School Files &amp; Documents</h2>
+          <p class="view-subheading">Upload, organize, and preview school files in any format (PDF, Word, PPTX, Excel, Images, Code, and Notes).</p>
+        </div>
+        <div class="view-header-actions">
+          <button id="upload-school-file-btn" class="btn-add btn-upload-school-file" type="button">
+            <i class="fas fa-cloud-arrow-up"></i> Upload File
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Drag & Drop Zone -->
+      <div class="files-dropzone-card" id="files-quick-dropzone">
+        <input type="file" id="school-file-quick-input" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp,.gif,.zip,.rar" hidden>
+        <div class="dropzone-content">
+          <div class="dropzone-icon-wrap">
+            <i class="fas fa-cloud-arrow-up"></i>
+          </div>
+          <div class="dropzone-text">
+            <span class="dropzone-title">Drag &amp; drop any school file here or <button type="button" class="dropzone-browse-link" id="files-browse-btn">browse files</button></span>
+            <span class="dropzone-hint">Supports PDF, Word, PowerPoint, Excel, Images, Notes, Archives &amp; more up to 25 MB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Files Filter Bar -->
+      <div class="files-filter-bar">
+        <div class="files-search-wrap">
+          <i class="fas fa-search files-search-icon"></i>
+          <input type="text" id="files-search-input" class="files-search-input" placeholder="Search files by name, subject, category..." aria-label="Search files">
+        </div>
+        <div class="files-category-filters" id="files-category-filters">
+          <button class="file-cat-filter active" data-cat="all">All Files</button>
+          <button class="file-cat-filter" data-cat="Notes"><i class="fas fa-note-sticky"></i> Notes</button>
+          <button class="file-cat-filter" data-cat="Reviewer"><i class="fas fa-book-bookmark"></i> Reviewers</button>
+          <button class="file-cat-filter" data-cat="Syllabus"><i class="fas fa-graduation-cap"></i> Syllabi</button>
+          <button class="file-cat-filter" data-cat="Assignment"><i class="fas fa-clipboard-list"></i> Assignments</button>
+          <button class="file-cat-filter" data-cat="Module"><i class="fas fa-book"></i> Modules</button>
+          <button class="file-cat-filter" data-cat="Project"><i class="fas fa-laptop-code"></i> Projects</button>
+          <button class="file-cat-filter" data-cat="Other">Others</button>
+        </div>
+      </div>
+
+      <div class="files-secondary-bar">
+        <div class="files-count-badge" id="files-count-badge">
+          <i class="fas fa-file"></i> <span>0 Files</span>
+        </div>
+        <div class="files-format-filter-wrap">
+          <select id="files-format-select" class="files-format-select" aria-label="Filter by format">
+            <option value="all">All Formats</option>
+            <option value="pdf">PDF Documents (.pdf)</option>
+            <option value="word">Word Documents (.doc, .docx)</option>
+            <option value="powerpoint">PowerPoint (.ppt, .pptx)</option>
+            <option value="excel">Excel (.xls, .xlsx, .csv)</option>
+            <option value="image">Images (.png, .jpg, .webp)</option>
+            <option value="text">Text &amp; Code (.txt, .md, .js)</option>
+            <option value="archive">Archives (.zip, .rar)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="school-files-list" class="school-files-grid">
+        <!-- files rendered by script.js -->
       </div>
     </div>
 
@@ -1419,6 +1508,169 @@
   </div>
 </div>
 <!-- ==================== END RESET PASSWORD MODAL ==================== -->
+
+<!-- ==================== HIDDEN COR UPLOAD INPUT ==================== -->
+<input type="file" id="cor-upload-file-input" accept=".pdf,image/*" hidden>
+
+<!-- ==================== COR REVIEW & IMPORT MODAL ==================== -->
+<div id="cor-review-modal-overlay" class="modal-overlay cor-modal-overlay" aria-hidden="true">
+  <div class="modal-card cor-modal-card" role="dialog" aria-modal="true" aria-labelledby="cor-modal-title">
+    <div class="modal-header">
+      <div class="cor-modal-header-left">
+        <span class="cor-modal-badge"><i class="fas fa-wand-magic-sparkles"></i> Review Extracted COR</span>
+        <h3 id="cor-modal-title">Certificate of Registration (COR) Import</h3>
+      </div>
+      <button id="close-cor-modal-btn" class="modal-close" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="cor-review-intro-box">
+      <div class="cor-intro-icon">
+        <i class="fas fa-spell-check"></i>
+      </div>
+      <div class="cor-intro-text">
+        <strong>Review &amp; Edit Before Importing</strong>
+        <p>Review the extracted subjects, codes, and schedules below. You can fix typos, adjust rooms/times, and select the target Year Level and Semester.</p>
+      </div>
+    </div>
+
+    <form id="cor-review-form" novalidate>
+      <!-- Year and Semester Selection -->
+      <div class="cor-target-term-grid">
+        <div class="form-group">
+          <label for="cor-year-select"><i class="fas fa-graduation-cap"></i> Target Year Level</label>
+          <select id="cor-year-select" required>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year" selected>3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="cor-semester-select"><i class="fas fa-calendar-days"></i> Target Semester</label>
+          <select id="cor-semester-select" required>
+            <option value="1st Semester" selected>1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer / Midyear">Summer / Midyear</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Action helper bar -->
+      <div class="cor-table-actions-bar">
+        <div class="cor-selection-info">
+          <label class="cor-checkbox-label">
+            <input type="checkbox" id="cor-select-all-checkbox" checked>
+            <span id="cor-selected-count-label">Select All (0 subjects)</span>
+          </label>
+        </div>
+        <button type="button" class="btn-secondary btn-sm" id="cor-add-row-btn">
+          <i class="fas fa-plus"></i> Add Another Subject
+        </button>
+      </div>
+
+      <!-- Scrollable list of detected subject rows -->
+      <div class="cor-subjects-review-list" id="cor-subjects-review-list">
+        <!-- populated dynamically by script.js -->
+      </div>
+
+      <div class="cor-modal-footer">
+        <button type="button" id="cor-cancel-btn" class="btn-secondary">
+          Cancel
+        </button>
+        <button type="submit" class="btn-primary btn-cor-import-confirm" id="cor-confirm-import-btn">
+          <i class="fas fa-check-double"></i> Import to Subjects &amp; Schedule
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== UPLOAD SCHOOL FILE MODAL ==================== -->
+<div id="upload-file-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="upload-file-modal-title">
+    <div class="modal-header">
+      <h3 id="upload-file-modal-title"><i class="fas fa-cloud-arrow-up"></i> Upload School File</h3>
+      <button id="close-upload-file-modal-btn" class="modal-close" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form id="upload-school-file-form" novalidate>
+      <input type="hidden" id="upload-file-edit-id">
+      
+      <div class="school-file-dropzone" id="school-file-dropzone">
+        <i class="fas fa-file-arrow-up school-dropzone-icon"></i>
+        <div class="school-dropzone-text">
+          <strong id="school-dropzone-name">Choose a file or drag &amp; drop here</strong>
+          <span id="school-dropzone-meta">PDF, Word (.docx), PPT, Excel, Images, Code, Notes (Max 25MB)</span>
+        </div>
+        <input type="file" id="school-file-modal-input" required hidden accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp,.gif,.zip,.rar">
+      </div>
+
+      <div class="form-group">
+        <label for="school-file-name-input">Display Title / Name</label>
+        <input type="text" id="school-file-name-input" placeholder="e.g. Finals Reviewer - Data Structures" required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="school-file-category-input">Category</label>
+          <select id="school-file-category-input">
+            <option value="Notes" selected>Notes / Lecture</option>
+            <option value="Reviewer">Reviewer / Study Guide</option>
+            <option value="Syllabus">Syllabus / Outline</option>
+            <option value="Assignment">Assignment / Activity</option>
+            <option value="Module">Module / Chapter</option>
+            <option value="Project">Project / Code</option>
+            <option value="Other">Other Document</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="school-file-subject-input">Related Subject (Optional)</label>
+          <input type="text" id="school-file-subject-input" placeholder="e.g. Web Development" list="user-subjects-datalist">
+          <datalist id="user-subjects-datalist"></datalist>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="school-file-notes-input">Remarks / Description (Optional)</label>
+        <textarea id="school-file-notes-input" rows="2" placeholder="Add coverage, key concepts, or instructor notes..."></textarea>
+      </div>
+
+      <button type="submit" class="btn-primary" id="save-school-file-btn">
+        <i class="fas fa-check"></i> Upload School File
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== FILE PREVIEW MODAL ==================== -->
+<div id="file-preview-modal-overlay" class="modal-overlay file-preview-overlay" aria-hidden="true">
+  <div class="modal-card file-preview-modal-card" role="dialog" aria-modal="true" aria-labelledby="preview-file-modal-title">
+    <div class="modal-header file-preview-modal-header">
+      <div class="file-preview-header-info">
+        <div class="file-preview-icon-wrap" id="preview-file-icon-wrap">
+          <i class="fas fa-file" id="preview-file-icon"></i>
+        </div>
+        <div>
+          <h3 id="preview-file-modal-title" class="preview-file-title">File Preview</h3>
+          <span class="file-preview-meta" id="preview-file-meta">PDF • 1.2 MB</span>
+        </div>
+      </div>
+      <div class="file-preview-header-actions">
+        <button type="button" class="btn-secondary btn-sm" id="preview-download-btn"><i class="fas fa-download"></i> Download</button>
+        <button id="close-file-preview-modal-btn" class="modal-close" aria-label="Close">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+    <div class="file-preview-body" id="file-preview-body">
+      <!-- dynamically populated by script.js -->
+    </div>
+  </div>
+</div>
 
 <!-- ==================== IMAGE VIEWER ==================== -->
 <div id="image-viewer-overlay" class="image-viewer-overlay" aria-hidden="true">

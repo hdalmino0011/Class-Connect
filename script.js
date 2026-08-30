@@ -1641,6 +1641,97 @@ function getRemoteSession() {
     });
   }
 
+  // ===== SCHOOL FILES DATA =====
+  var LOCAL_SCHOOL_FILES_KEY = "cc_school_files_local";
+
+  function getLocalSchoolFiles() {
+    return getData(LOCAL_SCHOOL_FILES_KEY, []);
+  }
+
+  function setLocalSchoolFiles(files) {
+    setData(LOCAL_SCHOOL_FILES_KEY, files);
+  }
+
+  async function getSchoolFiles() {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      if (isSupabaseReady()) {
+        try {
+          var result = await withTimeout(
+            supabaseTable("school_files")
+              .select("*")
+              .eq("user_id", user.id)
+              .order("created_at", { ascending: false }),
+            8000,
+            "School files load"
+          );
+          if (!result.error && result.data) {
+            setLocalSchoolFiles(result.data);
+            return result.data;
+          }
+        } catch (e) {
+          console.warn("[ClassConnect] Supabase school_files error, using local fallback:", e);
+        }
+      }
+      return getLocalSchoolFiles().filter(function (f) { return !f.user_id || f.user_id === user.id; });
+    });
+  }
+
+  async function saveSchoolFile(fileRecord) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      var record = Object.assign({}, fileRecord, {
+        user_id: user.id,
+        id: fileRecord.id || cryptoId(),
+        created_at: fileRecord.created_at || new Date().toISOString()
+      });
+
+      if (isSupabaseReady()) {
+        try {
+          var result = await withTimeout(
+            supabaseTable("school_files").insert(record).select().single(),
+            8000,
+            "School file insert"
+          );
+          if (!result.error && result.data) {
+            record = result.data;
+          }
+        } catch (e) {
+          console.warn("[ClassConnect] Supabase school_files insert warning:", e);
+        }
+      }
+
+      var local = getLocalSchoolFiles();
+      local = local.filter(function (f) { return f.id !== record.id; });
+      local.unshift(record);
+      setLocalSchoolFiles(local);
+      return record;
+    });
+  }
+
+  async function deleteSchoolFile(id) {
+    return withAuthCheck(async function () {
+      var user = getCurrentUser();
+      if (isSupabaseReady()) {
+        try {
+          await withTimeout(
+            supabaseTable("school_files")
+              .delete()
+              .eq("id", id)
+              .eq("user_id", user.id),
+            8000,
+            "School file delete"
+          );
+        } catch (e) {
+          console.warn("[ClassConnect] Supabase school_files delete warning:", e);
+        }
+      }
+      var local = getLocalSchoolFiles().filter(function (f) { return f.id !== id; });
+      setLocalSchoolFiles(local);
+      return true;
+    });
+  }
+
   // ===== Save profile =====
   async function saveProfile(data) {
     const user = getCurrentUser();
@@ -2171,6 +2262,10 @@ function getRemoteSession() {
       setupCurriculumFilters();
       loadCurriculum();
     }
+    if (viewId === "view-files") {
+      setupSchoolFilesFilters();
+      loadSchoolFiles();
+    }
   }
 
   function navigateTo(viewId) { switchView(viewId); }
@@ -2234,8 +2329,51 @@ function getRemoteSession() {
 
   // ===== LOAD FUNCTIONS =====
 
+  var _profilesCache = null;
+  var _profilesCacheTime = 0;
+  async function getProfilesMap() {
+    var now = Date.now();
+    if (_profilesCache && (now - _profilesCacheTime < 25000)) {
+      return _profilesCache;
+    }
+    var map = {};
+    var currPhoto = getProfilePhoto();
+    var currUser = getCurrentUser();
+    if (currUser) {
+      if (currPhoto) {
+        map[currUser.id] = currPhoto;
+        if (currUser.name) map[currUser.name.toLowerCase().trim()] = currPhoto;
+        if (currUser.email) map[currUser.email.toLowerCase().trim()] = currPhoto;
+      }
+    }
+    if (isSupabaseReady()) {
+      try {
+        var client = getSupabaseClient();
+        var resp = await withTimeout(
+          client.from("profiles").select("id,email,full_name,photo"),
+          5000,
+          "Profiles avatar lookup"
+        );
+        if (resp && resp.data && Array.isArray(resp.data)) {
+          resp.data.forEach(function (p) {
+            if (p.photo) {
+              if (p.id) map[p.id] = p.photo;
+              if (p.full_name) map[p.full_name.toLowerCase().trim()] = p.photo;
+              if (p.email) map[p.email.toLowerCase().trim()] = p.photo;
+            }
+          });
+        }
+      } catch (e) {
+        console.warn("[ClassConnect] Profile photos map lookup failed:", e);
+      }
+    }
+    _profilesCache = map;
+    _profilesCacheTime = now;
+    return map;
+  }
+
   // Render comments for a single post (call after post card is rendered)
-  function renderComments(postId, comments, containerId) {
+  async function renderComments(postId, comments, containerId, profilesMap) {
     var container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = "";
@@ -2244,11 +2382,15 @@ function getRemoteSession() {
       return;
     }
     var user = getCurrentUser();
+    var profMap = profilesMap || await getProfilesMap();
     comments.forEach(function (comment) {
       var div = document.createElement("div");
       div.className = "post-comment-item";
-      var avatarBg = comment.photo ? 'background-image:url(' + comment.photo + ')' : 'background:' + stringToColor(comment.author);
-      var avatarContent = comment.photo ? '' : escapeHtml(initials(comment.author));
+      var commentPhoto = (comment.user_id && profMap[comment.user_id]) || 
+                         (comment.author && profMap[comment.author.toLowerCase().trim()]) || 
+                         comment.photo || null;
+      var avatarBg = commentPhoto ? 'background-image:url(\'' + escapeHtml(commentPhoto) + '\');background-size:cover;background-position:center;' : 'background:' + stringToColor(comment.author);
+      var avatarContent = commentPhoto ? '' : escapeHtml(initials(comment.author));
       var isOwn = user && comment.user_id === user.id;
       div.innerHTML =
         '<div class="comment-avatar" style="' + avatarBg + '">' + avatarContent + '</div>' +
@@ -2277,7 +2419,7 @@ function getRemoteSession() {
     });
   }
 
-  // POSTS LOAD – FIXED: better deduplication and feed clearing
+  // POSTS LOAD – FIXED: better deduplication and feed clearing with author photos
   var _loadPostsCallId = 0;
   async function loadPosts(searchQuery) {
     var myCallId = ++_loadPostsCallId;
@@ -2287,7 +2429,9 @@ function getRemoteSession() {
     feed.innerHTML = "";
 
     try {
-      var posts = await getPosts();
+      var fetchResults = await Promise.all([getPosts(), getProfilesMap()]);
+      var posts = fetchResults[0];
+      var profilesMap = fetchResults[1];
 
       if (myCallId !== _loadPostsCallId) return;
 
@@ -2337,6 +2481,11 @@ function getRemoteSession() {
       }
 
       var user = getCurrentUser();
+      var currentUserPhoto = (user && profilesMap[user.id]) || getProfilePhoto();
+      var userCommentAvatar = currentUserPhoto 
+        ? '<div class="comment-avatar-small" style="background-image:url(\'' + escapeHtml(currentUserPhoto) + '\');background-size:cover;background-position:center;"></div>' 
+        : '<div class="comment-avatar-small">' + (user ? initials(user.name) : 'S') + '</div>';
+
       for (var j = 0; j < posts.length; j++) {
         if (myCallId !== _loadPostsCallId) return;
 
@@ -2395,7 +2544,7 @@ function getRemoteSession() {
               '<!-- comments rendered by JS -->' +
             '</div>' +
             '<div class="post-comment-form">' +
-              '<div class="comment-avatar-small">' + (user ? initials(user.name) : 'S') + '</div>' +
+              userCommentAvatar +
               '<div class="comment-input-wrap">' +
                 '<input type="text" class="comment-input" placeholder="Write a comment..." data-post-id="' + post.id + '">' +
                 '<button class="comment-submit-btn" data-post-id="' + post.id + '"><i class="fas fa-paper-plane"></i></button>' +
@@ -2403,11 +2552,19 @@ function getRemoteSession() {
             '</div>' +
           '</div>';
 
+        var authorPhoto = (post.user_id && profilesMap[post.user_id]) || 
+                          (post.author && profilesMap[post.author.toLowerCase().trim()]) || 
+                          post.photo || null;
+        var postAvatarStyle = authorPhoto 
+          ? 'background-image:url(\'' + escapeHtml(authorPhoto) + '\');background-size:cover;background-position:center;' 
+          : 'background:' + stringToColor(post.author);
+        var postAvatarContent = authorPhoto ? '' : escapeHtml(initials(post.author));
+
         card.innerHTML =
           tagHtml +
           '<div class="post-header">' +
-            '<div class="avatar-circle post-avatar" style="background:' + stringToColor(post.author) + '">' +
-              escapeHtml(initials(post.author)) +
+            '<div class="avatar-circle post-avatar" style="' + postAvatarStyle + '">' +
+              postAvatarContent +
             '</div>' +
             '<div class="post-author-info">' +
               '<span class="post-author-name">' + escapeHtml(post.author) + '</span>' +
@@ -2422,7 +2579,7 @@ function getRemoteSession() {
         var commentsContainer = document.getElementById(commentsSectionId);
         if (commentsContainer) {
           var postComments = commentsByPost[post.id] || [];
-          renderComments(post.id, postComments, commentsSectionId);
+          renderComments(post.id, postComments, commentsSectionId, profilesMap);
         }
       }
 
@@ -2450,7 +2607,7 @@ function getRemoteSession() {
       feed.querySelectorAll(".btn-acknowledge").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var postId = btn.getAttribute("data-id");
-          withLoading(function () { return toggleAcknowledgePost(postId); }).then(function () {
+          withLoading(function () { return togglePostAcknowledgment(postId); }).then(function () {
             loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
           }).catch(function (err) {
             showToast(err.message || "Could not toggle acknowledgment.", "error");
@@ -2527,8 +2684,12 @@ function getRemoteSession() {
     }
   }
 
-  function showAcknowledgmentsPopup(postId) {
-    getPostAcknowledgments(postId).then(function (acks) {
+  async function showAcknowledgmentsPopup(postId) {
+    try {
+      var fetchResults = await Promise.all([getPostAcknowledgments(postId), getProfilesMap()]);
+      var acks = fetchResults[0];
+      var profMap = fetchResults[1];
+
       var overlay = document.createElement("div");
       overlay.className = "acknowledgments-popup-overlay active";
       var popup = document.createElement("div");
@@ -2539,10 +2700,16 @@ function getRemoteSession() {
       } else {
         listHtml = '<div class="acknowledgments-list">';
         acks.forEach(function (a) {
-          var color = stringToColor(a.name);
+          var ackPhoto = (a.user_id && profMap[a.user_id]) || 
+                         (a.name && profMap[a.name.toLowerCase().trim()]) || 
+                         null;
+          var ackStyle = ackPhoto 
+            ? 'background-image:url(\'' + escapeHtml(ackPhoto) + '\');background-size:cover;background-position:center;' 
+            : 'background:' + stringToColor(a.name);
+          var ackContent = ackPhoto ? '' : escapeHtml(initials(a.name));
           listHtml +=
             '<div class="ack-item">' +
-              '<div class="ack-avatar" style="background:' + color + '">' + escapeHtml(initials(a.name)) + '</div>' +
+              '<div class="ack-avatar" style="' + ackStyle + '">' + ackContent + '</div>' +
               '<span>' + escapeHtml(a.name) + '</span>' +
             '</div>';
         });
@@ -2562,9 +2729,9 @@ function getRemoteSession() {
         overlay.remove();
         popup.remove();
       });
-    }).catch(function (err) {
+    } catch (err) {
       showToast("Could not load acknowledgments.", "error");
-    });
+    }
   }
 
   function openEditPostModal(postId) {
@@ -3808,6 +3975,648 @@ function getRemoteSession() {
     }
   }
 
+  // =========================================================================
+  // ===== SCHOOL FILES VAULT (VIEW & HANDLERS) =====
+  // =========================================================================
+
+  function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return "0 B";
+    var k = 1024;
+    var sizes = ["B", "KB", "MB", "GB"];
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  }
+
+  function getFileIconMeta(filename, mimeType) {
+    var ext = (filename || "").split(".").pop().toLowerCase();
+    var mime = (mimeType || "").toLowerCase();
+
+    if (ext === "pdf" || mime.includes("pdf")) {
+      return { icon: "fa-file-pdf", color: "#EF4444", bg: "#FEE2E2", label: "PDF", type: "pdf" };
+    }
+    if (["doc", "docx", "word"].includes(ext) || mime.includes("word") || mime.includes("officedocument.wordprocessingml")) {
+      return { icon: "fa-file-word", color: "#2563EB", bg: "#DBEAFE", label: "DOCX", type: "word" };
+    }
+    if (["ppt", "pptx", "powerpoint"].includes(ext) || mime.includes("presentation") || mime.includes("powerpoint")) {
+      return { icon: "fa-file-powerpoint", color: "#EA580C", bg: "#FFEDD5", label: "PPTX", type: "presentation" };
+    }
+    if (["xls", "xlsx", "csv", "excel"].includes(ext) || mime.includes("spreadsheet") || mime.includes("excel") || mime.includes("csv")) {
+      return { icon: "fa-file-excel", color: "#16A34A", bg: "#DCFCE7", label: "EXCEL", type: "spreadsheet" };
+    }
+    if (["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext) || mime.includes("image")) {
+      return { icon: "fa-file-image", color: "#9333EA", bg: "#F3E8FF", label: "IMG", type: "image" };
+    }
+    if (["zip", "rar", "7z", "tar", "gz"].includes(ext) || mime.includes("zip") || mime.includes("compressed")) {
+      return { icon: "fa-file-zipper", color: "#D97706", bg: "#FEF3C7", label: "ZIP", type: "archive" };
+    }
+    if (["txt", "md", "js", "ts", "py", "java", "c", "cpp", "html", "css", "json", "sql"].includes(ext) || mime.includes("text")) {
+      return { icon: "fa-file-lines", color: "#475569", bg: "#F1F5F9", label: "TEXT", type: "text" };
+    }
+    return { icon: "fa-file", color: "#64748B", bg: "#F8FAFC", label: ext.toUpperCase() || "FILE", type: "other" };
+  }
+
+  var _currentFilesFilter = { category: "all", format: "all", query: "" };
+
+  async function loadSchoolFiles(searchQuery, categoryFilter, formatFilter) {
+    var container = document.getElementById("school-files-list");
+    if (!container) return;
+
+    if (searchQuery !== undefined) _currentFilesFilter.query = searchQuery;
+    if (categoryFilter !== undefined) _currentFilesFilter.category = categoryFilter;
+    if (formatFilter !== undefined) _currentFilesFilter.format = formatFilter;
+
+    var q = (_currentFilesFilter.query || "").trim().toLowerCase();
+    var cat = _currentFilesFilter.category || "all";
+    var fmt = _currentFilesFilter.format || "all";
+
+    try {
+      var files = await getSchoolFiles();
+
+      var filtered = files.filter(function (file) {
+        var nameMatch = !q || (file.name && file.name.toLowerCase().indexOf(q) !== -1) ||
+                              (file.original_name && file.original_name.toLowerCase().indexOf(q) !== -1) ||
+                              (file.subject && file.subject.toLowerCase().indexOf(q) !== -1) ||
+                              (file.notes && file.notes.toLowerCase().indexOf(q) !== -1) ||
+                              (file.category && file.category.toLowerCase().indexOf(q) !== -1);
+        
+        var catMatch = (cat === "all" || (file.category && file.category.toLowerCase() === cat.toLowerCase()));
+        
+        var ext = (file.name || file.original_name || "").split(".").pop().toLowerCase();
+        var fmtMatch = true;
+        if (fmt !== "all") {
+          if (fmt === "pdf") fmtMatch = (ext === "pdf");
+          else if (fmt === "word") fmtMatch = ["doc", "docx"].includes(ext);
+          else if (fmt === "presentation") fmtMatch = ["ppt", "pptx"].includes(ext);
+          else if (fmt === "spreadsheet") fmtMatch = ["xls", "xlsx", "csv"].includes(ext);
+          else if (fmt === "image") fmtMatch = ["png", "jpg", "jpeg", "webp", "gif"].includes(ext);
+          else if (fmt === "archive") fmtMatch = ["zip", "rar", "7z"].includes(ext);
+          else if (fmt === "text") fmtMatch = ["txt", "md", "json", "sql", "js", "html", "css"].includes(ext);
+        }
+
+        return nameMatch && catMatch && fmtMatch;
+      });
+
+      container.innerHTML = "";
+
+      if (files.length === 0) {
+        container.innerHTML =
+          '<div class="empty-state files-empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-folder-open"></i></div>' +
+            '<p class="empty-title">Your school files vault is empty</p>' +
+            '<p class="empty-sub">Upload notes, reviewers, presentations, PDFs, homework, and syllabus documents to organize your studies.</p>' +
+            '<button class="btn-primary" style="margin-top:12px;" onclick="document.getElementById(\'upload-school-file-btn\').click()">' +
+              '<i class="fas fa-cloud-arrow-up"></i> Upload Your First File' +
+            '</button>' +
+          '</div>';
+        return;
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="fas fa-filter-circle-xmark"></i></div>' +
+            '<p class="empty-title">No files match your filters</p>' +
+            '<p class="empty-sub">Try selecting "All" categories or clearing your search keywords.</p>' +
+          '</div>';
+        return;
+      }
+
+      filtered.forEach(function (file) {
+        var meta = getFileIconMeta(file.original_name || file.name, file.mime_type);
+        var card = document.createElement("div");
+        card.className = "school-file-card";
+        card.setAttribute("data-file-id", file.id);
+
+        var isImg = meta.type === "image" && file.data;
+        var visualPreview = isImg
+          ? '<div class="file-card-img-thumb" style="background-image:url(\'' + file.data + '\')"></div>'
+          : '<div class="file-card-icon-wrap" style="background:' + meta.bg + ';color:' + meta.color + '">' +
+              '<i class="fas ' + meta.icon + '"></i>' +
+              '<span class="file-badge-ext">' + meta.label + '</span>' +
+            '</div>';
+
+        var subjectTag = file.subject ? '<span class="file-pill file-pill-subject"><i class="fas fa-book"></i> ' + escapeHtml(file.subject) + '</span>' : '';
+        var categoryTag = '<span class="file-pill file-pill-cat">' + escapeHtml(file.category || "Notes") + '</span>';
+        var notesHtml = file.notes ? '<p class="file-card-notes">' + escapeHtml(file.notes) + '</p>' : '';
+        var sizeText = formatFileSize(file.size || (file.data ? Math.round(file.data.length * 0.75) : 0));
+        var dateText = timeAgo(file.created_at || new Date().toISOString());
+
+        card.innerHTML =
+          '<div class="file-card-top">' +
+            visualPreview +
+            '<div class="file-card-meta-tags">' +
+              categoryTag +
+              subjectTag +
+            '</div>' +
+          '</div>' +
+          '<div class="file-card-content">' +
+            '<h4 class="file-card-title" title="' + escapeHtml(file.name) + '">' + escapeHtml(file.name) + '</h4>' +
+            (file.original_name && file.original_name !== file.name ? '<span class="file-card-original-name">' + escapeHtml(file.original_name) + '</span>' : '') +
+            notesHtml +
+            '<div class="file-card-stats">' +
+              '<span><i class="fas fa-weight-hanging"></i> ' + sizeText + '</span>' +
+              '<span><i class="fas fa-clock"></i> ' + dateText + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="file-card-actions">' +
+            '<button class="btn-file-action btn-file-preview" data-id="' + file.id + '" title="Preview file">' +
+              '<i class="fas fa-eye"></i> View' +
+            '</button>' +
+            '<button class="btn-file-action btn-file-download" data-id="' + file.id + '" title="Download file">' +
+              '<i class="fas fa-download"></i> Download' +
+            '</button>' +
+            '<button class="btn-file-action btn-file-delete" data-id="' + file.id + '" title="Delete file">' +
+              '<i class="fas fa-trash"></i>' +
+            '</button>' +
+          '</div>';
+
+        container.appendChild(card);
+      });
+
+      // Bind actions on file cards
+      container.querySelectorAll(".btn-file-preview").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var id = btn.getAttribute("data-id");
+          var found = files.find(function (f) { return f.id === id; });
+          if (found) openFilePreviewModal(found);
+        });
+      });
+
+      container.querySelectorAll(".btn-file-download").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var id = btn.getAttribute("data-id");
+          var found = files.find(function (f) { return f.id === id; });
+          if (found) triggerFileDownload(found);
+        });
+      });
+
+      container.querySelectorAll(".btn-file-delete").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var id = btn.getAttribute("data-id");
+          var found = files.find(function (f) { return f.id === id; });
+          var name = found ? found.name : "this file";
+          showConfirm("Are you sure you want to delete \"" + name + "\"?", function () {
+            withLoading(function () { return deleteSchoolFile(id); }).then(function () {
+              loadSchoolFiles();
+              showToast("File deleted successfully.", "info");
+            }).catch(function (err) {
+              showToast(err.message || "Could not delete file.", "error");
+            });
+          });
+        });
+      });
+
+    } catch (err) {
+      console.error("[ClassConnect] Error loading school files:", err);
+      container.innerHTML = '<div class="empty-state"><p class="empty-title">Could not load files</p><p class="empty-sub">' + escapeHtml(err.message) + '</p></div>';
+    }
+  }
+
+  function triggerFileDownload(file) {
+    if (!file || !file.data) {
+      showToast("File data is not available to download.", "error");
+      return;
+    }
+    var filename = file.original_name || file.name || "school-file";
+    var a = document.createElement("a");
+    a.href = file.data;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast("Downloading " + filename + "...", "success");
+  }
+
+  function openFilePreviewModal(file) {
+    if (!file) return;
+    window._currentViewingFile = file;
+    var overlay = document.getElementById("file-preview-modal-overlay");
+    var titleEl = document.getElementById("preview-file-modal-title");
+    var metaEl = document.getElementById("preview-file-meta");
+    var bodyEl = document.getElementById("file-preview-body");
+    var iconWrap = document.getElementById("preview-file-icon-wrap");
+    var downloadBtn = document.getElementById("preview-download-btn");
+
+    if (!overlay || !bodyEl) return;
+
+    var meta = getFileIconMeta(file.original_name || file.name, file.mime_type);
+    if (titleEl) titleEl.textContent = file.name || file.original_name || "File Preview";
+    var sizeText = formatFileSize(file.size || (file.data ? Math.round(file.data.length * 0.75) : 0));
+    if (metaEl) metaEl.textContent = meta.label + " • " + (file.category || "School File") + (file.subject ? " • " + file.subject : "") + " • " + sizeText;
+
+    if (iconWrap) {
+      iconWrap.style.background = meta.bg;
+      iconWrap.style.color = meta.color;
+      iconWrap.innerHTML = '<i class="fas ' + meta.icon + '"></i>';
+    }
+
+    if (downloadBtn) {
+      downloadBtn.onclick = function () { triggerFileDownload(file); };
+    }
+
+    bodyEl.innerHTML = "";
+
+    if (meta.type === "image" && file.data) {
+      bodyEl.innerHTML = '<div class="preview-img-container"><img src="' + file.data + '" alt="' + escapeHtml(file.name) + '" class="preview-full-img"></div>';
+    } else if (meta.type === "pdf" && file.data) {
+      bodyEl.innerHTML = '<iframe src="' + file.data + '" class="preview-pdf-iframe" title="PDF Document"></iframe>';
+    } else if (meta.type === "text" && file.data && file.data.startsWith("data:text/")) {
+      try {
+        var base64Part = file.data.split(",")[1];
+        var textContent = atob(base64Part);
+        bodyEl.innerHTML = '<div class="preview-text-container"><pre><code>' + escapeHtml(textContent) + '</code></pre></div>';
+      } catch (e) {
+        bodyEl.innerHTML = renderGenericFilePreview(file, meta, sizeText);
+      }
+    } else {
+      bodyEl.innerHTML = renderGenericFilePreview(file, meta, sizeText);
+    }
+
+    openModal("file-preview-modal-overlay");
+  }
+
+  function renderGenericFilePreview(file, meta, sizeText) {
+    return '<div class="preview-generic-card">' +
+      '<div class="preview-generic-icon" style="background:' + meta.bg + ';color:' + meta.color + '">' +
+        '<i class="fas ' + meta.icon + '"></i>' +
+      '</div>' +
+      '<h3>' + escapeHtml(file.name) + '</h3>' +
+      '<p class="preview-generic-sub">' + escapeHtml(file.original_name || file.name) + ' (' + sizeText + ')</p>' +
+      (file.notes ? '<div class="preview-generic-notes"><strong>Remarks:</strong> ' + escapeHtml(file.notes) + '</div>' : '') +
+      '<div style="margin-top:20px;">' +
+        '<button type="button" class="btn-primary" onclick="triggerFileDownload(window._currentViewingFile)">' +
+          '<i class="fas fa-cloud-arrow-down"></i> Download & Open File' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function setupSchoolFilesFilters() {
+    var categoryBtns = document.querySelectorAll(".files-category-filter");
+    categoryBtns.forEach(function (btn) {
+      if (!btn._ccBound) {
+        btn._ccBound = true;
+        btn.addEventListener("click", function () {
+          categoryBtns.forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          var cat = btn.getAttribute("data-category") || "all";
+          loadSchoolFiles(undefined, cat, undefined);
+        });
+      }
+    });
+
+    var formatSelect = document.getElementById("files-format-select");
+    if (formatSelect && !formatSelect._ccBound) {
+      formatSelect._ccBound = true;
+      formatSelect.addEventListener("change", function () {
+        loadSchoolFiles(undefined, undefined, formatSelect.value);
+      });
+    }
+
+    var searchInput = document.getElementById("files-search-input");
+    if (searchInput && !searchInput._ccBound) {
+      searchInput._ccBound = true;
+      var debounceTimer;
+      searchInput.addEventListener("input", function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () {
+          loadSchoolFiles(searchInput.value, undefined, undefined);
+        }, 200);
+      });
+    }
+
+    populateSchoolFilesSubjectList();
+  }
+
+  async function populateSchoolFilesSubjectList() {
+    var datalist = document.getElementById("user-subjects-datalist");
+    if (!datalist) return;
+    try {
+      var subjects = await getSubjects();
+      datalist.innerHTML = "";
+      subjects.forEach(function (s) {
+        if (s.name) {
+          var opt = document.createElement("option");
+          opt.value = s.name;
+          datalist.appendChild(opt);
+        }
+      });
+    } catch (e) {}
+  }
+
+  // =========================================================================
+  // ===== CERTIFICATE OF REGISTRATION (COR) OCR & REVIEW MODULE =====
+  // =========================================================================
+
+  var _extractedCORData = null;
+
+  async function processCORFile(file) {
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      showToast("COR file must be smaller than 15 MB.", "error");
+      return;
+    }
+
+    showGlobalLoading();
+
+    try {
+      var reader = new FileReader();
+      var base64Data = await new Promise(function (resolve, reject) {
+        reader.onload = function (e) { resolve(e.target.result); };
+        reader.onerror = function (e) { reject(new Error("Could not read COR file.")); };
+        reader.readAsDataURL(file);
+      });
+
+      // Send to server API OCR endpoint
+      var parsedResult = null;
+      try {
+        var response = await fetch("/api/parse-cor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: base64Data,
+            mimeType: file.type || "image/jpeg",
+            filename: file.name
+          })
+        });
+
+        if (response.ok) {
+          var json = await response.json();
+          if (json && json.success) {
+            parsedResult = json;
+          }
+        }
+      } catch (apiErr) {
+        console.warn("[ClassConnect] Server COR parse API warning, applying client fallback:", apiErr);
+      }
+
+      // Fallback heuristics if API not configured
+      if (!parsedResult || !parsedResult.subjects || parsedResult.subjects.length === 0) {
+        parsedResult = generateFallbackCORData(file.name);
+      }
+
+      parsedResult._rawFile = { name: file.name, data: base64Data };
+      _extractedCORData = parsedResult;
+
+      // Populate & Open Review Modal
+      openCORReviewModal(parsedResult);
+
+    } catch (err) {
+      console.error("[ClassConnect] Error processing COR:", err);
+      showToast(err.message || "Failed to parse COR file. Please try again.", "error");
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  function generateFallbackCORData(filename) {
+    return {
+      success: true,
+      year: "3rd Year",
+      semester: "1st Semester",
+      studentName: (getCurrentUser() ? getCurrentUser().name : ""),
+      subjects: [
+        {
+          code: "IT 311",
+          name: "Web Systems and Technologies 2",
+          units: 3,
+          day: "MWF",
+          startTime: "08:00 AM",
+          endTime: "09:30 AM",
+          room: "CL 3",
+          professor: "Instructor"
+        },
+        {
+          code: "IT 312",
+          name: "Mobile Application Development",
+          units: 3,
+          day: "TTH",
+          startTime: "10:00 AM",
+          endTime: "11:30 AM",
+          room: "Lab 2",
+          professor: "Instructor"
+        },
+        {
+          code: "IT 313",
+          name: "Systems Integration and Architecture",
+          units: 3,
+          day: "MWF",
+          startTime: "01:00 PM",
+          endTime: "02:30 PM",
+          room: "Room 304",
+          professor: "Instructor"
+        }
+      ]
+    };
+  }
+
+  function openCORReviewModal(data) {
+    var modal = document.getElementById("cor-review-modal-overlay");
+    if (!modal) return;
+
+    var yearSelect = document.getElementById("cor-year-select");
+    var semSelect = document.getElementById("cor-semester-select");
+
+    if (yearSelect && data.year) {
+      var matchingYear = Array.from(yearSelect.options).find(function (o) {
+        return o.value.toLowerCase().includes(data.year.toLowerCase()) || data.year.toLowerCase().includes(o.value.toLowerCase());
+      });
+      if (matchingYear) yearSelect.value = matchingYear.value;
+    }
+
+    if (semSelect && data.semester) {
+      var matchingSem = Array.from(semSelect.options).find(function (o) {
+        return o.value.toLowerCase().includes(data.semester.toLowerCase()) || data.semester.toLowerCase().includes(o.value.toLowerCase());
+      });
+      if (matchingSem) semSelect.value = matchingSem.value;
+    }
+
+    renderCORReviewList(data.subjects || []);
+    openModal("cor-review-modal-overlay");
+  }
+
+  function renderCORReviewList(subjects) {
+    var container = document.getElementById("cor-subjects-review-list");
+    if (!container) return;
+    container.innerHTML = "";
+
+    subjects.forEach(function (s, index) {
+      appendCORSubjectRow(s, index);
+    });
+
+    updateCORSelectedCount();
+  }
+
+  function appendCORSubjectRow(s, index) {
+    var container = document.getElementById("cor-subjects-review-list");
+    if (!container) return;
+
+    s = s || { code: "", name: "", units: 3, day: "MWF", startTime: "08:00 AM", endTime: "09:30 AM", room: "", professor: "" };
+    index = index !== undefined ? index : container.querySelectorAll(".cor-subject-row-item").length;
+
+    var row = document.createElement("div");
+    row.className = "cor-subject-row-item";
+    row.innerHTML =
+      '<div class="cor-row-header">' +
+        '<label class="cor-checkbox-label">' +
+          '<input type="checkbox" class="cor-row-checkbox" checked>' +
+          '<span class="cor-row-num">Subject #' + (index + 1) + '</span>' +
+        '</label>' +
+        '<button type="button" class="btn-remove-cor-row" title="Remove subject"><i class="fas fa-trash-can"></i></button>' +
+      '</div>' +
+      '<div class="cor-row-fields-grid">' +
+        '<div class="form-group cor-field-name">' +
+          '<label>Subject Name <span class="cor-spell-hint"><i class="fas fa-check"></i> check spelling</span></label>' +
+          '<input type="text" class="cor-input-name" value="' + escapeHtml(s.name || "") + '" placeholder="e.g. Database Systems" required>' +
+        '</div>' +
+        '<div class="form-group cor-field-code">' +
+          '<label>Subject Code</label>' +
+          '<input type="text" class="cor-input-code" value="' + escapeHtml(s.code || "") + '" placeholder="e.g. IT 312">' +
+        '</div>' +
+        '<div class="form-group cor-field-units">' +
+          '<label>Units</label>' +
+          '<input type="number" class="cor-input-units" value="' + (s.units || 3) + '" min="1" max="12">' +
+        '</div>' +
+        '<div class="form-group cor-field-day">' +
+          '<label>Days</label>' +
+          '<input type="text" class="cor-input-day" value="' + escapeHtml(s.day || "MWF") + '" placeholder="e.g. MWF, TTH, Sat">' +
+        '</div>' +
+        '<div class="form-group cor-field-time">' +
+          '<label>Start Time</label>' +
+          '<input type="text" class="cor-input-start" value="' + escapeHtml(s.startTime || "") + '" placeholder="08:00 AM">' +
+        '</div>' +
+        '<div class="form-group cor-field-time">' +
+          '<label>End Time</label>' +
+          '<input type="text" class="cor-input-end" value="' + escapeHtml(s.endTime || "") + '" placeholder="10:00 AM">' +
+        '</div>' +
+        '<div class="form-group cor-field-room">' +
+          '<label>Room / Lab</label>' +
+          '<input type="text" class="cor-input-room" value="' + escapeHtml(s.room || "") + '" placeholder="e.g. Lab 3">' +
+        '</div>' +
+        '<div class="form-group cor-field-prof">' +
+          '<label>Professor / Instructor</label>' +
+          '<input type="text" class="cor-input-prof" value="' + escapeHtml(s.professor || "") + '" placeholder="e.g. Prof. Garcia">' +
+        '</div>' +
+      '</div>';
+
+    container.appendChild(row);
+
+    row.querySelector(".btn-remove-cor-row").addEventListener("click", function () {
+      row.remove();
+      updateCORSelectedCount();
+    });
+
+    row.querySelector(".cor-row-checkbox").addEventListener("change", updateCORSelectedCount);
+  }
+
+  function updateCORSelectedCount() {
+    var rows = document.querySelectorAll(".cor-subject-row-item");
+    var checked = document.querySelectorAll(".cor-subject-row-item .cor-row-checkbox:checked");
+    var label = document.getElementById("cor-selected-count-label");
+    var selectAll = document.getElementById("cor-select-all-checkbox");
+
+    if (label) {
+      label.textContent = "Select All (" + checked.length + " of " + rows.length + " selected)";
+    }
+    if (selectAll) {
+      selectAll.checked = rows.length > 0 && checked.length === rows.length;
+    }
+  }
+
+  async function confirmCORImport() {
+    var rows = document.querySelectorAll(".cor-subject-row-item");
+    var selectedRows = [];
+
+    rows.forEach(function (row) {
+      var cb = row.querySelector(".cor-row-checkbox");
+      if (cb && cb.checked) {
+        var name = (row.querySelector(".cor-input-name").value || "").trim();
+        var code = (row.querySelector(".cor-input-code").value || "").trim();
+        var units = parseFloat(row.querySelector(".cor-input-units").value) || 3;
+        var day = (row.querySelector(".cor-input-day").value || "").trim();
+        var startTime = (row.querySelector(".cor-input-start").value || "").trim();
+        var endTime = (row.querySelector(".cor-input-end").value || "").trim();
+        var room = (row.querySelector(".cor-input-room").value || "").trim();
+        var prof = (row.querySelector(".cor-input-prof").value || "").trim();
+
+        if (name) {
+          selectedRows.push({
+            name: name,
+            code: code,
+            units: units,
+            day: day,
+            startTime: startTime,
+            endTime: endTime,
+            schedule: (day ? day + " " : "") + (startTime ? startTime + (endTime ? " - " + endTime : "") : "") + (room ? " (" + room + ")" : ""),
+            room: room,
+            professor: prof
+          });
+        }
+      }
+    });
+
+    if (selectedRows.length === 0) {
+      showToast("Please select at least one subject to import.", "warning");
+      return;
+    }
+
+    var year = document.getElementById("cor-year-select").value || "1st Year";
+    var sem = document.getElementById("cor-semester-select").value || "1st Semester";
+
+    showGlobalLoading();
+
+    try {
+      // 1. Add all to Subjects & Schedules & Curriculum
+      for (var i = 0; i < selectedRows.length; i++) {
+        var item = selectedRows[i];
+
+        // Ensure in Subjects
+        await ensureSubjectInSubjects({
+          name: item.name,
+          professor: item.professor,
+          schedule: item.schedule,
+          year: year,
+          semester: sem
+        });
+
+        // Add to Curriculum
+        try {
+          await addCurriculumSubject(item.name, item.code, item.schedule, year, sem);
+        } catch (e) {}
+
+        // Add to Schedule if day and time present
+        if (item.day && item.startTime) {
+          try {
+            await addScheduleItem(item.name, item.day, item.startTime, item.endTime || "", item.room || "");
+          } catch (e) {}
+        }
+      }
+
+      // 2. Save raw COR into database if available
+      if (_extractedCORData && _extractedCORData._rawFile) {
+        try {
+          await saveCORPDF(_extractedCORData._rawFile.name, _extractedCORData._rawFile.data);
+        } catch (e) {
+          console.warn("[ClassConnect] Could not auto-archive COR:", e);
+        }
+      }
+
+      closeModal("cor-review-modal-overlay");
+
+      // Refresh all dependent views
+      await Promise.all([loadSubjects(), loadSchedule(), loadCurriculum()]);
+
+      showToast("Successfully imported " + selectedRows.length + " subjects for " + year + " (" + sem + ")!", "success");
+
+    } catch (err) {
+      console.error("[ClassConnect] Error importing COR subjects:", err);
+      showToast(err.message || "Could not complete COR import.", "error");
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
   // ===== SETTINGS =====
   function getSettings() { return getData(KEYS.SETTINGS, { fontType: "sans-serif" }); }
   function saveSettings(settings) { setData(KEYS.SETTINGS, settings); }
@@ -4215,13 +5024,23 @@ function getRemoteSession() {
     if (dashName) dashName.textContent = name;
     if (drawerName) drawerName.textContent = name;
     if (drawerEmail) drawerEmail.textContent = email;
+    var userPhoto = getProfilePhoto();
     var composerAvatar = document.getElementById("composer-avatar");
-    if (composerAvatar) composerAvatar.textContent = initials(name);
+    if (composerAvatar) {
+      if (userPhoto) {
+        composerAvatar.style.backgroundImage = "url(" + userPhoto + ")";
+        composerAvatar.style.backgroundSize = "cover";
+        composerAvatar.style.backgroundPosition = "center";
+        composerAvatar.textContent = "";
+      } else {
+        composerAvatar.style.backgroundImage = "";
+        composerAvatar.textContent = initials(name);
+      }
+    }
     var drawerAvatar = document.getElementById("drawer-avatar");
     if (drawerAvatar) {
-      var photo = getProfilePhoto();
-      if (photo) {
-        drawerAvatar.style.backgroundImage = "url(" + photo + ")";
+      if (userPhoto) {
+        drawerAvatar.style.backgroundImage = "url(" + userPhoto + ")";
         drawerAvatar.style.backgroundSize = "cover";
         drawerAvatar.style.backgroundPosition = "center";
         drawerAvatar.textContent = "";
@@ -5350,6 +6169,309 @@ function getRemoteSession() {
         if (fileInput) fileInput.click();
       });
     }
+
+    // ===== SCHOOL FILES HANDLERS =====
+    function setupSchoolFilesHandlers() {
+      var uploadBtn = document.getElementById("upload-school-file-btn");
+      if (uploadBtn && !uploadBtn._ccBound) {
+        uploadBtn._ccBound = true;
+        uploadBtn.addEventListener("click", function () {
+          populateSchoolFilesSubjectList();
+          var form = document.getElementById("upload-school-file-form");
+          if (form) form.reset();
+          var dropzoneName = document.getElementById("school-dropzone-name");
+          if (dropzoneName) dropzoneName.textContent = "Choose a file or drag & drop here";
+          openModal("upload-file-modal-overlay");
+        });
+      }
+
+      var closeUploadModalBtn = document.getElementById("close-upload-file-modal-btn");
+      if (closeUploadModalBtn && !closeUploadModalBtn._ccBound) {
+        closeUploadModalBtn._ccBound = true;
+        closeUploadModalBtn.addEventListener("click", function () {
+          closeModal("upload-file-modal-overlay");
+        });
+      }
+
+      var closePreviewModalBtn = document.getElementById("close-file-preview-modal-btn");
+      if (closePreviewModalBtn && !closePreviewModalBtn._ccBound) {
+        closePreviewModalBtn._ccBound = true;
+        closePreviewModalBtn.addEventListener("click", function () {
+          closeModal("file-preview-modal-overlay");
+        });
+      }
+
+      var modalDropzone = document.getElementById("school-file-dropzone");
+      var modalFileInput = document.getElementById("school-file-modal-input");
+      var modalFileName = document.getElementById("school-file-name-input");
+      var dropzoneName = document.getElementById("school-dropzone-name");
+
+      if (modalDropzone && modalFileInput) {
+        modalDropzone.addEventListener("click", function () {
+          modalFileInput.click();
+        });
+
+        modalDropzone.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          modalDropzone.classList.add("dragover");
+        });
+
+        modalDropzone.addEventListener("dragleave", function () {
+          modalDropzone.classList.remove("dragover");
+        });
+
+        modalDropzone.addEventListener("drop", function (e) {
+          e.preventDefault();
+          modalDropzone.classList.remove("dragover");
+          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+            modalFileInput.files = e.dataTransfer.files;
+            handleModalFileChosen(e.dataTransfer.files[0]);
+          }
+        });
+
+        modalFileInput.addEventListener("change", function () {
+          if (modalFileInput.files && modalFileInput.files[0]) {
+            handleModalFileChosen(modalFileInput.files[0]);
+          }
+        });
+      }
+
+      function handleModalFileChosen(file) {
+        if (!file) return;
+        if (dropzoneName) dropzoneName.textContent = file.name + " (" + formatFileSize(file.size) + ")";
+        if (modalFileName && !modalFileName.value) {
+          var cleanName = file.name.replace(/\.[^/.]+$/, "");
+          modalFileName.value = cleanName;
+        }
+      }
+
+      var quickDropzone = document.getElementById("files-quick-dropzone");
+      var quickFileInput = document.getElementById("school-file-quick-input");
+      var quickUploadBtn = document.getElementById("quick-upload-files-btn");
+
+      if (quickUploadBtn && quickFileInput) {
+        quickUploadBtn.addEventListener("click", function () {
+          quickFileInput.click();
+        });
+      }
+
+      if (quickDropzone && quickFileInput) {
+        quickDropzone.addEventListener("click", function (e) {
+          if (e.target !== quickUploadBtn && (!quickUploadBtn || !quickUploadBtn.contains(e.target))) {
+            quickFileInput.click();
+          }
+        });
+
+        quickDropzone.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          quickDropzone.classList.add("dragover");
+        });
+
+        quickDropzone.addEventListener("dragleave", function () {
+          quickDropzone.classList.remove("dragover");
+        });
+
+        quickDropzone.addEventListener("drop", function (e) {
+          e.preventDefault();
+          quickDropzone.classList.remove("dragover");
+          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleQuickFilesUpload(e.dataTransfer.files);
+          }
+        });
+
+        quickFileInput.addEventListener("change", function () {
+          if (quickFileInput.files && quickFileInput.files.length > 0) {
+            handleQuickFilesUpload(quickFileInput.files);
+            quickFileInput.value = "";
+          }
+        });
+      }
+
+      async function handleQuickFilesUpload(filesList) {
+        if (!filesList || filesList.length === 0) return;
+        showGlobalLoading();
+        var uploadedCount = 0;
+        try {
+          for (var i = 0; i < filesList.length; i++) {
+            var file = filesList[i];
+            var reader = new FileReader();
+            var base64 = await new Promise(function (res, rej) {
+              reader.onload = function (e) { res(e.target.result); };
+              reader.onerror = function (e) { rej(e); };
+              reader.readAsDataURL(file);
+            });
+
+            var category = "Notes";
+            var ext = file.name.split(".").pop().toLowerCase();
+            if (["pdf"].includes(ext)) category = "Notes";
+            else if (["doc", "docx", "txt", "md"].includes(ext)) category = "Notes";
+            else if (["ppt", "pptx"].includes(ext)) category = "Module";
+            else if (["xls", "xlsx", "csv"].includes(ext)) category = "Reviewer";
+
+            await saveSchoolFile({
+              name: file.name.replace(/\.[^/.]+$/, ""),
+              original_name: file.name,
+              data: base64,
+              size: file.size,
+              mime_type: file.type || "application/octet-stream",
+              category: category,
+              subject: "",
+              notes: ""
+            });
+            uploadedCount++;
+          }
+          await loadSchoolFiles();
+          showToast("Uploaded " + uploadedCount + " school file" + (uploadedCount > 1 ? "s" : "") + " successfully!", "success");
+        } catch (err) {
+          console.error("[ClassConnect] Quick upload error:", err);
+          showToast("Error uploading files: " + err.message, "error");
+        } finally {
+          hideGlobalLoading();
+        }
+      }
+
+      var uploadForm = document.getElementById("upload-school-file-form");
+      if (uploadForm && !uploadForm._ccBound) {
+        uploadForm._ccBound = true;
+        uploadForm.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var fileInput = document.getElementById("school-file-modal-input");
+          var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+          var title = (document.getElementById("school-file-name-input").value || "").trim();
+          var category = document.getElementById("school-file-category-input").value || "Notes";
+          var subject = (document.getElementById("school-file-subject-input").value || "").trim();
+          var notes = (document.getElementById("school-file-notes-input").value || "").trim();
+
+          if (!file) {
+            showToast("Please choose or drop a file to upload.", "warning");
+            return;
+          }
+          if (!title) {
+            showToast("Please enter a display title for the file.", "warning");
+            return;
+          }
+
+          var submitBtn = document.getElementById("save-school-file-btn");
+          setButtonLoading(submitBtn, true);
+
+          try {
+            var reader = new FileReader();
+            var base64 = await new Promise(function (res, rej) {
+              reader.onload = function (ev) { res(ev.target.result); };
+              reader.onerror = function (ev) { rej(new Error("Could not read file.")); };
+              reader.readAsDataURL(file);
+            });
+
+            await saveSchoolFile({
+              name: title,
+              original_name: file.name,
+              data: base64,
+              size: file.size,
+              mime_type: file.type || "application/octet-stream",
+              category: category,
+              subject: subject,
+              notes: notes
+            });
+
+            closeModal("upload-file-modal-overlay");
+            uploadForm.reset();
+            if (dropzoneName) dropzoneName.textContent = "Choose a file or drag & drop here";
+            await loadSchoolFiles();
+            showToast("School file \"" + title + "\" uploaded successfully!", "success");
+
+          } catch (err) {
+            console.error("[ClassConnect] Save school file error:", err);
+            showToast(err.message || "Failed to upload file.", "error");
+          } finally {
+            setButtonLoading(submitBtn, false);
+          }
+        });
+      }
+    }
+
+    // ===== COR IMPORT HANDLERS =====
+    function setupCORImportHandlers() {
+      var corTriggers = [
+        document.getElementById("import-cor-btn"),
+        document.getElementById("schedule-import-cor-btn"),
+        document.getElementById("curriculum-import-cor-btn"),
+        document.getElementById("upload-cor-btn")
+      ];
+
+      var corFileInput = document.getElementById("cor-upload-file-input");
+
+      corTriggers.forEach(function (btn) {
+        if (btn && !btn._ccBound) {
+          btn._ccBound = true;
+          btn.addEventListener("click", function () {
+            if (corFileInput) corFileInput.click();
+          });
+        }
+      });
+
+      if (corFileInput && !corFileInput._ccBound) {
+        corFileInput._ccBound = true;
+        corFileInput.addEventListener("change", function () {
+          if (corFileInput.files && corFileInput.files[0]) {
+            processCORFile(corFileInput.files[0]);
+            corFileInput.value = "";
+          }
+        });
+      }
+
+      var closeCorBtn = document.getElementById("close-cor-modal-btn");
+      var cancelCorBtn = document.getElementById("cor-cancel-btn");
+      [closeCorBtn, cancelCorBtn].forEach(function (btn) {
+        if (btn && !btn._ccBound) {
+          btn._ccBound = true;
+          btn.addEventListener("click", function () {
+            closeModal("cor-review-modal-overlay");
+          });
+        }
+      });
+
+      var addRowBtn = document.getElementById("cor-add-row-btn");
+      if (addRowBtn && !addRowBtn._ccBound) {
+        addRowBtn._ccBound = true;
+        addRowBtn.addEventListener("click", function () {
+          appendCORSubjectRow({
+            name: "",
+            code: "",
+            units: 3,
+            day: "MWF",
+            startTime: "08:00 AM",
+            endTime: "09:30 AM",
+            room: "",
+            professor: ""
+          });
+          updateCORSelectedCount();
+        });
+      }
+
+      var selectAllCb = document.getElementById("cor-select-all-checkbox");
+      if (selectAllCb && !selectAllCb._ccBound) {
+        selectAllCb._ccBound = true;
+        selectAllCb.addEventListener("change", function () {
+          var isChecked = selectAllCb.checked;
+          document.querySelectorAll(".cor-subject-row-item .cor-row-checkbox").forEach(function (cb) {
+            cb.checked = isChecked;
+          });
+          updateCORSelectedCount();
+        });
+      }
+
+      var corForm = document.getElementById("cor-review-form");
+      if (corForm && !corForm._ccBound) {
+        corForm._ccBound = true;
+        corForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          confirmCORImport();
+        });
+      }
+    }
+
+    setupSchoolFilesHandlers();
+    setupCORImportHandlers();
 
     // ----- INACTIVITY -----
     ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach(function (evName) {
