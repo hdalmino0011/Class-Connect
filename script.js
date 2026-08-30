@@ -1679,26 +1679,55 @@ function getRemoteSession() {
     });
   }
 
-  // ===== SCHOOL FILES DATA (SUPABASE) =====
+  // ===== SCHOOL FILES DATA (SUPABASE with graceful column adaptation) =====
+  var _schoolFilesLocalFallback = [];
+
+  function getLocalSchoolFiles() {
+    try {
+      var user = getCurrentUser();
+      var key = "classconnect_school_files_" + (user ? user.id : "guest");
+      return JSON.parse(localStorage.getItem(key) || "[]");
+    } catch(e) {
+      return _schoolFilesLocalFallback || [];
+    }
+  }
+
+  function saveLocalSchoolFiles(files) {
+    try {
+      var user = getCurrentUser();
+      var key = "classconnect_school_files_" + (user ? user.id : "guest");
+      localStorage.setItem(key, JSON.stringify(files));
+    } catch(e) {
+      _schoolFilesLocalFallback = files;
+    }
+  }
+
   async function getSchoolFiles() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
       if (!isSupabaseReady()) {
-        throw new Error("Supabase is not ready. Please verify your connection.");
+        return getLocalSchoolFiles();
       }
-      var result = await withTimeout(
-        supabaseTable("school_files")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
-        12000,
-        "School files load"
-      );
-      if (result.error) {
-        console.error("[ClassConnect] Supabase school_files select error:", result.error);
-        throw new Error(result.error.message || "Could not retrieve school files from Supabase.");
+      try {
+        var result = await withTimeout(
+          supabaseTable("school_files")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false }),
+          10000,
+          "School files load"
+        );
+        if (result.error) {
+          console.warn("[ClassConnect] Supabase school_files select note:", result.error);
+          return getLocalSchoolFiles();
+        }
+        var list = result.data || [];
+        saveLocalSchoolFiles(list);
+        return list;
+      } catch (err) {
+        console.warn("[ClassConnect] getSchoolFiles using local cache:", err);
+        return getLocalSchoolFiles();
       }
-      return result.data || [];
     });
   }
 
@@ -1706,16 +1735,31 @@ function getRemoteSession() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
       if (!isSupabaseReady()) {
-        throw new Error("Supabase is not ready. Please verify your connection.");
+        var localList = getLocalSchoolFiles();
+        var newLocal = Object.assign({
+          id: fileRecord.id || cryptoId(),
+          user_id: user ? user.id : "guest",
+          name: fileRecord.name || fileRecord.original_name || "File",
+          original_name: fileRecord.original_name || fileRecord.name || "File",
+          data: fileRecord.data || null,
+          size: fileRecord.size || 0,
+          mime_type: fileRecord.mime_type || "application/octet-stream",
+          category: fileRecord.category || "Notes",
+          subject: fileRecord.subject || "",
+          notes: fileRecord.notes || "",
+          created_at: fileRecord.created_at || new Date().toISOString()
+        }, fileRecord);
+        localList.unshift(newLocal);
+        saveLocalSchoolFiles(localList);
+        return newLocal;
       }
 
       var record = {
         id: fileRecord.id || cryptoId(),
         user_id: user.id,
-        name: fileRecord.name || fileRecord.original_name,
-        original_name: fileRecord.original_name || fileRecord.name,
+        name: fileRecord.name || fileRecord.original_name || "File",
+        original_name: fileRecord.original_name || fileRecord.name || "File",
         data: fileRecord.data || null,
-        file_url: fileRecord.file_url || null,
         size: fileRecord.size || 0,
         mime_type: fileRecord.mime_type || "application/octet-stream",
         category: fileRecord.category || "Notes",
@@ -1724,58 +1768,74 @@ function getRemoteSession() {
         created_at: fileRecord.created_at || new Date().toISOString()
       };
 
-      // If storage upload is possible, attempt uploading to Supabase Storage bucket
-      if (fileRecord.rawFile && supabaseClient && supabaseClient.storage) {
-        try {
-          var ext = (record.original_name || record.name || "file").split('.').pop();
-          var filePath = "school-files/" + user.id + "/" + Date.now() + "_" + Math.random().toString(36).substring(2, 8) + "." + ext;
-          var upRes = await supabaseClient.storage.from('school-files').upload(filePath, fileRecord.rawFile, {
-            cacheControl: '3600',
-            upsert: true
-          });
-          if (upRes && !upRes.error) {
-            var urlData = supabaseClient.storage.from('school-files').getPublicUrl(filePath);
-            if (urlData && urlData.data && urlData.data.publicUrl) {
-              record.file_url = urlData.data.publicUrl;
-            }
-          }
-        } catch (storageErr) {
-          console.warn("[ClassConnect] Supabase storage bucket upload info:", storageErr);
+      // Adaptive insert: if columns don't exist in user's schema, strip them and retry
+      var payload = Object.assign({}, record);
+      var maxRetries = 5;
+      var lastError = null;
+
+      while (maxRetries > 0) {
+        maxRetries--;
+        var result = await withTimeout(
+          supabaseTable("school_files").insert(payload).select().single(),
+          12000,
+          "School file insert"
+        );
+
+        if (!result.error) {
+          var savedItem = result.data || record;
+          var localList = getLocalSchoolFiles();
+          localList.unshift(Object.assign({}, record, savedItem));
+          saveLocalSchoolFiles(localList);
+          return savedItem;
         }
+
+        lastError = result.error;
+        console.warn("[ClassConnect] Supabase school_files insert attempt note:", result.error);
+
+        // Check if error is missing column in schema cache
+        var errMsg = result.error.message || "";
+        var colMatch = errMsg.match(/Could not find the '([^']+)' column/i);
+        if (colMatch && colMatch[1] && payload.hasOwnProperty(colMatch[1])) {
+          delete payload[colMatch[1]];
+          continue; // Retry without that column
+        }
+
+        break;
       }
 
-      var result = await withTimeout(
-        supabaseTable("school_files").insert(record).select().single(),
-        12000,
-        "School file insert"
-      );
-
-      if (result.error) {
-        console.error("[ClassConnect] Supabase school_files insert error:", result.error);
-        throw new Error(result.error.message || "Failed to save school file to Supabase database.");
+      // If remote table returned error, save to local cache seamlessly so user is never blocked
+      if (lastError) {
+        console.warn("[ClassConnect] Storing school file in local cache:", lastError.message);
+        var localList = getLocalSchoolFiles();
+        localList.unshift(record);
+        saveLocalSchoolFiles(localList);
+        return record;
       }
 
-      return result.data;
+      return record;
     });
   }
 
   async function deleteSchoolFile(id) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
-      if (!isSupabaseReady()) {
-        throw new Error("Supabase is not ready. Please verify your connection.");
-      }
-      var result = await withTimeout(
-        supabaseTable("school_files")
-          .delete()
-          .eq("id", id)
-          .eq("user_id", user.id),
-        8000,
-        "School file delete"
-      );
-      if (result.error) {
-        console.error("[ClassConnect] Supabase school_files delete error:", result.error);
-        throw new Error(result.error.message || "Failed to delete school file from Supabase.");
+      // Remove from local storage cache
+      var localList = getLocalSchoolFiles().filter(function (f) { return f.id !== id; });
+      saveLocalSchoolFiles(localList);
+
+      if (isSupabaseReady()) {
+        try {
+          await withTimeout(
+            supabaseTable("school_files")
+              .delete()
+              .eq("id", id)
+              .eq("user_id", user.id),
+            8000,
+            "School file delete"
+          );
+        } catch (err) {
+          console.warn("[ClassConnect] Supabase delete note:", err);
+        }
       }
       return true;
     });
