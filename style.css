@@ -5973,4 +5973,51 @@ body.cc-global-loading .bottom-nav {
   }
 }
 
+/* ===== IN-FEED SKELETON LOADER ===== */
+.feed-inline-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.feed-skeleton-card {
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.feed-skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.skeleton-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  animation: ccPulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.skeleton-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-line {
+  background: #e2e8f0;
+  border-radius: 4px;
+  animation: ccPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ccPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.25; }
+}
+
 

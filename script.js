@@ -508,8 +508,9 @@ function getRemoteSession() {
     });
   }
 
-  /* ===== NEW: GLOBAL LOADING OVERLAY ===== */
+  /* ===== GLOBAL LOADING OVERLAY (FAST & AUTO-EXPIRING) ===== */
   var loadingDepth = 0;
+  var globalLoadingTimer = null;
 
   function showGlobalLoading() {
     loadingDepth++;
@@ -519,17 +520,32 @@ function getRemoteSession() {
       overlay.setAttribute("aria-hidden", "false");
     }
     document.body.classList.add("cc-global-loading");
+
+    // Safety timeout: Auto-dismiss overlay after 1200ms max so screen is never trapped
+    if (globalLoadingTimer) clearTimeout(globalLoadingTimer);
+    globalLoadingTimer = setTimeout(function () {
+      forceHideGlobalLoading();
+    }, 1200);
+  }
+
+  function forceHideGlobalLoading() {
+    loadingDepth = 0;
+    if (globalLoadingTimer) {
+      clearTimeout(globalLoadingTimer);
+      globalLoadingTimer = null;
+    }
+    var overlay = document.getElementById("global-loading-overlay");
+    if (overlay) {
+      overlay.classList.remove("active");
+      overlay.setAttribute("aria-hidden", "true");
+    }
+    document.body.classList.remove("cc-global-loading");
   }
 
   function hideGlobalLoading() {
     if (loadingDepth > 0) loadingDepth--;
     if (loadingDepth === 0) {
-      var overlay = document.getElementById("global-loading-overlay");
-      if (overlay) {
-        overlay.classList.remove("active");
-        overlay.setAttribute("aria-hidden", "true");
-      }
-      document.body.classList.remove("cc-global-loading");
+      forceHideGlobalLoading();
     }
   }
 
@@ -860,6 +876,25 @@ function getRemoteSession() {
       );
       if (result.error) throw result.error;
       return result.data || [];
+    });
+  }
+
+  async function getAllPostAcknowledgments(postIds) {
+    if (!postIds || postIds.length === 0) return [];
+    return withAuthCheck(async function () {
+      try {
+        var result = await withTimeout(
+          supabaseTable("post_acknowledgments")
+            .select("*")
+            .in("post_id", postIds),
+          8000,
+          "All acknowledgments load"
+        );
+        if (result.error) return [];
+        return result.data || [];
+      } catch(e) {
+        return [];
+      }
     });
   }
 
@@ -2308,9 +2343,26 @@ function getRemoteSession() {
     if (el) el.hidden = true;
   }
 
-  function setButtonLoading(btn, loading) {
+  function setButtonLoading(btn, loading, loadingText) {
     if (!btn) return;
-    btn.disabled = loading;
+    btn.disabled = !!loading;
+    var textSpan = btn.querySelector(".btn-text");
+    if (loading) {
+      if (!btn.getAttribute("data-orig-html")) {
+        btn.setAttribute("data-orig-html", btn.innerHTML);
+      }
+      if (textSpan) {
+        textSpan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (loadingText || "Please wait...");
+      } else {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (loadingText || "Please wait...");
+      }
+    } else {
+      var orig = btn.getAttribute("data-orig-html");
+      if (orig) {
+        btn.innerHTML = orig;
+        btn.removeAttribute("data-orig-html");
+      }
+    }
   }
 
   function openModal(id) {
@@ -2528,14 +2580,40 @@ function getRemoteSession() {
     });
   }
 
-  // POSTS LOAD – FIXED: better deduplication and feed clearing with author photos
+  // POSTS LOAD – Background & Instant Skeleton with Parallel Fetching
   var _loadPostsCallId = 0;
   async function loadPosts(searchQuery) {
     var myCallId = ++_loadPostsCallId;
     const feed = document.getElementById("posts-feed");
     if (!feed) return;
     
-    feed.innerHTML = "";
+    // Show smooth in-feed skeleton if feed is currently empty
+    if (!feed.children.length || feed.querySelector(".empty-state")) {
+      feed.innerHTML =
+        '<div class="feed-inline-skeleton">' +
+          '<div class="feed-skeleton-card">' +
+            '<div class="feed-skeleton-header">' +
+              '<div class="skeleton-avatar"></div>' +
+              '<div class="skeleton-text-group">' +
+                '<div class="skeleton-line" style="width: 140px; height: 14px;"></div>' +
+                '<div class="skeleton-line" style="width: 90px; height: 10px; margin-top: 6px;"></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="skeleton-line" style="width: 90%; height: 12px; margin-top: 14px;"></div>' +
+            '<div class="skeleton-line" style="width: 70%; height: 12px; margin-top: 8px;"></div>' +
+          '</div>' +
+          '<div class="feed-skeleton-card">' +
+            '<div class="feed-skeleton-header">' +
+              '<div class="skeleton-avatar"></div>' +
+              '<div class="skeleton-text-group">' +
+                '<div class="skeleton-line" style="width: 120px; height: 14px;"></div>' +
+                '<div class="skeleton-line" style="width: 80px; height: 10px; margin-top: 6px;"></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="skeleton-line" style="width: 85%; height: 12px; margin-top: 14px;"></div>' +
+          '</div>' +
+        '</div>';
+    }
 
     try {
       var fetchResults = await Promise.all([getPosts(), getProfilesMap()]);
@@ -2567,14 +2645,26 @@ function getRemoteSession() {
       }
 
       var postIds = posts.map(function (p) { return p.id; });
-      var allComments = [];
-      if (postIds.length > 0) {
-        allComments = await getCommentsForPosts(postIds);
-      }
+      var parallelResults = await Promise.all([
+        postIds.length > 0 ? getCommentsForPosts(postIds) : Promise.resolve([]),
+        postIds.length > 0 ? getAllPostAcknowledgments(postIds) : Promise.resolve([])
+      ]);
+
+      if (myCallId !== _loadPostsCallId) return;
+
+      var allComments = parallelResults[0] || [];
+      var allAcks = parallelResults[1] || [];
+
       var commentsByPost = {};
       allComments.forEach(function (c) {
         if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = [];
         commentsByPost[c.post_id].push(c);
+      });
+
+      var acksByPost = {};
+      allAcks.forEach(function (a) {
+        if (!acksByPost[a.post_id]) acksByPost[a.post_id] = [];
+        acksByPost[a.post_id].push(a);
       });
 
       feed.innerHTML = "";
@@ -2604,10 +2694,9 @@ function getRemoteSession() {
         var imgHtml = post.image ? '<div class="post-image-wrap"><img src="' + post.image + '" alt="Post image" loading="lazy" class="post-img-zoomable" data-viewer-src="' + post.image + '"></div>' : "";
         var tagHtml = post.tag ? '<div class="post-tag-wrap"><span class="post-tag"><i class="fas fa-tag"></i> ' + escapeHtml(post.tag) + '</span></div>' : "";
 
-        var canDel = await canDeletePost(post.id, posts);
-        var canEdt = await canEditPost(post.id, posts);
-        var acks = await getPostAcknowledgments(post.id);
-        if (myCallId !== _loadPostsCallId) return;
+        var canDel = user ? (isAdmin() || post.user_id === user.id || post.author === user.name) : false;
+        var canEdt = user ? (post.user_id === user.id || post.author === user.name) : false;
+        var acks = acksByPost[post.id] || [];
         var hasAck = user ? acks.some(function (a) { return a.user_id === user.id; }) : false;
         var ackCount = acks.length;
 
@@ -4882,7 +4971,7 @@ function getRemoteSession() {
     });
   }
 
-  // ===== LOAD DASHBOARD =====
+  // ===== LOAD DASHBOARD (INSTANT REVEAL & ASYNC DATA POPULATION) =====
   async function loadDashboard() {
     if (!isLoggedIn()) {
       showPage("login-page");
@@ -4924,25 +5013,24 @@ function getRemoteSession() {
       }
     }
 
-    try {
-      showGlobalLoading();
-      loadProfileForm();
-      await loadPosts(document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "");
-      await loadSubjects();
-      await loadSchedule();
-      await loadAssignments();
-      await loadGrades();
-      await loadClassmates();
-      loadFaqs();
-      loadSettings();
-      switchView("view-home");
-      startInactivityTimer();
-    } catch (err) {
-      console.error("Error loading dashboard data:", err);
-      showToast("Some data could not be loaded. Please refresh.", "warning");
-    } finally {
-      hideGlobalLoading();
-    }
+    // Dismiss any global loading overlay immediately so user has full UI access
+    forceHideGlobalLoading();
+
+    // Render local states instantly
+    loadProfileForm();
+    loadFaqs();
+    loadSettings();
+    switchView("view-home");
+    startInactivityTimer();
+
+    // Asynchronously load feeds in background without locking screen
+    var searchVal = document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "";
+    loadPosts(searchVal).catch(function(e) { console.warn("[ClassConnect] Background posts load:", e); });
+    loadSubjects().catch(function(e) { console.warn("[ClassConnect] Background subjects load:", e); });
+    loadSchedule().catch(function(e) { console.warn("[ClassConnect] Background schedule load:", e); });
+    loadAssignments().catch(function(e) { console.warn("[ClassConnect] Background assignments load:", e); });
+    loadGrades().catch(function(e) { console.warn("[ClassConnect] Background grades load:", e); });
+    loadClassmates().catch(function(e) { console.warn("[ClassConnect] Background classmates load:", e); });
   }
 
   // ================================================================
@@ -5010,11 +5098,15 @@ function getRemoteSession() {
         if (!isValidEmail(email)) { showError("login-error", "Please enter a valid email address."); return; }
         if (!password) { showError("login-error", "Please enter your password."); return; }
         var btn = document.getElementById("login-submit-btn");
-        setButtonLoading(btn, true);
+        setButtonLoading(btn, true, "Signing in...");
         try {
-          var result = await withLoading(function () { return login(email, password); });
+          var result = await login(email, password);
           setButtonLoading(btn, false);
-          if (!result.success) { showError("login-error", result.message); return; }
+          if (!result.success) { 
+            showError("login-error", result.message); 
+            return; 
+          }
+          forceHideGlobalLoading();
           loginForm.reset();
           showPage("dashboard-page");
           loadDashboard();
@@ -5026,7 +5118,9 @@ function getRemoteSession() {
         } catch (error) {
           console.error("[ClassConnect] Login form error:", error);
           showError("login-error", "Unable to sign in right now. Please try again.");
+        } finally {
           setButtonLoading(btn, false);
+          forceHideGlobalLoading();
         }
       });
     }
