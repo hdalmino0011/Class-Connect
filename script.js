@@ -1641,93 +1641,104 @@ function getRemoteSession() {
     });
   }
 
-  // ===== SCHOOL FILES DATA =====
-  var LOCAL_SCHOOL_FILES_KEY = "cc_school_files_local";
-
-  function getLocalSchoolFiles() {
-    return getData(LOCAL_SCHOOL_FILES_KEY, []);
-  }
-
-  function setLocalSchoolFiles(files) {
-    setData(LOCAL_SCHOOL_FILES_KEY, files);
-  }
-
+  // ===== SCHOOL FILES DATA (SUPABASE) =====
   async function getSchoolFiles() {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
-      if (isSupabaseReady()) {
-        try {
-          var result = await withTimeout(
-            supabaseTable("school_files")
-              .select("*")
-              .eq("user_id", user.id)
-              .order("created_at", { ascending: false }),
-            8000,
-            "School files load"
-          );
-          if (!result.error && result.data) {
-            setLocalSchoolFiles(result.data);
-            return result.data;
-          }
-        } catch (e) {
-          console.warn("[ClassConnect] Supabase school_files error, using local fallback:", e);
-        }
+      if (!isSupabaseReady()) {
+        throw new Error("Supabase is not ready. Please verify your connection.");
       }
-      return getLocalSchoolFiles().filter(function (f) { return !f.user_id || f.user_id === user.id; });
+      var result = await withTimeout(
+        supabaseTable("school_files")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        12000,
+        "School files load"
+      );
+      if (result.error) {
+        console.error("[ClassConnect] Supabase school_files select error:", result.error);
+        throw new Error(result.error.message || "Could not retrieve school files from Supabase.");
+      }
+      return result.data || [];
     });
   }
 
   async function saveSchoolFile(fileRecord) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
-      var record = Object.assign({}, fileRecord, {
-        user_id: user.id,
-        id: fileRecord.id || cryptoId(),
-        created_at: fileRecord.created_at || new Date().toISOString()
-      });
+      if (!isSupabaseReady()) {
+        throw new Error("Supabase is not ready. Please verify your connection.");
+      }
 
-      if (isSupabaseReady()) {
+      var record = {
+        id: fileRecord.id || cryptoId(),
+        user_id: user.id,
+        name: fileRecord.name || fileRecord.original_name,
+        original_name: fileRecord.original_name || fileRecord.name,
+        data: fileRecord.data || null,
+        file_url: fileRecord.file_url || null,
+        size: fileRecord.size || 0,
+        mime_type: fileRecord.mime_type || "application/octet-stream",
+        category: fileRecord.category || "Notes",
+        subject: fileRecord.subject || "",
+        notes: fileRecord.notes || "",
+        created_at: fileRecord.created_at || new Date().toISOString()
+      };
+
+      // If storage upload is possible, attempt uploading to Supabase Storage bucket
+      if (fileRecord.rawFile && supabaseClient && supabaseClient.storage) {
         try {
-          var result = await withTimeout(
-            supabaseTable("school_files").insert(record).select().single(),
-            8000,
-            "School file insert"
-          );
-          if (!result.error && result.data) {
-            record = result.data;
+          var ext = (record.original_name || record.name || "file").split('.').pop();
+          var filePath = "school-files/" + user.id + "/" + Date.now() + "_" + Math.random().toString(36).substring(2, 8) + "." + ext;
+          var upRes = await supabaseClient.storage.from('school-files').upload(filePath, fileRecord.rawFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
+          if (upRes && !upRes.error) {
+            var urlData = supabaseClient.storage.from('school-files').getPublicUrl(filePath);
+            if (urlData && urlData.data && urlData.data.publicUrl) {
+              record.file_url = urlData.data.publicUrl;
+            }
           }
-        } catch (e) {
-          console.warn("[ClassConnect] Supabase school_files insert warning:", e);
+        } catch (storageErr) {
+          console.warn("[ClassConnect] Supabase storage bucket upload info:", storageErr);
         }
       }
 
-      var local = getLocalSchoolFiles();
-      local = local.filter(function (f) { return f.id !== record.id; });
-      local.unshift(record);
-      setLocalSchoolFiles(local);
-      return record;
+      var result = await withTimeout(
+        supabaseTable("school_files").insert(record).select().single(),
+        12000,
+        "School file insert"
+      );
+
+      if (result.error) {
+        console.error("[ClassConnect] Supabase school_files insert error:", result.error);
+        throw new Error(result.error.message || "Failed to save school file to Supabase database.");
+      }
+
+      return result.data;
     });
   }
 
   async function deleteSchoolFile(id) {
     return withAuthCheck(async function () {
       var user = getCurrentUser();
-      if (isSupabaseReady()) {
-        try {
-          await withTimeout(
-            supabaseTable("school_files")
-              .delete()
-              .eq("id", id)
-              .eq("user_id", user.id),
-            8000,
-            "School file delete"
-          );
-        } catch (e) {
-          console.warn("[ClassConnect] Supabase school_files delete warning:", e);
-        }
+      if (!isSupabaseReady()) {
+        throw new Error("Supabase is not ready. Please verify your connection.");
       }
-      var local = getLocalSchoolFiles().filter(function (f) { return f.id !== id; });
-      setLocalSchoolFiles(local);
+      var result = await withTimeout(
+        supabaseTable("school_files")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id),
+        8000,
+        "School file delete"
+      );
+      if (result.error) {
+        console.error("[ClassConnect] Supabase school_files delete error:", result.error);
+        throw new Error(result.error.message || "Failed to delete school file from Supabase.");
+      }
       return true;
     });
   }
@@ -4145,9 +4156,10 @@ function getRemoteSession() {
         card.className = "school-file-card";
         card.setAttribute("data-file-id", file.id);
 
-        var isImg = meta.type === "image" && file.data;
+        var fileSrc = file.data || file.file_url || file.url;
+        var isImg = meta.type === "image" && fileSrc;
         var visualPreview = isImg
-          ? '<div class="file-card-img-thumb" style="background-image:url(\'' + file.data + '\')"></div>'
+          ? '<div class="file-card-img-thumb" style="background-image:url(\'' + fileSrc + '\')"></div>'
           : '<div class="file-card-icon-wrap" style="background:' + meta.bg + ';color:' + meta.color + '">' +
               '<i class="fas ' + meta.icon + '"></i>' +
               '<span class="file-badge-ext">' + meta.label + '</span>' +
@@ -4247,14 +4259,16 @@ function getRemoteSession() {
   }
 
   function triggerFileDownload(file) {
-    if (!file || !file.data) {
+    var fileSrc = file ? (file.data || file.file_url || file.url) : null;
+    if (!fileSrc) {
       showToast("File data is not available to download.", "error");
       return;
     }
     var filename = file.original_name || file.name || "school-file";
     var a = document.createElement("a");
-    a.href = file.data;
+    a.href = fileSrc;
     a.download = filename;
+    a.target = "_blank";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -4273,6 +4287,7 @@ function getRemoteSession() {
 
     if (!overlay || !bodyEl) return;
 
+    var fileSrc = file.data || file.file_url || file.url;
     var meta = getFileIconMeta(file.original_name || file.name, file.mime_type);
     if (titleEl) titleEl.textContent = file.name || file.original_name || "File Preview";
     var sizeText = formatFileSize(file.size || (file.data ? Math.round(file.data.length * 0.75) : 0));
@@ -4290,13 +4305,13 @@ function getRemoteSession() {
 
     bodyEl.innerHTML = "";
 
-    if (meta.type === "image" && file.data) {
-      bodyEl.innerHTML = '<div class="preview-img-container"><img src="' + file.data + '" alt="' + escapeHtml(file.name) + '" class="preview-full-img"></div>';
-    } else if (meta.type === "pdf" && file.data) {
-      bodyEl.innerHTML = '<iframe src="' + file.data + '" class="preview-pdf-iframe" title="PDF Document"></iframe>';
-    } else if (meta.type === "text" && file.data && file.data.startsWith("data:text/")) {
+    if (meta.type === "image" && fileSrc) {
+      bodyEl.innerHTML = '<div class="preview-img-container"><img src="' + fileSrc + '" alt="' + escapeHtml(file.name) + '" class="preview-full-img"></div>';
+    } else if (meta.type === "pdf" && fileSrc) {
+      bodyEl.innerHTML = '<iframe src="' + fileSrc + '" class="preview-pdf-iframe" title="PDF Document"></iframe>';
+    } else if (meta.type === "text" && fileSrc && fileSrc.startsWith("data:text/")) {
       try {
-        var base64Part = file.data.split(",")[1];
+        var base64Part = fileSrc.split(",")[1];
         var textContent = atob(base64Part);
         bodyEl.innerHTML = '<div class="preview-text-container"><pre><code>' + escapeHtml(textContent) + '</code></pre></div>';
       } catch (e) {
@@ -6081,6 +6096,7 @@ function getRemoteSession() {
             await saveSchoolFile({
               name: file.name.replace(/\.[^/.]+$/, ""),
               original_name: file.name,
+              rawFile: file,
               data: base64,
               size: file.size,
               mime_type: file.type || "application/octet-stream",
@@ -6135,6 +6151,7 @@ function getRemoteSession() {
             await saveSchoolFile({
               name: title,
               original_name: file.name,
+              rawFile: file,
               data: base64,
               size: file.size,
               mime_type: file.type || "application/octet-stream",
