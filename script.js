@@ -4019,6 +4019,7 @@ function getRemoteSession() {
 
   async function loadSchoolFiles(searchQuery, categoryFilter, formatFilter) {
     var container = document.getElementById("school-files-list");
+    var badgeCount = document.getElementById("files-count-badge");
     if (!container) return;
 
     if (searchQuery !== undefined) _currentFilesFilter.query = searchQuery;
@@ -4046,38 +4047,95 @@ function getRemoteSession() {
         if (fmt !== "all") {
           if (fmt === "pdf") fmtMatch = (ext === "pdf");
           else if (fmt === "word") fmtMatch = ["doc", "docx"].includes(ext);
-          else if (fmt === "presentation") fmtMatch = ["ppt", "pptx"].includes(ext);
-          else if (fmt === "spreadsheet") fmtMatch = ["xls", "xlsx", "csv"].includes(ext);
-          else if (fmt === "image") fmtMatch = ["png", "jpg", "jpeg", "webp", "gif"].includes(ext);
-          else if (fmt === "archive") fmtMatch = ["zip", "rar", "7z"].includes(ext);
-          else if (fmt === "text") fmtMatch = ["txt", "md", "json", "sql", "js", "html", "css"].includes(ext);
+          else if (fmt === "powerpoint" || fmt === "presentation") fmtMatch = ["ppt", "pptx"].includes(ext);
+          else if (fmt === "excel" || fmt === "spreadsheet") fmtMatch = ["xls", "xlsx", "csv"].includes(ext);
+          else if (fmt === "image") fmtMatch = ["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext);
+          else if (fmt === "archive") fmtMatch = ["zip", "rar", "7z", "tar", "gz"].includes(ext);
+          else if (fmt === "text") fmtMatch = ["txt", "md", "json", "sql", "js", "ts", "html", "css", "py", "java", "c", "cpp"].includes(ext);
         }
 
         return nameMatch && catMatch && fmtMatch;
       });
 
+      if (badgeCount) {
+        badgeCount.innerHTML = '<i class="fas fa-file"></i> <span>' + filtered.length + ' File' + (filtered.length === 1 ? '' : 's') + '</span>';
+      }
+
       container.innerHTML = "";
 
       if (files.length === 0) {
         container.innerHTML =
-          '<div class="empty-state files-empty-state">' +
-            '<div class="empty-icon"><i class="fas fa-folder-open"></i></div>' +
-            '<p class="empty-title">Your school files vault is empty</p>' +
-            '<p class="empty-sub">Upload notes, reviewers, presentations, PDFs, homework, and syllabus documents to organize your studies.</p>' +
-            '<button class="btn-primary" style="margin-top:12px;" onclick="document.getElementById(\'upload-school-file-btn\').click()">' +
-              '<i class="fas fa-cloud-arrow-up"></i> Upload Your First File' +
-            '</button>' +
+          '<div class="files-empty-hub-card">' +
+            '<div class="empty-hub-badge">' +
+              '<div class="empty-hub-icon-inner"><i class="fas fa-folder-open"></i></div>' +
+            '</div>' +
+            '<h3 class="empty-hub-title">Your School Files Vault is Empty</h3>' +
+            '<p class="empty-hub-description">Upload, organize, and preview lecture notes, reviewers, presentations, PDFs, assignments, and syllabi for all your subjects in one centralized workspace.</p>' +
+            '<div class="empty-hub-cta-wrap">' +
+              '<button type="button" class="btn-primary btn-hub-upload" id="empty-hub-upload-btn">' +
+                '<i class="fas fa-cloud-arrow-up"></i> Upload Your First File' +
+              '</button>' +
+            '</div>' +
+            '<div class="empty-hub-quick-chips-wrap">' +
+              '<span class="empty-chips-label"><i class="fas fa-bolt"></i> Quick upload by category:</span>' +
+              '<div class="empty-hub-chips-grid">' +
+                '<button type="button" class="hub-chip-btn" data-precat="Notes"><i class="fas fa-note-sticky"></i> Class Notes</button>' +
+                '<button type="button" class="hub-chip-btn" data-precat="Reviewer"><i class="fas fa-book-bookmark"></i> Reviewer / Exam Guide</button>' +
+                '<button type="button" class="hub-chip-btn" data-precat="Syllabus"><i class="fas fa-graduation-cap"></i> Course Syllabus</button>' +
+                '<button type="button" class="hub-chip-btn" data-precat="Assignment"><i class="fas fa-clipboard-list"></i> Assignment</button>' +
+                '<button type="button" class="hub-chip-btn" data-precat="Module"><i class="fas fa-book"></i> Module / Slide</button>' +
+                '<button type="button" class="hub-chip-btn" data-precat="Project"><i class="fas fa-laptop-code"></i> Project Source</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="empty-hub-features-row">' +
+              '<div class="hub-feat-item"><i class="fas fa-eye"></i> <span>In-App PDF &amp; Image Viewer</span></div>' +
+              '<div class="hub-feat-item"><i class="fas fa-shield-halved"></i> <span>Local &amp; Secure Storage</span></div>' +
+              '<div class="hub-feat-item"><i class="fas fa-tags"></i> <span>Subject &amp; Category Filters</span></div>' +
+            '</div>' +
           '</div>';
+
+        var emptyUploadBtn = document.getElementById("empty-hub-upload-btn");
+        if (emptyUploadBtn) {
+          emptyUploadBtn.addEventListener("click", function () {
+            openUploadFileModal();
+          });
+        }
+
+        container.querySelectorAll(".hub-chip-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var precat = btn.getAttribute("data-precat");
+            openUploadFileModal(precat);
+          });
+        });
+
         return;
       }
 
       if (filtered.length === 0) {
         container.innerHTML =
-          '<div class="empty-state">' +
-            '<div class="empty-icon"><i class="fas fa-filter-circle-xmark"></i></div>' +
-            '<p class="empty-title">No files match your filters</p>' +
-            '<p class="empty-sub">Try selecting "All" categories or clearing your search keywords.</p>' +
+          '<div class="files-empty-filtered-card">' +
+            '<div class="empty-filtered-icon"><i class="fas fa-filter-circle-xmark"></i></div>' +
+            '<h4 class="empty-filtered-title">No Files Match Your Filters</h4>' +
+            '<p class="empty-filtered-sub">No files found for "' + escapeHtml(q || cat || fmt) + '". Try resetting your search or category filters.</p>' +
+            '<button type="button" class="btn-secondary" id="files-reset-filters-btn" style="margin-top:12px;">' +
+              '<i class="fas fa-rotate-left"></i> Reset All Filters' +
+            '</button>' +
           '</div>';
+
+        var resetBtn = document.getElementById("files-reset-filters-btn");
+        if (resetBtn) {
+          resetBtn.addEventListener("click", function () {
+            var searchInput = document.getElementById("files-search-input");
+            var formatSelect = document.getElementById("files-format-select");
+            if (searchInput) searchInput.value = "";
+            if (formatSelect) formatSelect.value = "all";
+            document.querySelectorAll(".file-cat-filter, .files-category-filter").forEach(function (b) {
+              b.classList.toggle("active", (b.getAttribute("data-cat") || b.getAttribute("data-category")) === "all");
+            });
+            _currentFilesFilter = { category: "all", format: "all", query: "" };
+            loadSchoolFiles("", "all", "all");
+          });
+        }
         return;
       }
 
@@ -4172,6 +4230,22 @@ function getRemoteSession() {
     }
   }
 
+  function openUploadFileModal(preselectedCategory) {
+    var modal = document.getElementById("upload-file-modal-overlay");
+    if (!modal) return;
+    var form = document.getElementById("upload-school-file-form");
+    if (form) form.reset();
+    var dropzoneName = document.getElementById("school-dropzone-filename");
+    if (dropzoneName) dropzoneName.textContent = "Choose a file or drag & drop here";
+    var dropzoneBox = document.getElementById("school-file-dropzone");
+    if (dropzoneBox) dropzoneBox.classList.remove("has-file");
+    var categorySelect = document.getElementById("school-file-category-input");
+    if (categorySelect && preselectedCategory) {
+      categorySelect.value = preselectedCategory;
+    }
+    openModal("upload-file-modal-overlay");
+  }
+
   function triggerFileDownload(file) {
     if (!file || !file.data) {
       showToast("File data is not available to download.", "error");
@@ -4252,14 +4326,14 @@ function getRemoteSession() {
   }
 
   function setupSchoolFilesFilters() {
-    var categoryBtns = document.querySelectorAll(".files-category-filter");
+    var categoryBtns = document.querySelectorAll(".file-cat-filter, .files-category-filter");
     categoryBtns.forEach(function (btn) {
       if (!btn._ccBound) {
         btn._ccBound = true;
         btn.addEventListener("click", function () {
           categoryBtns.forEach(function (b) { b.classList.remove("active"); });
           btn.classList.add("active");
-          var cat = btn.getAttribute("data-category") || "all";
+          var cat = btn.getAttribute("data-cat") || btn.getAttribute("data-category") || "all";
           loadSchoolFiles(undefined, cat, undefined);
         });
       }
@@ -5934,10 +6008,19 @@ function getRemoteSession() {
 
       var quickDropzone = document.getElementById("files-quick-dropzone");
       var quickFileInput = document.getElementById("school-file-quick-input");
-      var quickUploadBtn = document.getElementById("quick-upload-files-btn");
+      var quickUploadBtn = document.getElementById("files-quick-upload-trigger-btn") || document.getElementById("quick-upload-files-btn");
+      var browseLinkBtn = document.getElementById("files-browse-btn");
+
+      if (browseLinkBtn && quickFileInput) {
+        browseLinkBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          quickFileInput.click();
+        });
+      }
 
       if (quickUploadBtn && quickFileInput) {
-        quickUploadBtn.addEventListener("click", function () {
+        quickUploadBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
           quickFileInput.click();
         });
       }

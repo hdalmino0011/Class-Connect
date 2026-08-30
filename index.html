@@ -538,12 +538,19 @@
       <div class="files-dropzone-card" id="files-quick-dropzone">
         <input type="file" id="school-file-quick-input" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp,.gif,.zip,.rar" hidden>
         <div class="dropzone-content">
-          <div class="dropzone-icon-wrap">
-            <i class="fas fa-cloud-arrow-up"></i>
+          <div class="dropzone-left">
+            <div class="dropzone-icon-wrap">
+              <i class="fas fa-cloud-arrow-up"></i>
+            </div>
+            <div class="dropzone-text">
+              <span class="dropzone-title">Drag &amp; drop school files here or <button type="button" class="dropzone-browse-link" id="files-browse-btn">browse your computer</button></span>
+              <span class="dropzone-hint">Supports PDF, Word, PowerPoint, Excel, Images, Notes, Code &amp; Archives up to 25 MB</span>
+            </div>
           </div>
-          <div class="dropzone-text">
-            <span class="dropzone-title">Drag &amp; drop any school file here or <button type="button" class="dropzone-browse-link" id="files-browse-btn">browse files</button></span>
-            <span class="dropzone-hint">Supports PDF, Word, PowerPoint, Excel, Images, Notes, Archives &amp; more up to 25 MB</span>
+          <div class="dropzone-right-actions">
+            <button type="button" class="btn-dropzone-action" id="files-quick-upload-trigger-btn">
+              <i class="fas fa-plus"></i> Select Files
+            </button>
           </div>
         </div>
       </div>
