@@ -327,32 +327,6 @@
     <!-- ===== VIEW: HOME / DASHBOARD ===== -->
     <div id="view-home" class="dashboard-view active-view">
 
-      <!-- DEVICE NOTIFICATION STATUS & PROMPT BANNER -->
-      <div id="device-notif-banner" class="device-notif-banner" style="display:none;">
-        <div class="notif-banner-left">
-          <div class="notif-banner-icon">
-            <i class="fas fa-bell"></i>
-          </div>
-          <div class="notif-banner-text">
-            <h4>Enable Device Notifications</h4>
-            <p>Get real-time alerts for daily class schedules, assignment due dates, and new posts on your phone or PC.</p>
-          </div>
-        </div>
-        <div class="notif-banner-actions">
-          <button id="enable-device-notifs-btn" class="btn-enable-notifs" type="button">
-            <i class="fas fa-check"></i> Turn On Notifications
-          </button>
-          <button id="dismiss-notif-banner-btn" class="btn-dismiss-notif-banner" type="button" aria-label="Dismiss banner">
-            <i class="fas fa-xmark"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- TODAY'S SCHEDULE HIGHLIGHT WIDGET -->
-      <div id="today-schedule-widget" class="today-schedule-widget">
-        <!-- Rendered dynamically by script.js -->
-      </div>
-
       <!-- DASHBOARD SEARCH BAR -->
       <div class="dashboard-search-wrap">
         <i class="fas fa-search dashboard-search-icon"></i>
@@ -1116,7 +1090,7 @@
       <div class="support-intro">
         <p>Hi! I'm <strong>HDDev</strong>, the developer behind ClassConnect. Building and maintaining
            this app takes real time and effort. If it's been useful to you, even a small contribution
-           means a lot, it helps the app running, updated, and free for everyone. Thank you!💙</p>
+           means a lot, it helps the app running, updated, and free for everyone. Thank you! <i class="fas fa-heart text-blue-500"></i></p>
       </div>
       <div class="support-qr-grid">
 
@@ -1235,10 +1209,10 @@
 
     <!-- Notification Filters -->
     <div class="notif-filter-tabs">
-      <button class="notif-tab active" data-filter="all">All</button>
-      <button class="notif-tab" data-filter="schedule">📅 Schedules</button>
-      <button class="notif-tab" data-filter="assignment">📝 Tasks</button>
-      <button class="notif-tab" data-filter="post">📢 Posts</button>
+      <button class="notif-tab active" data-filter="all"><i class="fas fa-layer-group"></i> All</button>
+      <button class="notif-tab" data-filter="schedule"><i class="fas fa-calendar-alt"></i> Schedules</button>
+      <button class="notif-tab" data-filter="assignment"><i class="fas fa-clipboard-check"></i> Tasks</button>
+      <button class="notif-tab" data-filter="post"><i class="fas fa-bullhorn"></i> Posts</button>
     </div>
 
     <!-- Notification List Container -->

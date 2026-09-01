@@ -2727,7 +2727,7 @@ function getRemoteSession() {
           playChime();
           vibrate([150, 80, 150]);
           sendNotification(
-            "🎉 Device Notifications Enabled",
+            "Device Notifications Enabled",
             "ClassConnect will now notify you of daily schedules, upcoming classes, deadlines, and posts.",
             "system",
             { view: "view-home" }
@@ -2902,8 +2902,6 @@ function getRemoteSession() {
         var manualSched = results[1];
         var todayClasses = getTodayClasses(subjects, manualSched);
 
-        renderTodayScheduleWidget(todayClasses);
-
         var now = new Date();
         var dateKey = now.toISOString().split("T")[0];
         var dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -2915,7 +2913,7 @@ function getRemoteSession() {
           if (!localStorage.getItem(digestKey)) {
             var classSummary = todayClasses.map(function (c) { return c.name + (c.scheduleText ? " (" + c.scheduleText + ")" : ""); }).join(", ");
             sendNotification(
-              "📅 Today's Schedule — " + dayName,
+              "Today's Schedule — " + dayName,
               "You have " + todayClasses.length + " class" + (todayClasses.length > 1 ? "es" : "") + " today: " + classSummary,
               "schedule",
               { view: "view-schedule", tag: "cc_daily_digest" }
@@ -2935,7 +2933,7 @@ function getRemoteSession() {
                 if (!localStorage.getItem(upcomingKey)) {
                   var timeDesc = diff === 0 ? "starting now" : "starting in " + diff + " minutes";
                   sendNotification(
-                    "🔔 Class Starting Soon: " + c.name,
+                    "Class Starting Soon: " + c.name,
                     c.name + " is " + timeDesc + " (" + c.scheduleText + ")" + (c.professor ? " with " + c.professor : (c.room ? " in Room " + c.room : "")) + ". Tap to view schedule.",
                     "schedule",
                     { view: "view-schedule", tag: upcomingKey, requireInteraction: true }
@@ -2973,7 +2971,7 @@ function getRemoteSession() {
             var keyToday = "cc_notif_due_today_" + a.id + "_" + todayKey;
             if (!localStorage.getItem(keyToday)) {
               sendNotification(
-                "⚠️ Assignment Due Today: " + a.text,
+                "Assignment Due Today: " + a.text,
                 "Subject: " + (a.subject || "General") + ". Deadline is today! Don't forget to submit.",
                 "assignment",
                 { view: "view-assignments", tag: keyToday }
@@ -2984,7 +2982,7 @@ function getRemoteSession() {
             var keyTmrw = "cc_notif_due_tmrw_" + a.id + "_" + todayKey;
             if (!localStorage.getItem(keyTmrw)) {
               sendNotification(
-                "⏳ Assignment Due Tomorrow: " + a.text,
+                "Assignment Due Tomorrow: " + a.text,
                 "Subject: " + (a.subject || "General") + " is due tomorrow.",
                 "assignment",
                 { view: "view-assignments", tag: keyTmrw }
@@ -2995,7 +2993,7 @@ function getRemoteSession() {
             var keyOverdue = "cc_notif_overdue_" + a.id + "_" + todayKey;
             if (!localStorage.getItem(keyOverdue)) {
               sendNotification(
-                "🚨 Overdue Task: " + a.text,
+                "Overdue Task: " + a.text,
                 "Subject: " + (a.subject || "General") + " was due on " + a.due_date + ". Tap to view task.",
                 "assignment",
                 { view: "view-assignments", tag: keyOverdue }
@@ -3030,7 +3028,7 @@ function getRemoteSession() {
         if (lastSeenTime > 0 && postTime > lastSeenTime && currentUser && p.user_id !== currentUser.id) {
           var snippet = p.content ? (p.content.length > 100 ? p.content.substring(0, 97) + "..." : p.content) : "New announcement posted in your feed.";
           sendNotification(
-            "📢 New Class Post: " + (p.author || "Classmate"),
+            "New Class Post: " + (p.author || "Classmate"),
             snippet,
             "post",
             { view: "view-home", tag: "cc_post_" + p.id }
@@ -3040,84 +3038,6 @@ function getRemoteSession() {
 
       if (newestTime > 0) {
         localStorage.setItem(STORAGE_LAST_POST, new Date(newestTime).toISOString());
-      }
-    }
-
-    function renderTodayScheduleWidget(todayClasses) {
-      var widget = document.getElementById("today-schedule-widget");
-      if (!widget) return;
-
-      var now = new Date();
-      var dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      var dayName = dayNames[now.getDay()];
-      var currentMin = now.getHours() * 60 + now.getMinutes();
-
-      if (!todayClasses || !todayClasses.length) {
-        widget.innerHTML =
-          '<div class="today-sched-card">' +
-            '<div class="today-sched-header">' +
-              '<div class="today-sched-title-wrap">' +
-                '<div class="today-sched-icon"><i class="fas fa-calendar-day"></i></div>' +
-                '<div>' +
-                  '<h3 class="today-sched-title">Today\'s Schedule (' + dayName + ')</h3>' +
-                '</div>' +
-              '</div>' +
-              '<button type="button" class="btn-sched-view-all" id="widget-view-sched-btn">' +
-                'Full Schedule <i class="fas fa-arrow-right"></i>' +
-              '</button>' +
-            '</div>' +
-            '<p class="today-sched-empty"><i class="fas fa-mug-hot"></i> No scheduled classes for today. Have a great day!</p>' +
-          '</div>';
-      } else {
-        var itemsHtml = todayClasses.map(function (c) {
-          var isStartingSoon = c.startMin < 9999 && (c.startMin - currentMin >= 0) && (c.startMin - currentMin <= 30);
-          var statusClass = isStartingSoon ? " status-starting-soon" : "";
-          var badgeHtml = isStartingSoon ? '<span style="font-size:10px;font-weight:800;color:#B45309;"><i class="fas fa-bolt"></i> Starting Soon</span>' : "";
-
-          return (
-            '<div class="today-sched-mini-item' + statusClass + '">' +
-              '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
-                '<h4 class="today-sched-mini-sub" title="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</h4>' +
-                badgeHtml +
-              '</div>' +
-              '<div class="today-sched-mini-time">' +
-                '<i class="fas fa-clock"></i> ' + escapeHtml(c.scheduleText || "Time not specified") +
-              '</div>' +
-              (c.professor || c.room ? (
-                '<div class="today-sched-mini-meta">' +
-                  (c.professor ? '<span><i class="fas fa-user-tie"></i> ' + escapeHtml(c.professor) + '</span>' : '') +
-                  (c.room ? '<span><i class="fas fa-location-dot"></i> ' + escapeHtml(c.room) + '</span>' : '') +
-                '</div>'
-              ) : '') +
-            '</div>'
-          );
-        }).join("");
-
-        widget.innerHTML =
-          '<div class="today-sched-card">' +
-            '<div class="today-sched-header">' +
-              '<div class="today-sched-title-wrap">' +
-                '<div class="today-sched-icon"><i class="fas fa-calendar-day"></i></div>' +
-                '<div>' +
-                  '<h3 class="today-sched-title">Today\'s Schedule (' + dayName + ')</h3>' +
-                '</div>' +
-                '<span class="today-sched-count-pill">' + todayClasses.length + ' Classes</span>' +
-              '</div>' +
-              '<button type="button" class="btn-sched-view-all" id="widget-view-sched-btn">' +
-                'Full Schedule <i class="fas fa-arrow-right"></i>' +
-              '</button>' +
-            '</div>' +
-            '<div class="today-sched-items-grid">' +
-              itemsHtml +
-            '</div>' +
-          '</div>';
-      }
-
-      var viewAllBtn = document.getElementById("widget-view-sched-btn");
-      if (viewAllBtn) {
-        viewAllBtn.addEventListener("click", function () {
-          switchView("view-schedule");
-        });
       }
     }
 
@@ -3189,7 +3109,7 @@ function getRemoteSession() {
       playChime();
       vibrate([200, 100, 200]);
       sendNotification(
-        "🔔 Test Device Alert — ClassConnect",
+        "Test Device Alert — ClassConnect",
         "Device notifications, audio chimes, and haptics are fully working on your " + (navigator.maxTouchPoints > 0 ? "phone" : "PC") + "!",
         "system",
         { view: "view-home" }
@@ -3341,7 +3261,7 @@ function getRemoteSession() {
         vibrate([100, 50, 100]);
         if (item && item.due_date) {
           sendNotification(
-            "📝 Task Added: " + (item.text || "New Assignment"),
+            "Task Added: " + (item.text || "New Assignment"),
             "Subject: " + (item.subject || "General") + " — Due " + item.due_date,
             "assignment",
             { view: "view-assignments" }
