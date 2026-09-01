@@ -239,6 +239,10 @@
     </div>
     <div class="topnav-right">
       <span class="welcome-text">Welcome, <strong id="dash-user-name">Student</strong></span>
+      <button id="topnav-notification-btn" class="btn-topnav-notif" aria-label="Open Notifications" title="Notifications">
+        <i class="fas fa-bell"></i>
+        <span id="topnav-notif-badge" class="topnav-notif-badge" style="display:none;">0</span>
+      </button>
       <button id="logout-btn" class="btn-logout" aria-label="Log out">
         <i class="fas fa-right-from-bracket"></i>
         <span class="logout-label">Logout</span>
@@ -322,6 +326,32 @@
 
     <!-- ===== VIEW: HOME / DASHBOARD ===== -->
     <div id="view-home" class="dashboard-view active-view">
+
+      <!-- DEVICE NOTIFICATION STATUS & PROMPT BANNER -->
+      <div id="device-notif-banner" class="device-notif-banner" style="display:none;">
+        <div class="notif-banner-left">
+          <div class="notif-banner-icon">
+            <i class="fas fa-bell"></i>
+          </div>
+          <div class="notif-banner-text">
+            <h4>Enable Device Notifications</h4>
+            <p>Get real-time alerts for daily class schedules, assignment due dates, and new posts on your phone or PC.</p>
+          </div>
+        </div>
+        <div class="notif-banner-actions">
+          <button id="enable-device-notifs-btn" class="btn-enable-notifs" type="button">
+            <i class="fas fa-check"></i> Turn On Notifications
+          </button>
+          <button id="dismiss-notif-banner-btn" class="btn-dismiss-notif-banner" type="button" aria-label="Dismiss banner">
+            <i class="fas fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- TODAY'S SCHEDULE HIGHLIGHT WIDGET -->
+      <div id="today-schedule-widget" class="today-schedule-widget">
+        <!-- Rendered dynamically by script.js -->
+      </div>
 
       <!-- DASHBOARD SEARCH BAR -->
       <div class="dashboard-search-wrap">
@@ -784,6 +814,156 @@
       <h2 class="view-heading"><i class="fas fa-gear"></i> Settings</h2>
       <div class="settings-card">
 
+        <!-- DEVICE NOTIFICATIONS & REMINDERS -->
+        <div class="settings-section-title">
+          <i class="fas fa-bell"></i>
+          <span>Device Notifications & Reminders</span>
+        </div>
+
+        <!-- Notification Permission Status -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-mobile-screen-button"></i>
+            <div>
+              <span class="settings-label">Device Alert Status</span>
+              <span class="settings-desc" id="notif-permission-desc">Check browser & OS notification permission</span>
+            </div>
+          </div>
+          <div class="settings-notif-status-wrap">
+            <span id="notif-permission-badge" class="notif-status-badge notif-status-default">Checking...</span>
+            <button type="button" id="notif-request-perm-btn" class="btn-secondary btn-sm" style="display:none;">
+              Enable
+            </button>
+          </div>
+        </div>
+
+        <!-- Master Notification Toggle -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-toggle-on"></i>
+            <div>
+              <span class="settings-label">Enable All Notifications</span>
+              <span class="settings-desc">Allow ClassConnect to send alerts to this device</span>
+            </div>
+          </div>
+          <label class="cc-switch">
+            <input type="checkbox" id="notif-pref-master" checked>
+            <span class="cc-slider"></span>
+          </label>
+        </div>
+
+        <!-- Daily Schedule Digest Toggle -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-calendar-day"></i>
+            <div>
+              <span class="settings-label">Daily Subject Schedule</span>
+              <span class="settings-desc">Daily morning summary of your classes for the day</span>
+            </div>
+          </div>
+          <label class="cc-switch">
+            <input type="checkbox" id="notif-pref-schedule-daily" checked>
+            <span class="cc-slider"></span>
+          </label>
+        </div>
+
+        <!-- Upcoming Class Alert Toggle -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-clock"></i>
+            <div>
+              <span class="settings-label">Upcoming Class Reminders</span>
+              <span class="settings-desc">Alert 15–20 minutes before each scheduled class starts</span>
+            </div>
+          </div>
+          <label class="cc-switch">
+            <input type="checkbox" id="notif-pref-schedule-upcoming" checked>
+            <span class="cc-slider"></span>
+          </label>
+        </div>
+
+        <!-- Assignment & Task Due Dates -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-clipboard-list"></i>
+            <div>
+              <span class="settings-label">Tasks & Assignments Deadlines</span>
+              <span class="settings-desc">Alerts for tasks due today, due tomorrow, and overdue items</span>
+            </div>
+          </div>
+          <label class="cc-switch">
+            <input type="checkbox" id="notif-pref-assignments" checked>
+            <span class="cc-slider"></span>
+          </label>
+        </div>
+
+        <!-- Community Posts & Announcements -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-bullhorn"></i>
+            <div>
+              <span class="settings-label">Posts & Announcements</span>
+              <span class="settings-desc">Get notified when classmates or professors publish new posts</span>
+            </div>
+          </div>
+          <label class="cc-switch">
+            <input type="checkbox" id="notif-pref-posts" checked>
+            <span class="cc-slider"></span>
+          </label>
+        </div>
+
+        <!-- Vibration Feedback -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-mobile"></i>
+            <div>
+              <span class="settings-label">Device Vibration Feedback</span>
+              <span class="settings-desc">Haptic feedback on mobile phones during alerts & task actions</span>
+            </div>
+          </div>
+          <label class="cc-switch">
+            <input type="checkbox" id="notif-pref-vibration" checked>
+            <span class="cc-slider"></span>
+          </label>
+        </div>
+
+        <!-- Audio Tone Chime -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-volume-high"></i>
+            <div>
+              <span class="settings-label">Notification Audio Chime</span>
+              <span class="settings-desc">Play a subtle harmonic tone when alerts appear</span>
+            </div>
+          </div>
+          <label class="cc-switch">
+            <input type="checkbox" id="notif-pref-sound" checked>
+            <span class="cc-slider"></span>
+          </label>
+        </div>
+
+        <!-- Test Notification Button -->
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <i class="fas fa-paper-plane"></i>
+            <div>
+              <span class="settings-label">Test Device Notification</span>
+              <span class="settings-desc">Trigger a test alert immediately on your phone or PC</span>
+            </div>
+          </div>
+          <button type="button" id="settings-test-notif-btn" class="btn-secondary">
+            <i class="fas fa-bell"></i> Send Test
+          </button>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <!-- GENERAL PREFERENCES -->
+        <div class="settings-section-title">
+          <i class="fas fa-sliders"></i>
+          <span>General Preferences</span>
+        </div>
+
         <!-- Font Type -->
         <div class="settings-item">
           <div class="settings-item-left">
@@ -1031,6 +1211,52 @@
 </section>
 
 <!-- ==================== MODALS ==================== -->
+
+<!-- NOTIFICATION CENTER MODAL -->
+<div id="notification-center-modal-overlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card notification-center-modal" role="dialog" aria-modal="true" aria-labelledby="notif-center-title">
+    <div class="modal-header">
+      <div class="notif-center-header-title">
+        <h3 id="notif-center-title"><i class="fas fa-bell"></i> Notifications</h3>
+        <span id="notif-unread-count-pill" class="notif-unread-pill" style="display:none;">0 New</span>
+      </div>
+      <div class="notif-center-header-actions">
+        <button id="notif-mark-all-read-btn" class="btn-icon-text" type="button" title="Mark all as read">
+          <i class="fas fa-check-double"></i> Mark Read
+        </button>
+        <button id="notif-clear-all-btn" class="btn-icon-text" type="button" title="Clear all notifications">
+          <i class="fas fa-trash-can"></i> Clear
+        </button>
+        <button id="close-notification-modal-btn" class="modal-close" aria-label="Close">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Notification Filters -->
+    <div class="notif-filter-tabs">
+      <button class="notif-tab active" data-filter="all">All</button>
+      <button class="notif-tab" data-filter="schedule">📅 Schedules</button>
+      <button class="notif-tab" data-filter="assignment">📝 Tasks</button>
+      <button class="notif-tab" data-filter="post">📢 Posts</button>
+    </div>
+
+    <!-- Notification List Container -->
+    <div id="notification-items-list" class="notif-items-list">
+      <!-- Populated dynamically by script.js -->
+    </div>
+
+    <!-- Notification Modal Footer -->
+    <div class="notif-modal-footer">
+      <button type="button" id="notif-open-settings-btn" class="btn-notif-footer-link">
+        <i class="fas fa-gear"></i> Notification Settings
+      </button>
+      <button type="button" id="notif-modal-test-btn" class="btn-secondary btn-sm">
+        <i class="fas fa-paper-plane"></i> Test Device Alert
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- CLASSMATE PROFILE MODAL -->
 <div id="classmate-profile-modal-overlay" class="modal-overlay" aria-hidden="true">

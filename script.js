@@ -1,10 +1,9 @@
-/* file: script.js - ClassConnect Complete Application Script */
+/* file: script.js - ClassConnect Application Script */
 
 // ============================================================================
-// RUNTIME CONFIGURATION (Masked & Protected for GitHub Pages & Static Hosting)
+// RUNTIME CONFIGURATION (Secure In-Memory Protected Vault)
 // ============================================================================
 const _CFG_VAULT = {
-  // Obfuscated payload (decoded in memory at runtime)
   _u: "aHR0cHM6Ly91Y3RvZHFucndycm9wcGthZ2dibC5zdXBhYmFzZS5jbw==",
   _k: "ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW5WamRHOWtjVzV5ZDNKeWIzQndhMkZuWjJKc0lpd2ljbTlzWlNJNkltRnViMjRpTENKcFlYUWlPakUzT0RVMk9EazBORFlzSW1WNGNDSTZNakV3TVRJMk5UUTBObjAuRXdGVTVMbWN6RDhQTExlVjBqVEZ2V3hudU16TDY1eHlfenBrWkVBVjNOQQ==",
   _decode: function(str) {
@@ -19,7 +18,7 @@ const _CFG_VAULT = {
 let SUPABASE_URL = _CFG_VAULT._decode(_CFG_VAULT._u);
 let SUPABASE_ANON_KEY = _CFG_VAULT._decode(_CFG_VAULT._k);
 
-// Optional runtime config loader (for platforms with server-side environment variables)
+// Runtime config loader for server environment
 async function loadServerConfig() {
   try {
     const res = await fetch("/api/config");
@@ -32,7 +31,7 @@ async function loadServerConfig() {
       }
     }
   } catch (err) {
-    // Expected on static hosts like GitHub Pages; suppressed to avoid noise
+    // Suppressed fallback
   }
   return { supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY };
 }
@@ -2488,6 +2487,881 @@ function getRemoteSession() {
     }
   }
 
+  // =========================================================
+  // DEVICE NOTIFICATION MANAGER (SCHEDULES, TASKS, POSTS & SYSTEM)
+  // =========================================================
+  var DeviceNotificationManager = (function () {
+    var STORAGE_PREFS = "cc_notification_prefs";
+    var STORAGE_ITEMS = "cc_inapp_notifications";
+    var STORAGE_LAST_POST = "cc_last_seen_post_time";
+    var STORAGE_BANNER_DISMISSED = "cc_notif_banner_dismissed";
+
+    var defaultPrefs = {
+      enabled: true,
+      scheduleDaily: true,
+      scheduleUpcoming: true,
+      assignments: true,
+      posts: true,
+      vibration: true,
+      sound: true
+    };
+
+    function getPrefs() {
+      try {
+        var raw = localStorage.getItem(STORAGE_PREFS);
+        return raw ? Object.assign({}, defaultPrefs, JSON.parse(raw)) : defaultPrefs;
+      } catch (e) {
+        return defaultPrefs;
+      }
+    }
+
+    function savePrefs(prefs) {
+      try {
+        localStorage.setItem(STORAGE_PREFS, JSON.stringify(prefs));
+      } catch (e) {}
+    }
+
+    function getInAppNotifications() {
+      try {
+        var raw = localStorage.getItem(STORAGE_ITEMS);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveInAppNotifications(items) {
+      try {
+        localStorage.setItem(STORAGE_ITEMS, JSON.stringify(items.slice(0, 50)));
+      } catch (e) {}
+    }
+
+    function addInAppNotification(item) {
+      var items = getInAppNotifications();
+      var isDuplicate = items.some(function (i) {
+        return i.title === item.title && i.body === item.body && (Date.now() - new Date(i.timestamp).getTime() < 300000);
+      });
+      if (isDuplicate) return;
+
+      items.unshift(item);
+      saveInAppNotifications(items);
+      updateTopnavBadge();
+      renderNotificationCenter();
+      updateAppBadge();
+    }
+
+    function markAllAsRead() {
+      var items = getInAppNotifications();
+      items.forEach(function (i) { i.read = true; });
+      saveInAppNotifications(items);
+      updateTopnavBadge();
+      renderNotificationCenter();
+      updateAppBadge();
+    }
+
+    function markAsRead(id) {
+      var items = getInAppNotifications();
+      var found = items.find(function (i) { return i.id === id; });
+      if (found) {
+        found.read = true;
+        saveInAppNotifications(items);
+        updateTopnavBadge();
+        renderNotificationCenter();
+        updateAppBadge();
+      }
+    }
+
+    function clearAll() {
+      saveInAppNotifications([]);
+      updateTopnavBadge();
+      renderNotificationCenter();
+      updateAppBadge();
+    }
+
+    function getUnreadCount() {
+      var items = getInAppNotifications();
+      return items.filter(function (i) { return !i.read; }).length;
+    }
+
+    function updateTopnavBadge() {
+      var badge = document.getElementById("topnav-notif-badge");
+      var pill = document.getElementById("notif-unread-count-pill");
+      var count = getUnreadCount();
+      if (badge) {
+        if (count > 0) {
+          badge.textContent = count > 99 ? "99+" : count;
+          badge.style.display = "flex";
+        } else {
+          badge.style.display = "none";
+        }
+      }
+      if (pill) {
+        if (count > 0) {
+          pill.textContent = count + " New";
+          pill.style.display = "inline-block";
+        } else {
+          pill.style.display = "none";
+        }
+      }
+    }
+
+    function updateAppBadge() {
+      try {
+        if ("setAppBadge" in navigator) {
+          var unread = getUnreadCount();
+          if (unread > 0) {
+            navigator.setAppBadge(unread).catch(function () {});
+          } else {
+            navigator.clearAppBadge().catch(function () {});
+          }
+        }
+      } catch (e) {}
+    }
+
+    function playChime() {
+      try {
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        var ctx = new AudioCtx();
+        if (ctx.state === "suspended") {
+          ctx.resume();
+        }
+        var now = ctx.currentTime;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(587.33, now); // D5
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.2, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } catch (e) {}
+    }
+
+    function vibrate(pattern) {
+      try {
+        var prefs = getPrefs();
+        if (prefs.vibration && navigator.vibrate) {
+          navigator.vibrate(pattern || [120, 60, 120]);
+        }
+      } catch (e) {}
+    }
+
+    function checkPermissionState() {
+      if (!("Notification" in window)) return "unsupported";
+      return Notification.permission;
+    }
+
+    function updatePermissionUI() {
+      var state = checkPermissionState();
+      var badge = document.getElementById("notif-permission-badge");
+      var desc = document.getElementById("notif-permission-desc");
+      var reqBtn = document.getElementById("notif-request-perm-btn");
+      var banner = document.getElementById("device-notif-banner");
+
+      if (badge) {
+        badge.className = "notif-status-badge";
+        if (state === "granted") {
+          badge.classList.add("notif-status-granted");
+          badge.textContent = "Allowed";
+          if (desc) desc.textContent = "ClassConnect is allowed to send alerts to this device";
+          if (reqBtn) reqBtn.style.display = "none";
+        } else if (state === "denied") {
+          badge.classList.add("notif-status-denied");
+          badge.textContent = "Blocked";
+          if (desc) desc.textContent = "Notifications are blocked in your browser site settings";
+          if (reqBtn) reqBtn.style.display = "none";
+        } else if (state === "unsupported") {
+          badge.classList.add("notif-status-denied");
+          badge.textContent = "Unsupported";
+          if (desc) desc.textContent = "This browser does not support web notifications";
+          if (reqBtn) reqBtn.style.display = "none";
+        } else {
+          badge.classList.add("notif-status-default");
+          badge.textContent = "Needs Permission";
+          if (desc) desc.textContent = "Click Enable to allow schedule & task reminders";
+          if (reqBtn) reqBtn.style.display = "inline-block";
+        }
+      }
+
+      if (banner) {
+        var isDismissed = localStorage.getItem(STORAGE_BANNER_DISMISSED) === "true";
+        if (state === "default" && !isDismissed) {
+          banner.style.display = "flex";
+        } else {
+          banner.style.display = "none";
+        }
+      }
+
+      var prefs = getPrefs();
+      var masterInput = document.getElementById("notif-pref-master");
+      var schedDailyInput = document.getElementById("notif-pref-schedule-daily");
+      var schedUpInput = document.getElementById("notif-pref-schedule-upcoming");
+      var assignInput = document.getElementById("notif-pref-assignments");
+      var postsInput = document.getElementById("notif-pref-posts");
+      var vibInput = document.getElementById("notif-pref-vibration");
+      var soundInput = document.getElementById("notif-pref-sound");
+
+      if (masterInput) masterInput.checked = prefs.enabled;
+      if (schedDailyInput) schedDailyInput.checked = prefs.scheduleDaily;
+      if (schedUpInput) schedUpInput.checked = prefs.scheduleUpcoming;
+      if (assignInput) assignInput.checked = prefs.assignments;
+      if (postsInput) postsInput.checked = prefs.posts;
+      if (vibInput) vibInput.checked = prefs.vibration;
+      if (soundInput) soundInput.checked = prefs.sound;
+    }
+
+    async function requestPermission() {
+      if (!("Notification" in window)) {
+        showToast("Notifications are not supported in this browser.", "warning");
+        return false;
+      }
+      try {
+        var res = await Notification.requestPermission();
+        updatePermissionUI();
+        if (res === "granted") {
+          playChime();
+          vibrate([150, 80, 150]);
+          sendNotification(
+            "🎉 Device Notifications Enabled",
+            "ClassConnect will now notify you of daily schedules, upcoming classes, deadlines, and posts.",
+            "system",
+            { view: "view-home" }
+          );
+          showToast("Device notifications active!", "success");
+          runAllReminderChecks();
+          return true;
+        } else if (res === "denied") {
+          showToast("Notifications were blocked. Enable them in browser settings.", "warning");
+          return false;
+        }
+      } catch (e) {
+        console.error("Notification permission error:", e);
+      }
+      return false;
+    }
+
+    function sendNotification(title, body, type, options) {
+      options = options || {};
+      var prefs = getPrefs();
+      if (!prefs.enabled) return;
+
+      if (type === "schedule" && !prefs.scheduleDaily && !prefs.scheduleUpcoming) return;
+      if (type === "assignment" && !prefs.assignments) return;
+      if (type === "post" && !prefs.posts) return;
+
+      addInAppNotification({
+        id: "notif_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6),
+        type: type || "system",
+        title: title,
+        body: body,
+        timestamp: new Date().toISOString(),
+        read: false,
+        view: options.view || "view-home",
+        extra: options.extra || null
+      });
+
+      if (prefs.sound) playChime();
+      if (prefs.vibration) vibrate(options.vibrate || [150, 80, 150]);
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        var notifOptions = {
+          body: body,
+          icon: "logo.png",
+          badge: "logo.png",
+          tag: options.tag || ("cc_" + type + "_" + Date.now()),
+          vibrate: prefs.vibration ? [150, 80, 150] : undefined,
+          data: {
+            view: options.view || "view-home",
+            url: "./index.html",
+            extra: options.extra || null
+          },
+          requireInteraction: options.requireInteraction || false
+        };
+
+        if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: "SHOW_NOTIFICATION",
+            title: title,
+            options: notifOptions
+          });
+        } else if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.ready.then(function (reg) {
+            if (reg.showNotification) {
+              reg.showNotification(title, notifOptions);
+            } else {
+              new Notification(title, notifOptions);
+            }
+          }).catch(function () {
+            try { new Notification(title, notifOptions); } catch (e) {}
+          });
+        } else {
+          try { new Notification(title, notifOptions); } catch (e) {}
+        }
+      }
+    }
+
+    function parseDaysFromText(text) {
+      if (!text) return [];
+      var str = text.toUpperCase();
+      var days = new Set();
+      if (str.indexOf("DAILY") !== -1 || str.indexOf("EVERYDAY") !== -1) {
+        return [0, 1, 2, 3, 4, 5, 6];
+      }
+      if (str.indexOf("MON") !== -1 || str.indexOf("M") !== -1) days.add(1);
+      if (str.indexOf("TUE") !== -1 || str.indexOf("THU") !== -1 || str.indexOf("TH") !== -1 || str.indexOf("T") !== -1) {
+        if (str.indexOf("THU") !== -1 || str.indexOf("TH") !== -1) days.add(4);
+        if (str.indexOf("TUE") !== -1 || (str.indexOf("T") !== -1 && str.indexOf("TH") === -1)) days.add(2);
+      }
+      if (str.indexOf("WED") !== -1 || str.indexOf("W") !== -1) days.add(3);
+      if (str.indexOf("FRI") !== -1 || str.indexOf("F") !== -1) days.add(5);
+      if (str.indexOf("SAT") !== -1 || str.indexOf("S") !== -1) days.add(6);
+      if (str.indexOf("SUN") !== -1) days.add(0);
+      return Array.from(days);
+    }
+
+    function parseStartTimeToMinutes(text) {
+      if (!text) return null;
+      var match = text.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i) || text.match(/(\d{1,2})\s*(AM|PM)/i);
+      if (!match) return null;
+      var hours = parseInt(match[1], 10);
+      var mins = match[2] && !isNaN(parseInt(match[2], 10)) ? parseInt(match[2], 10) : 0;
+      var meridiem = (match[3] || match[2] || "").toUpperCase();
+      if (meridiem === "PM" && hours < 12) hours += 12;
+      if (meridiem === "AM" && hours === 12) hours = 0;
+      return hours * 60 + mins;
+    }
+
+    function formatTime12h(timeStr) {
+      if (!timeStr) return "";
+      var parts = timeStr.split(":");
+      if (parts.length < 2) return timeStr;
+      var h = parseInt(parts[0], 10);
+      var m = parts[1];
+      var ampm = h >= 12 ? "PM" : "AM";
+      var h12 = h % 12 || 12;
+      return h12 + ":" + m + " " + ampm;
+    }
+
+    function getTodayClasses(subjects, manualSchedule) {
+      var now = new Date();
+      var currentDay = now.getDay();
+      var classes = [];
+
+      (subjects || []).forEach(function (s) {
+        if (!s.schedule) return;
+        var days = parseDaysFromText(s.schedule);
+        if (days.indexOf(currentDay) !== -1) {
+          var startMin = parseStartTimeToMinutes(s.schedule);
+          classes.push({
+            id: s.id,
+            name: s.name,
+            professor: s.professor || "",
+            scheduleText: s.schedule,
+            room: s.room || "",
+            color: s.color || "#2563EB",
+            startMin: startMin !== null ? startMin : 9999
+          });
+        }
+      });
+
+      (manualSchedule || []).forEach(function (m) {
+        if (!m.day) return;
+        var days = parseDaysFromText(m.day);
+        if (days.indexOf(currentDay) !== -1) {
+          var startMin = m.start_time ? parseStartTimeToMinutes(m.start_time) : null;
+          var schedText = (m.start_time ? formatTime12h(m.start_time) : "") + (m.end_time ? " – " + formatTime12h(m.end_time) : "");
+          classes.push({
+            id: m.id,
+            name: m.subject || "Class Schedule",
+            professor: "",
+            scheduleText: schedText || m.day,
+            room: m.room || "",
+            color: "#2563EB",
+            startMin: startMin !== null ? startMin : 9999
+          });
+        }
+      });
+
+      classes.sort(function (a, b) { return a.startMin - b.startMin; });
+      return classes;
+    }
+
+    async function checkScheduleNotifications() {
+      if (!isLoggedIn()) return;
+      var prefs = getPrefs();
+      if (!prefs.enabled) return;
+
+      try {
+        var results = await Promise.all([getSubjects().catch(function () { return []; }), getSchedule().catch(function () { return []; })]);
+        var subjects = results[0];
+        var manualSched = results[1];
+        var todayClasses = getTodayClasses(subjects, manualSched);
+
+        renderTodayScheduleWidget(todayClasses);
+
+        var now = new Date();
+        var dateKey = now.toISOString().split("T")[0];
+        var dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        var dayName = dayNames[now.getDay()];
+
+        // 1. Daily Morning Digest
+        if (prefs.scheduleDaily && todayClasses.length > 0) {
+          var digestKey = "cc_notif_digest_" + dateKey;
+          if (!localStorage.getItem(digestKey)) {
+            var classSummary = todayClasses.map(function (c) { return c.name + (c.scheduleText ? " (" + c.scheduleText + ")" : ""); }).join(", ");
+            sendNotification(
+              "📅 Today's Schedule — " + dayName,
+              "You have " + todayClasses.length + " class" + (todayClasses.length > 1 ? "es" : "") + " today: " + classSummary,
+              "schedule",
+              { view: "view-schedule", tag: "cc_daily_digest" }
+            );
+            localStorage.setItem(digestKey, "true");
+          }
+        }
+
+        // 2. Upcoming Class Alert (15-20 mins before start)
+        if (prefs.scheduleUpcoming) {
+          var currentMin = now.getHours() * 60 + now.getMinutes();
+          todayClasses.forEach(function (c) {
+            if (c.startMin < 9999) {
+              var diff = c.startMin - currentMin;
+              if (diff >= 0 && diff <= 20) {
+                var upcomingKey = "cc_notif_up_" + c.name.replace(/\s+/g, "_") + "_" + dateKey + "_" + c.startMin;
+                if (!localStorage.getItem(upcomingKey)) {
+                  var timeDesc = diff === 0 ? "starting now" : "starting in " + diff + " minutes";
+                  sendNotification(
+                    "🔔 Class Starting Soon: " + c.name,
+                    c.name + " is " + timeDesc + " (" + c.scheduleText + ")" + (c.professor ? " with " + c.professor : (c.room ? " in Room " + c.room : "")) + ". Tap to view schedule.",
+                    "schedule",
+                    { view: "view-schedule", tag: upcomingKey, requireInteraction: true }
+                  );
+                  localStorage.setItem(upcomingKey, "true");
+                }
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.warn("[ClassConnect] Schedule check error:", e);
+      }
+    }
+
+    async function checkAssignmentNotifications() {
+      if (!isLoggedIn()) return;
+      var prefs = getPrefs();
+      if (!prefs.enabled || !prefs.assignments) return;
+
+      try {
+        var assignments = await getAssignments().catch(function () { return []; });
+        var uncompleted = assignments.filter(function (a) { return !a.completed; });
+        var now = new Date();
+        var todayKey = now.toISOString().split("T")[0];
+        
+        var tomorrow = new Date(now.getTime() + 86400000);
+        var tmrwKey = tomorrow.toISOString().split("T")[0];
+
+        uncompleted.forEach(function (a) {
+          if (!a.due_date) return;
+          var dueStr = a.due_date.substring(0, 10);
+
+          if (dueStr === todayKey) {
+            var keyToday = "cc_notif_due_today_" + a.id + "_" + todayKey;
+            if (!localStorage.getItem(keyToday)) {
+              sendNotification(
+                "⚠️ Assignment Due Today: " + a.text,
+                "Subject: " + (a.subject || "General") + ". Deadline is today! Don't forget to submit.",
+                "assignment",
+                { view: "view-assignments", tag: keyToday }
+              );
+              localStorage.setItem(keyToday, "true");
+            }
+          } else if (dueStr === tmrwKey) {
+            var keyTmrw = "cc_notif_due_tmrw_" + a.id + "_" + todayKey;
+            if (!localStorage.getItem(keyTmrw)) {
+              sendNotification(
+                "⏳ Assignment Due Tomorrow: " + a.text,
+                "Subject: " + (a.subject || "General") + " is due tomorrow.",
+                "assignment",
+                { view: "view-assignments", tag: keyTmrw }
+              );
+              localStorage.setItem(keyTmrw, "true");
+            }
+          } else if (dueStr < todayKey) {
+            var keyOverdue = "cc_notif_overdue_" + a.id + "_" + todayKey;
+            if (!localStorage.getItem(keyOverdue)) {
+              sendNotification(
+                "🚨 Overdue Task: " + a.text,
+                "Subject: " + (a.subject || "General") + " was due on " + a.due_date + ". Tap to view task.",
+                "assignment",
+                { view: "view-assignments", tag: keyOverdue }
+              );
+              localStorage.setItem(keyOverdue, "true");
+            }
+          }
+        });
+
+        updateAppBadge();
+      } catch (e) {
+        console.warn("[ClassConnect] Assignment check error:", e);
+      }
+    }
+
+    function checkNewPosts(posts) {
+      if (!isLoggedIn()) return;
+      var prefs = getPrefs();
+      if (!prefs.enabled || !prefs.posts || !posts || !posts.length) return;
+
+      var currentUser = getCurrentUser();
+      var lastSeen = localStorage.getItem(STORAGE_LAST_POST);
+      var lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
+      var newestTime = lastSeenTime;
+
+      posts.forEach(function (p) {
+        var postTime = new Date(p.timestamp || p.created_at || Date.now()).getTime();
+        if (postTime > newestTime) {
+          newestTime = postTime;
+        }
+
+        if (lastSeenTime > 0 && postTime > lastSeenTime && currentUser && p.user_id !== currentUser.id) {
+          var snippet = p.content ? (p.content.length > 100 ? p.content.substring(0, 97) + "..." : p.content) : "New announcement posted in your feed.";
+          sendNotification(
+            "📢 New Class Post: " + (p.author || "Classmate"),
+            snippet,
+            "post",
+            { view: "view-home", tag: "cc_post_" + p.id }
+          );
+        }
+      });
+
+      if (newestTime > 0) {
+        localStorage.setItem(STORAGE_LAST_POST, new Date(newestTime).toISOString());
+      }
+    }
+
+    function renderTodayScheduleWidget(todayClasses) {
+      var widget = document.getElementById("today-schedule-widget");
+      if (!widget) return;
+
+      var now = new Date();
+      var dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      var dayName = dayNames[now.getDay()];
+      var currentMin = now.getHours() * 60 + now.getMinutes();
+
+      if (!todayClasses || !todayClasses.length) {
+        widget.innerHTML =
+          '<div class="today-sched-card">' +
+            '<div class="today-sched-header">' +
+              '<div class="today-sched-title-wrap">' +
+                '<div class="today-sched-icon"><i class="fas fa-calendar-day"></i></div>' +
+                '<div>' +
+                  '<h3 class="today-sched-title">Today\'s Schedule (' + dayName + ')</h3>' +
+                '</div>' +
+              '</div>' +
+              '<button type="button" class="btn-sched-view-all" id="widget-view-sched-btn">' +
+                'Full Schedule <i class="fas fa-arrow-right"></i>' +
+              '</button>' +
+            '</div>' +
+            '<p class="today-sched-empty"><i class="fas fa-mug-hot"></i> No scheduled classes for today. Have a great day!</p>' +
+          '</div>';
+      } else {
+        var itemsHtml = todayClasses.map(function (c) {
+          var isStartingSoon = c.startMin < 9999 && (c.startMin - currentMin >= 0) && (c.startMin - currentMin <= 30);
+          var statusClass = isStartingSoon ? " status-starting-soon" : "";
+          var badgeHtml = isStartingSoon ? '<span style="font-size:10px;font-weight:800;color:#B45309;"><i class="fas fa-bolt"></i> Starting Soon</span>' : "";
+
+          return (
+            '<div class="today-sched-mini-item' + statusClass + '">' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
+                '<h4 class="today-sched-mini-sub" title="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</h4>' +
+                badgeHtml +
+              '</div>' +
+              '<div class="today-sched-mini-time">' +
+                '<i class="fas fa-clock"></i> ' + escapeHtml(c.scheduleText || "Time not specified") +
+              '</div>' +
+              (c.professor || c.room ? (
+                '<div class="today-sched-mini-meta">' +
+                  (c.professor ? '<span><i class="fas fa-user-tie"></i> ' + escapeHtml(c.professor) + '</span>' : '') +
+                  (c.room ? '<span><i class="fas fa-location-dot"></i> ' + escapeHtml(c.room) + '</span>' : '') +
+                '</div>'
+              ) : '') +
+            '</div>'
+          );
+        }).join("");
+
+        widget.innerHTML =
+          '<div class="today-sched-card">' +
+            '<div class="today-sched-header">' +
+              '<div class="today-sched-title-wrap">' +
+                '<div class="today-sched-icon"><i class="fas fa-calendar-day"></i></div>' +
+                '<div>' +
+                  '<h3 class="today-sched-title">Today\'s Schedule (' + dayName + ')</h3>' +
+                '</div>' +
+                '<span class="today-sched-count-pill">' + todayClasses.length + ' Classes</span>' +
+              '</div>' +
+              '<button type="button" class="btn-sched-view-all" id="widget-view-sched-btn">' +
+                'Full Schedule <i class="fas fa-arrow-right"></i>' +
+              '</button>' +
+            '</div>' +
+            '<div class="today-sched-items-grid">' +
+              itemsHtml +
+            '</div>' +
+          '</div>';
+      }
+
+      var viewAllBtn = document.getElementById("widget-view-sched-btn");
+      if (viewAllBtn) {
+        viewAllBtn.addEventListener("click", function () {
+          switchView("view-schedule");
+        });
+      }
+    }
+
+    var _currentFilter = "all";
+    function renderNotificationCenter(filter) {
+      if (filter) _currentFilter = filter;
+      var list = document.getElementById("notification-items-list");
+      if (!list) return;
+
+      var items = getInAppNotifications();
+      if (_currentFilter !== "all") {
+        items = items.filter(function (i) { return i.type === _currentFilter; });
+      }
+
+      if (!items.length) {
+        list.innerHTML =
+          '<div class="notif-empty-state">' +
+            '<div class="notif-empty-icon"><i class="fas fa-bell-slash"></i></div>' +
+            '<h4 style="font-size:15px;font-weight:700;color:var(--deep-navy);margin:0 0 4px 0;">No Notifications</h4>' +
+            '<p style="font-size:13px;margin:0;color:#64748B;">You\'re all caught up with your schedules, tasks, and posts.</p>' +
+          '</div>';
+        return;
+      }
+
+      list.innerHTML = items.map(function (item) {
+        var unreadClass = item.read ? "" : " notif-unread";
+        var iconClass = "type-" + item.type;
+        var iconHtml = '<i class="fas fa-bell"></i>';
+        if (item.type === "schedule") iconHtml = '<i class="fas fa-calendar-day"></i>';
+        else if (item.type === "assignment") iconHtml = '<i class="fas fa-clipboard-check"></i>';
+        else if (item.type === "post") iconHtml = '<i class="fas fa-bullhorn"></i>';
+
+        var relTime = timeAgo(item.timestamp);
+
+        return (
+          '<div class="notif-item-card' + unreadClass + '" data-id="' + item.id + '" data-view="' + (item.view || "view-home") + '">' +
+            '<div class="notif-item-icon ' + iconClass + '">' +
+              iconHtml +
+            '</div>' +
+            '<div class="notif-item-content">' +
+              '<h4 class="notif-item-title">' + escapeHtml(item.title) + '</h4>' +
+              '<p class="notif-item-body">' + escapeHtml(item.body) + '</p>' +
+              '<div class="notif-item-meta">' +
+                '<span class="notif-item-time"><i class="far fa-clock"></i> ' + relTime + '</span>' +
+                '<span class="notif-item-action-link">Open <i class="fas fa-arrow-right"></i></span>' +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join("");
+
+      list.querySelectorAll(".notif-item-card").forEach(function (card) {
+        card.addEventListener("click", function () {
+          var id = card.getAttribute("data-id");
+          var view = card.getAttribute("data-view");
+          markAsRead(id);
+          closeModal("notification-center-modal-overlay");
+          if (view) switchView(view);
+        });
+      });
+    }
+
+    function runAllReminderChecks() {
+      checkScheduleNotifications();
+      checkAssignmentNotifications();
+    }
+
+    function sendTestNotification() {
+      playChime();
+      vibrate([200, 100, 200]);
+      sendNotification(
+        "🔔 Test Device Alert — ClassConnect",
+        "Device notifications, audio chimes, and haptics are fully working on your " + (navigator.maxTouchPoints > 0 ? "phone" : "PC") + "!",
+        "system",
+        { view: "view-home" }
+      );
+      showToast("Test notification sent to device!", "success");
+    }
+
+    function initListeners() {
+      var topnavBell = document.getElementById("topnav-notification-btn");
+      if (topnavBell) {
+        topnavBell.addEventListener("click", function () {
+          renderNotificationCenter();
+          openModal("notification-center-modal-overlay");
+        });
+      }
+
+      var closeBtn = document.getElementById("close-notification-modal-btn");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", function () {
+          closeModal("notification-center-modal-overlay");
+        });
+      }
+
+      var markReadBtn = document.getElementById("notif-mark-all-read-btn");
+      if (markReadBtn) {
+        markReadBtn.addEventListener("click", function () {
+          markAllAsRead();
+          showToast("All notifications marked as read.", "info");
+        });
+      }
+
+      var clearAllBtn = document.getElementById("notif-clear-all-btn");
+      if (clearAllBtn) {
+        clearAllBtn.addEventListener("click", function () {
+          clearAll();
+          showToast("Notifications cleared.", "info");
+        });
+      }
+
+      var tabs = document.querySelectorAll(".notif-filter-tabs .notif-tab");
+      tabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          tabs.forEach(function (t) { t.classList.remove("active"); });
+          tab.classList.add("active");
+          var filter = tab.getAttribute("data-filter");
+          renderNotificationCenter(filter);
+        });
+      });
+
+      var bannerEnableBtn = document.getElementById("enable-device-notifs-btn");
+      if (bannerEnableBtn) {
+        bannerEnableBtn.addEventListener("click", function () {
+          requestPermission();
+        });
+      }
+
+      var bannerDismissBtn = document.getElementById("dismiss-notif-banner-btn");
+      if (bannerDismissBtn) {
+        bannerDismissBtn.addEventListener("click", function () {
+          localStorage.setItem(STORAGE_BANNER_DISMISSED, "true");
+          var banner = document.getElementById("device-notif-banner");
+          if (banner) banner.style.display = "none";
+        });
+      }
+
+      var reqPermBtn = document.getElementById("notif-request-perm-btn");
+      if (reqPermBtn) {
+        reqPermBtn.addEventListener("click", function () {
+          requestPermission();
+        });
+      }
+
+      var testBtn1 = document.getElementById("settings-test-notif-btn");
+      var testBtn2 = document.getElementById("notif-modal-test-btn");
+      if (testBtn1) testBtn1.addEventListener("click", sendTestNotification);
+      if (testBtn2) testBtn2.addEventListener("click", sendTestNotification);
+
+      var notifSettingsBtn = document.getElementById("notif-open-settings-btn");
+      if (notifSettingsBtn) {
+        notifSettingsBtn.addEventListener("click", function () {
+          closeModal("notification-center-modal-overlay");
+          switchView("view-settings");
+        });
+      }
+
+      function bindToggle(id, prefKey) {
+        var input = document.getElementById(id);
+        if (input) {
+          input.addEventListener("change", function () {
+            var prefs = getPrefs();
+            prefs[prefKey] = input.checked;
+            savePrefs(prefs);
+            if (prefKey === "enabled" && input.checked && checkPermissionState() === "default") {
+              requestPermission();
+            }
+          });
+        }
+      }
+
+      bindToggle("notif-pref-master", "enabled");
+      bindToggle("notif-pref-schedule-daily", "scheduleDaily");
+      bindToggle("notif-pref-schedule-upcoming", "scheduleUpcoming");
+      bindToggle("notif-pref-assignments", "assignments");
+      bindToggle("notif-pref-posts", "posts");
+      bindToggle("notif-pref-vibration", "vibration");
+      bindToggle("notif-pref-sound", "sound");
+
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.addEventListener("message", function (event) {
+          if (event.data && event.data.type === "NAVIGATE_VIEW" && event.data.view) {
+            if (isLoggedIn()) {
+              showPage("dashboard-page");
+              switchView(event.data.view);
+            }
+          }
+        });
+      }
+
+      window.addEventListener("focus", function () {
+        if (isLoggedIn()) {
+          runAllReminderChecks();
+        }
+      });
+    }
+
+    return {
+      init: function () {
+        initListeners();
+        updatePermissionUI();
+        updateTopnavBadge();
+        updateAppBadge();
+      },
+      updatePermissionUI: updatePermissionUI,
+      updateTopnavBadge: updateTopnavBadge,
+      updateAppBadge: updateAppBadge,
+      renderTodayScheduleWidget: renderTodayScheduleWidget,
+      renderNotificationCenter: renderNotificationCenter,
+      checkScheduleNotifications: checkScheduleNotifications,
+      checkAssignmentNotifications: checkAssignmentNotifications,
+      checkNewPosts: checkNewPosts,
+      runAllReminderChecks: runAllReminderChecks,
+      sendNotification: sendNotification,
+      sendTestNotification: sendTestNotification,
+      requestPermission: requestPermission,
+      vibrate: vibrate,
+      playChime: playChime,
+      onAssignmentAdded: function (item) {
+        updateAppBadge();
+        vibrate([100, 50, 100]);
+        if (item && item.due_date) {
+          sendNotification(
+            "📝 Task Added: " + (item.text || "New Assignment"),
+            "Subject: " + (item.subject || "General") + " — Due " + item.due_date,
+            "assignment",
+            { view: "view-assignments" }
+          );
+        }
+      },
+      onTaskCompleted: function () {
+        updateAppBadge();
+        vibrate([80, 40, 80]);
+      },
+      onScheduleUpdated: function () {
+        checkScheduleNotifications();
+      },
+      onPostCreated: function (post) {
+        vibrate([100, 50, 100]);
+      }
+    };
+  })();
+
+
   // ===== LOAD FUNCTIONS =====
 
   var _profilesCache = null;
@@ -2632,6 +3506,7 @@ function getRemoteSession() {
         }
       }
       posts = uniquePosts;
+      DeviceNotificationManager.checkNewPosts(posts);
 
       if (searchQuery && searchQuery.trim() !== "") {
         var q = searchQuery.trim().toLowerCase();
@@ -3132,6 +4007,8 @@ function getRemoteSession() {
       var allSubjects = results[0];
       var schedule = results[1];
 
+      DeviceNotificationManager.checkScheduleNotifications();
+
       var schedYearBtn = document.querySelector(".schedule-year-filter.active");
       var schedFilterYear = schedYearBtn ? schedYearBtn.getAttribute("data-year") : "all";
       var schedSemEl = document.getElementById("schedule-semester-filter");
@@ -3324,6 +4201,7 @@ function getRemoteSession() {
       list.querySelectorAll(".assignment-checkbox").forEach(function (cb) {
         cb.addEventListener("change", function () {
           withLoading(function () { return toggleAssignment(cb.getAttribute("data-id")); }).then(function () {
+            DeviceNotificationManager.onTaskCompleted();
             loadAssignments();
           }).catch(function (err) {
             showToast(err.message || "Could not update task.", "error");
@@ -3334,6 +4212,7 @@ function getRemoteSession() {
         btn.addEventListener("click", function () {
           showConfirm("Delete this task?", function () {
             withLoading(function () { return deleteAssignment(btn.getAttribute("data-id")); }).then(function () {
+              DeviceNotificationManager.updateAppBadge();
               loadAssignments();
               showToast("Task deleted.", "info");
             }).catch(function (err) {
@@ -3342,6 +4221,9 @@ function getRemoteSession() {
           });
         });
       });
+
+      DeviceNotificationManager.checkAssignmentNotifications();
+      DeviceNotificationManager.updateAppBadge();
 
     } catch (err) {
       console.error("Error loading assignments:", err);
@@ -5020,8 +5902,29 @@ function getRemoteSession() {
     loadProfileForm();
     loadFaqs();
     loadSettings();
-    switchView("view-home");
+
+    // Check if opened with a specific view query param (e.g. from notification click)
+    var urlParams = new URLSearchParams(window.location.search);
+    var initialView = urlParams.get("view");
+    if (initialView && document.getElementById(initialView)) {
+      switchView(initialView);
+    } else {
+      switchView("view-home");
+    }
+
     startInactivityTimer();
+
+    // Initialize Device Notifications & Reminders Engine
+    DeviceNotificationManager.updatePermissionUI();
+    DeviceNotificationManager.updateTopnavBadge();
+    DeviceNotificationManager.runAllReminderChecks();
+
+    if (window._notifCheckInterval) clearInterval(window._notifCheckInterval);
+    window._notifCheckInterval = setInterval(function () {
+      if (isLoggedIn()) {
+        DeviceNotificationManager.runAllReminderChecks();
+      }
+    }, 60000);
 
     // Asynchronously load feeds in background without locking screen
     var searchVal = document.getElementById("dashboard-search-input") ? document.getElementById("dashboard-search-input").value : "";
@@ -5574,9 +6477,10 @@ function getRemoteSession() {
           showToast("Please write something before posting.", "warning");
           return;
         }
-        withLoading(function () { return createPost(content, currentPostImage); }).then(function () {
+        withLoading(function () { return createPost(content, currentPostImage); }).then(function (newPost) {
           closeModal("post-modal-overlay");
           clearPostContent();
+          DeviceNotificationManager.onPostCreated(newPost);
           loadPosts(dashboardSearchInput ? dashboardSearchInput.value : "");
           switchView("view-home");
           showToast("Post shared successfully.", "success");
@@ -5657,6 +6561,7 @@ function getRemoteSession() {
           withLoading(function () { return updateSubject(id, { name: name, professor: professor, schedule: schedule, year: year, semester: semester }); }).then(function () {
             closeModal("subject-modal-overlay");
             subjectForm.reset();
+            DeviceNotificationManager.onScheduleUpdated();
             loadSubjects();
             showToast("Subject updated.", "success");
           }).catch(function (err) {
@@ -5666,6 +6571,7 @@ function getRemoteSession() {
           withLoading(function () { return addSubject(name, professor, schedule, year, semester); }).then(function () {
             closeModal("subject-modal-overlay");
             subjectForm.reset();
+            DeviceNotificationManager.onScheduleUpdated();
             loadSubjects();
             showToast("Subject added.", "success");
           }).catch(function (err) {
@@ -5743,6 +6649,7 @@ function getRemoteSession() {
           withLoading(function () { return updateScheduleItem(id, { subject: subject, day: day, start_time: startTime, end_time: endTime, room: room }); }).then(function () {
             closeModal("schedule-modal-overlay");
             scheduleForm.reset();
+            DeviceNotificationManager.onScheduleUpdated();
             loadSchedule();
             showToast("Schedule updated.", "success");
           }).catch(function (err) {
@@ -5752,6 +6659,7 @@ function getRemoteSession() {
           withLoading(function () { return addScheduleItem(subject, day, startTime, endTime, room); }).then(function () {
             closeModal("schedule-modal-overlay");
             scheduleForm.reset();
+            DeviceNotificationManager.onScheduleUpdated();
             loadSchedule();
             showToast("Schedule added.", "success");
           }).catch(function (err) {
@@ -5791,6 +6699,7 @@ function getRemoteSession() {
         withLoading(function () { return addAssignment(text, subject, due); }).then(function () {
           closeModal("assignment-modal-overlay");
           assignmentForm.reset();
+          DeviceNotificationManager.onAssignmentAdded({ text: text, subject: subject, due_date: due });
           loadAssignments();
           showToast("Assignment added.", "success");
         }).catch(function (err) {
@@ -6495,6 +7404,7 @@ function getRemoteSession() {
       setupPostToolbar();
       setupEditPostToolbar();
       registerServiceWorker();
+      DeviceNotificationManager.init();
       handleOffline(!navigator.onLine);
       console.log("[ClassConnect] Optional app setup completed.");
     } catch (error) {
@@ -6504,6 +7414,7 @@ function getRemoteSession() {
 
   window.navigateTo = navigateTo;
   window.toggleSettingsGroup = toggleSettingsGroup;
+  window.DeviceNotificationManager = DeviceNotificationManager;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init, { once: true });
