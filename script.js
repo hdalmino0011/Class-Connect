@@ -3245,7 +3245,6 @@ function getRemoteSession() {
       updatePermissionUI: updatePermissionUI,
       updateTopnavBadge: updateTopnavBadge,
       updateAppBadge: updateAppBadge,
-      renderTodayScheduleWidget: renderTodayScheduleWidget,
       renderNotificationCenter: renderNotificationCenter,
       checkScheduleNotifications: checkScheduleNotifications,
       checkAssignmentNotifications: checkAssignmentNotifications,
